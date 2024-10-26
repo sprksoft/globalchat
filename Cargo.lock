@@ -156,6 +156,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "censor"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d41e3b9fdbb9b3edc10dc66a06dc255822f699c432e19403fb966e6d60e0dec4"
+dependencies = [
+ "once_cell",
+]
+
+[[package]]
 name = "cfg-if"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1514,6 +1523,9 @@ dependencies = [
 [[package]]
 name = "string_tree"
 version = "2024.9.1"
+dependencies = [
+ "censor",
+]
 
 [[package]]
 name = "syn"

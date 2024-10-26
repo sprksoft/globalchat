@@ -5,3 +5,7 @@ authors.workspace = true
 edition.workspace = true
 
 [dependencies]
+
+[dev-dependencies]
+censor="0.3.0"
+
