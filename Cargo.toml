@@ -1,6 +1,6 @@
 [workspace]
 resolver="2"
-members= ["smppgc", "lmetrics", "string_tree"]
+members= ["smppgc", "lmetrics", "string_tree", "profanity"]
 
 [workspace.package]
 version="2024.9.1"

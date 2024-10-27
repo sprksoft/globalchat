@@ -12,6 +12,15 @@ fn common_str_test() {
     assert_eq!(StringTree::common_str("cow", "through"), "");
 }
 
+fn gen_list() -> Vec<String> {
+    let mut list: Vec<String> = wordlist::LIST_SMALL
+        .lines()
+        .map(|w| w.to_lowercase())
+        .collect();
+    list.sort();
+    list
+}
+
 #[test]
 fn build_test() {
     let wordlist = "about\nable\nability\nboy\nbox\ncall\napple\nabove";
@@ -43,7 +52,7 @@ fn build_test() {
 
 macro_rules! starts_with {
     ($word:expr) => {
-        &|check, index| {
+        &|check: &str, index| {
             let value = $word[index..].starts_with(&check[index..]);
             //println!("{} {} {} = {}", $word, check, index, value);
             value
@@ -51,63 +60,10 @@ macro_rules! starts_with {
     };
 }
 
-const PROF_SENTENCES: [&'static str; 5] = [
-    "i am fucking green",
-    "niger",
-    "zuig mij please",
-    "ik eet jou dick op zo",
-    "nigga man",
-];
-const CLEAN_SENTENCES: [&'static str; 6] = [
-    "hallo",
-    "ja",
-    "hoe gaat die er mee",
-    "kom naar mijn huis",
-    "whahahahahahhahahah",
-    "hallo mannen (en vrouwen) ik ga vandaag een les geven van Pneumatica",
-];
-
-fn gen_list() -> Vec<String> {
-    let mut list: Vec<String> = wordlist::LIST_SMALL
-        .lines()
-        .map(|w| w.to_lowercase())
-        .collect();
-    list.sort();
-    list
-}
-
 #[bench]
 fn bench_build_tree(b: &mut Bencher) {
     let list = gen_list();
     b.iter(|| StringTree::from_vec(list.clone()))
-}
-
-#[bench]
-fn sentence_contains(b: &mut Bencher) {
-    let list = gen_list();
-    let tree = StringTree::from_vec(list.clone());
-
-    b.iter(|| {
-        for s in PROF_SENTENCES {
-            assert!(super::sentence_contains(&tree, s))
-        }
-        for s in CLEAN_SENTENCES {
-            assert!(!super::sentence_contains(&tree, s))
-        }
-    })
-}
-#[bench]
-fn sentence_contains_naive(b: &mut Bencher) {
-    let list = gen_list();
-
-    b.iter(|| {
-        for s in PROF_SENTENCES {
-            assert!(super::sentence_contains_naive(&list, s))
-        }
-        for s in CLEAN_SENTENCES {
-            assert!(!super::sentence_contains_naive(&list, s))
-        }
-    })
 }
 
 #[bench]
@@ -126,7 +82,7 @@ fn contains_small(b: &mut Bencher) {
     let tree = StringTree::from_vec(list.clone());
     b.iter(|| {
         for word in list.iter() {
-            assert!(tree.contains(0, starts_with!(word)).0);
+            assert!(tree.contains(starts_with!(word)).0);
         }
     })
 }
@@ -148,10 +104,10 @@ fn contains(b: &mut Bencher) {
     let list = gen_list();
     let tree = StringTree::from_vec(list.clone());
     b.iter(|| {
-        assert!(!tree.contains(0, starts_with!("bo")).0);
-        assert!(!tree.contains(0, starts_with!("")).0);
+        assert!(!tree.contains(starts_with!("bo")).0);
+        assert!(!tree.contains(starts_with!("")).0);
         for word in list.iter() {
-            assert!(tree.contains(0, starts_with!(word)).0);
+            assert!(tree.contains(starts_with!(word)).0);
         }
     })
 }

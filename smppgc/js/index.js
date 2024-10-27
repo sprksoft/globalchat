@@ -35,16 +35,32 @@ socketmgr.on_join = () => {
 }
 
 let last_retry = 0;
+let in_cooldown=false;
+function cool_down(time){
+  in_cooldown=true;
+  ui_enable_connect(false);
+  setTimeout(() => {
+    ui_enable_connect(true)
+    in_cooldown=false;
+  }, time);
+}
 
 socketmgr.on_leave = (code, reason, user_wants_leave) => {
   console.log("leaving.. "+code);
   ui_set_status(STATUS_DISCONNECTED);
+  error = reason
+  time = 1000;
   if (user_wants_leave){
+    cool_down(time);
     return;
   }
   switch (code) {
     case 1000: // Normal Closure
-      return;
+      error=""
+      break;
+    case 1008: // Policy
+      time=5000;
+      break;
     case 1006: // Abnormal Closure
       let now = Date.now();
       if (last_retry == 0 || now-last_retry > 10_000){ // join again if we should retry
@@ -52,10 +68,10 @@ socketmgr.on_leave = (code, reason, user_wants_leave) => {
         join();
         return;
       }
-      ui_error("Onverwachten fout.");
-      return;
+      error="Onverwachten fout.";
   }
-  ui_error(reason);
+  ui_error(error);
+  cool_down(time);
 }
 
 socketmgr.on_message = (me, sender_id, sender_username, timestamp, message) => {

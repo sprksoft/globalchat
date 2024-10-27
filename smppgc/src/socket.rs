@@ -12,22 +12,23 @@ use crate::{
     chat::{Chat, Message, NewClientError},
     mesg_filter::{self, Cmd, FilterResult},
     names::{UserId, UsernameManager},
+    profanity::ProfFilter,
     ratelimit::{RateLimitConfig, RateLimiter, SpamLimiter},
     wsprotocol::{KickReason, WsClient},
     MaxLengthConfig, OfflineConfig,
 };
 
 #[derive(Responder)]
-pub enum SocketV1Responder {
+pub enum SocketV1Responder<'a> {
     #[response(status = 503)]
     Offline(&'static str),
     #[response(status = 500)]
     Error(&'static str),
     #[response(status = 200)]
-    Channel(Channel<'static>),
+    Channel(Channel<'a>),
 }
-impl SocketV1Responder {
-    pub fn ws_close(ws: WebSocket, frame: CloseFrame<'static>) -> SocketV1Responder {
+impl<'a> SocketV1Responder<'a> {
+    pub fn ws_close(ws: WebSocket, frame: CloseFrame<'a>) -> SocketV1Responder {
         SocketV1Responder::Channel(
             ws.channel(move |mut stream| Box::pin(async move { stream.close(Some(frame)).await })),
         )
@@ -35,16 +36,17 @@ impl SocketV1Responder {
 }
 
 #[get("/socket/v1?<username>&<key>")]
-pub async fn socket_v1(
+pub async fn socket_v1<'a>(
     username: &str,
     key: Option<&str>,
     ws: WebSocket,
     offline_config: &State<OfflineConfig>,
     maxlen_config: &State<MaxLengthConfig>,
     ratelimit_config: &State<RateLimitConfig>,
-    chat: &State<Chat>,
+    prof_filter: &'a State<ProfFilter>,
+    chat: &'a State<Chat>,
     usrnamemgr: &State<UsernameManager>,
-) -> SocketV1Responder {
+) -> SocketV1Responder<'a> {
     if offline_config.offline {
         return SocketV1Responder::Offline("smppgc offline");
     }
@@ -99,8 +101,6 @@ pub async fn socket_v1(
             }
         }
     };
-    let clients = chat.clients().await;
-    let history = chat.history().await;
     let mut rate_limiter = RateLimiter::new(ratelimit_config.inner().clone());
     let max_message_len = maxlen_config.max_message_len;
     SocketV1Responder::Channel(ws.channel(move |stream| {
@@ -109,8 +109,8 @@ pub async fn socket_v1(
                 stream,
                 static_user_id,
                 chat_client.user_info(),
-                clients,
-                history
+                chat.clients().await,
+                chat.history().await
             )
                 .await?;
 
@@ -119,7 +119,7 @@ pub async fn socket_v1(
                 tokio::select! {
                     mesg = wsclient.try_recv() => {
                         let Some(mesg) = mesg? else { continue; };
-                        match on_message(mesg, &mut wsclient, &mut rate_limiter, &mut spam_limiter, max_message_len).await?{
+                        match on_message(mesg, &mut wsclient, &prof_filter, &mut rate_limiter, &mut spam_limiter, max_message_len).await?{
                             Some(mesg) => {
                                 chat_client.send(mesg);
                             },
@@ -163,6 +163,7 @@ pub async fn socket_v1(
 async fn on_message(
     message: Message,
     wsclient: &mut WsClient,
+    prof_filter: &ProfFilter,
     rate_limiter: &mut RateLimiter,
     smap_limiter: &mut SpamLimiter<Arc<str>>,
     max_message_len: usize,
@@ -181,7 +182,10 @@ async fn on_message(
             return Ok(None);
         }
         FilterResult::Invalid => {}
-        FilterResult::Message(filtered_mesg) => {
+        FilterResult::Message(mut filtered_mesg) => {
+            if prof_filter.contains_profanity(&filtered_mesg.content).await {
+                filtered_mesg.content = "#".repeat(filtered_mesg.content.len()).into();
+            }
             trace!(
                 "got message from {}: {}",
                 filtered_mesg.sender,

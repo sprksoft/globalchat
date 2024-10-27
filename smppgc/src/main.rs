@@ -1,7 +1,3 @@
-use std::net::{IpAddr, SocketAddr};
-use std::sync::Arc;
-use std::time::{Duration, SystemTime};
-
 use chat::Chat;
 use lmetrics::LMetrics;
 use rocket::get;
@@ -9,8 +5,10 @@ use rocket::response::Redirect;
 use rocket::routes;
 use rocket::serde::Deserialize;
 use rocket::{fairing::AdHoc, launch};
-use tokio::sync::Mutex;
 use utils::static_routing;
+
+#[cfg(test)]
+mod test;
 
 pub mod chat;
 #[cfg(debug_assertions)]
@@ -89,7 +87,8 @@ fn rocket() -> _ {
 
             r.mount("/", routes![socket::socket_v1])
                 .manage(Chat::new(config))
-        }));
+        }))
+        .attach(profanity::stage());
     #[cfg(debug_assertions)]
     r.attach(debug::stage())
 }

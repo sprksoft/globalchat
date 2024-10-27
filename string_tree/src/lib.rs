@@ -1,10 +1,15 @@
-#![feature(test)]
+#![cfg_attr(test, feature(test))]
 use std::{fmt::Debug, ops::Deref};
+
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 
 #[cfg(test)]
 mod test;
+#[cfg(test)]
 mod wordlist;
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct StringTreeRoot {
     inner: StringTree,
 }
@@ -35,6 +40,7 @@ impl Into<StringTree> for StringTreeRoot {
     }
 }
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct StringTree {
     children: Vec<StringTree>,
     str: Box<str>,
@@ -110,18 +116,22 @@ impl StringTree {
         }
     }
 
-    fn contains<F: Fn(&str, usize) -> bool>(
+    pub fn contains<F: Fn(&str, usize) -> bool>(&self, starts_with: &F) -> (bool, usize) {
+        self._contains(0, starts_with)
+    }
+
+    fn _contains<F: Fn(&str, usize) -> bool>(
         &self,
         start_index: usize,
         starts_with: &F,
     ) -> (bool, usize) {
         if self.leaf() {
-            (starts_with(&self.str.as_ref(), 0), start_index)
+            (starts_with(&self.str.as_ref(), start_index), start_index)
         } else {
             if starts_with(self.str.as_ref(), start_index) {
                 for child in self.children.iter() {
-                    let result =
-                        child.contains(start_index + (&self.str[start_index..]).len(), starts_with);
+                    let result = child
+                        ._contains(start_index + (&self.str[start_index..]).len(), starts_with);
                     if result.0 {
                         return result;
                     }
@@ -187,31 +197,4 @@ fn contains_naive(target: &str, tree: &Vec<String>) -> bool {
         }
     }
     false
-}
-
-fn sentence_contains_naive(tree: &Vec<String>, sentence: &str) -> bool {
-    for i in 0..sentence.len() {
-        for item in tree.iter() {
-            if sentence[i..].starts_with(item) {
-                return true;
-            }
-        }
-    }
-    false
-}
-
-fn sentence_contains(tree: &StringTree, sentence: &str) -> bool {
-    let mut index = 0;
-    loop {
-        let result = tree.contains(0, &|check, i| {
-            sentence[index + i..].starts_with(&check[i..])
-        });
-        if result.0 {
-            return true;
-        }
-        index += result.1 + 1;
-        if index == sentence.len() {
-            return false;
-        }
-    }
 }

@@ -7,8 +7,6 @@ use thiserror::Error;
 mod userid;
 pub use userid::*;
 
-use crate::ChatConfig;
-
 #[derive(Error, Debug)]
 pub enum NameClaimError {
     #[error("Gebruikersnaam is ongeldig.")]

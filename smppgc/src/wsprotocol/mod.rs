@@ -46,12 +46,12 @@ impl KickReason {
     pub fn into_close_frame(self) -> CloseFrame<'static> {
         match self {
             Self::RateLimit => CloseFrame {
-                code: CloseCode::Error,
+                code: CloseCode::Policy,
                 reason: Cow::Borrowed("Te veel berichten. Typ de volgende keer wat langzamer."),
             },
             Self::Spam => CloseFrame {
-                code: CloseCode::Error,
-                reason: Cow::Borrowed("Please niet spammen"),
+                code: CloseCode::Policy,
+                reason: Cow::Borrowed("Niet spammen alstublief. Je hebt 5s cooldown"),
             },
             Self::ChatFull => CloseFrame {
                 code: CloseCode::Again,

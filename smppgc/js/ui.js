@@ -11,7 +11,6 @@ const err_mesg = document.getElementById("err-mesg");
 const login_popup=document.getElementById("login");
 
 const STICKERS=["404", "arch", "tux", "smpp", "gc"]; // avail stickers (used to prevent unneeded 404s to the server)
-const BANNED_HOSTS=["myshopify.com", "pornhub.com", "hanime.tv", "nhentai.net"]
 
 const STATUS_DISCONNECTED=0;
 const STATUS_CONNECTING=1;
@@ -21,13 +20,16 @@ let cur_status = STATUS_DISCONNECTED;
 
 function ui_show_login(show) {
   if (show){
-    login_popup.style="";
+    login_popup.className=""
     sendinput.disabled=true;
   }else{
-    login_popup.style="display:none"; sendinput.disabled=false;
+    login_popup.className="hide"; sendinput.disabled=false;
   }
 }
 
+function ui_enable_connect(value) {
+  connectbtn.disabled=!value;
+}
 
 function ui_error(error) {
   err_mesg.innerText=error;
@@ -50,6 +52,7 @@ function ui_set_status(value){
     case STATUS_DISCONNECTED:
       ui_show_login(true);
       constatus.style="display:none";
+      ui_error("");
       break;
   }
   cur_status = value;
@@ -118,14 +121,6 @@ function mksticker(name, parent_el) {
     parent_el.appendChild(img);
 }
 
-function is_banned(host){
-  for (const bhost of BANNED_HOSTS){
-    if host.endsWith(bhost){
-      return true
-    }
-  }
-  return false
-}
 
 // convert urls into html tags
 function format_urls(message, parent_el) {
@@ -137,9 +132,7 @@ function format_urls(message, parent_el) {
     mkspan(message.substring(last_index, match.index), parent_el);
 
     if (match[1] !== undefined){ // a link
-      if (!is_banned(match[2])){
-        mka(match[1], parent_el)
-      }
+      mka(match[1], parent_el)
     }
     if (match[4] !== undefined){ // a sticker
       let name = match[4].substring(1, match[4].length-1);

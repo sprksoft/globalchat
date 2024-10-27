@@ -50,6 +50,7 @@ package() {
   cd "$srcdir/smppserver"
   install -Dm0755 -t "$pkgdir/usr/bin/" "target/release/$pkgname"
   install -Dm0644 -t "$pkgdir/usr/lib/systemd/system/" "$pkgname/$pkgname.service"
+  install -Dm0644 -t "$pkgdir/var/smppgc/" "$pkgname/profanity.txt"
   install_config Rocket.toml
 
   install -osmppgc -gsmppgc -d "$pkgdir/var/smppgc"

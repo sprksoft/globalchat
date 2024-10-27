@@ -40,7 +40,6 @@ const err_mesg = document.getElementById("err-mesg");
 const login_popup=document.getElementById("login");
 
 const STICKERS=["404", "arch", "tux", "smpp", "gc"]; // avail stickers (used to prevent unneeded 404s to the server)
-const BANNED_HOSTS=["myshopify.com", "pornhub.com", "hanime.tv", "nhentai.net"]
 
 const STATUS_DISCONNECTED=0;
 const STATUS_CONNECTING=1;
@@ -50,13 +49,16 @@ let cur_status = STATUS_DISCONNECTED;
 
 function ui_show_login(show) {
   if (show){
-    login_popup.style="";
+    login_popup.className=""
     sendinput.disabled=true;
   }else{
-    login_popup.style="display:none"; sendinput.disabled=false;
+    login_popup.className="hide"; sendinput.disabled=false;
   }
 }
 
+function ui_enable_connect(value) {
+  connectbtn.disabled=!value;
+}
 
 function ui_error(error) {
   err_mesg.innerText=error;
@@ -79,6 +81,7 @@ function ui_set_status(value){
     case STATUS_DISCONNECTED:
       ui_show_login(true);
       constatus.style="display:none";
+      ui_error("");
       break;
   }
   cur_status = value;
@@ -147,14 +150,6 @@ function mksticker(name, parent_el) {
     parent_el.appendChild(img);
 }
 
-function is_banned(host){
-  for (const bhost of BANNED_HOSTS){
-    if host.endsWith(bhost){
-      return true
-    }
-  }
-  return false
-}
 
 // convert urls into html tags
 function format_urls(message, parent_el) {
@@ -166,9 +161,7 @@ function format_urls(message, parent_el) {
     mkspan(message.substring(last_index, match.index), parent_el);
 
     if (match[1] !== undefined){ // a link
-      if (!is_banned(match[2])){
-        mka(match[1], parent_el)
-      }
+      mka(match[1], parent_el)
     }
     if (match[4] !== undefined){ // a sticker
       let name = match[4].substring(1, match[4].length-1);
@@ -426,16 +419,32 @@ socketmgr.on_join = () => {
 }
 
 let last_retry = 0;
+let in_cooldown=false;
+function cool_down(time){
+  in_cooldown=true;
+  ui_enable_connect(false);
+  setTimeout(() => {
+    ui_enable_connect(true)
+    in_cooldown=false;
+  }, time);
+}
 
 socketmgr.on_leave = (code, reason, user_wants_leave) => {
   console.log("leaving.. "+code);
   ui_set_status(STATUS_DISCONNECTED);
+  error = reason
+  time = 1000;
   if (user_wants_leave){
+    cool_down(time);
     return;
   }
   switch (code) {
     case 1000: // Normal Closure
-      return;
+      error=""
+      break;
+    case 1008: // Policy
+      time=5000;
+      break;
     case 1006: // Abnormal Closure
       let now = Date.now();
       if (last_retry == 0 || now-last_retry > 10_000){ // join again if we should retry
@@ -443,10 +452,10 @@ socketmgr.on_leave = (code, reason, user_wants_leave) => {
         join();
         return;
       }
-      ui_error("Onverwachten fout.");
-      return;
+      error="Onverwachten fout.";
   }
-  ui_error(reason);
+  ui_error(error);
+  cool_down(time);
 }
 
 socketmgr.on_message = (me, sender_id, sender_username, timestamp, message) => {

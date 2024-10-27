@@ -1,0 +1,12 @@
+[package]
+name = "profanity"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+
+[dependencies]
+string_tree={path="../string_tree", features=["serde"]}
+serde={version="1.0.213", features=["derive"]}
+
+[dev-dependencies]
+censor={version="0.3.0"}
