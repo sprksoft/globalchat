@@ -998,3 +998,64 @@ you
 young
 your
 yourself";
+
+pub const LIST_SMALL: &'static str = "arse
+ass
+bitch
+cock
+condom
+cracker
+crap
+cunt
+dick
+fuck
+fucking
+gyatt
+skibdi
+godverdomme
+hoer
+kanker
+kkr
+klote
+kut
+lijer
+lul
+lulzuiger
+lultrekker
+merd
+neuken
+pijp
+porn
+pussy
+schijt
+shit
+slut
+sperma
+stfu
+sucker
+sukkel
+tering
+tyfus
+vaffanculo
+vagina
+卐
+🍑
+🍆
+💦
+nigger
+niggers
+niger
+nigga
+niga
+neger
+harder daddy
+dingelydongs
+juicy pics
+hitler
+kanker
+mij zuige
+zuig mij
+jou zuige
+komen zuige
+naakt
+";

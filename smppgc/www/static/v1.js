@@ -40,6 +40,7 @@ const err_mesg = document.getElementById("err-mesg");
 const login_popup=document.getElementById("login");
 
 const STICKERS=["404", "arch", "tux", "smpp", "gc"]; // avail stickers (used to prevent unneeded 404s to the server)
+const BANNED_HOSTS=["myshopify.com", "pornhub.com", "hanime.tv", "nhentai.net"]
 
 const STATUS_DISCONNECTED=0;
 const STATUS_CONNECTING=1;
@@ -146,22 +147,31 @@ function mksticker(name, parent_el) {
     parent_el.appendChild(img);
 }
 
+function is_banned(host){
+  for (const bhost of BANNED_HOSTS){
+    if host.endsWith(bhost){
+      return true
+    }
+  }
+  return false
+}
 
 // convert urls into html tags
 function format_urls(message, parent_el) {
-  const find_link_regex = /(https?:\/\/[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b[-a-zA-Z0-9()@:%_\+.~#?&//=]*)|(:[a-z0-9_-]{3,10}:)/g;
-
+  const find_link_regex = /(https?:\/\/([-.a-z0-9]{1,60})(\/[-a-zA-Z0-9()@:%_\+.~#?&//=]{0,256})?)|(:[a-z0-9_-]{3,10}:)/g;
   const matches = message.matchAll(find_link_regex);
   let last_index = 0;
   for (const match of matches){
     let skip=false;
     mkspan(message.substring(last_index, match.index), parent_el);
 
-    if (match[1] !== undefined){
-      mka(match[1], parent_el)
+    if (match[1] !== undefined){ // a link
+      if (!is_banned(match[2])){
+        mka(match[1], parent_el)
+      }
     }
-    if (match[2] !== undefined){
-      let name = match[2].substring(1, match[2].length-1);
+    if (match[4] !== undefined){ // a sticker
+      let name = match[4].substring(1, match[4].length-1);
       if (STICKERS.includes(name)){
         mksticker(name, parent_el);
       }else{
