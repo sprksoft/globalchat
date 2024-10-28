@@ -24,7 +24,7 @@
     {{#if offline}}
     {{else}}
     <script type="text/javascript">
-
+      var local_commands = [];
       {{#if skip_login}}
       const SKIP_LOGIN=true;
       {{else}}
@@ -35,6 +35,9 @@
       function reload_js() {
         location = "/debug/reload_js"
       }
+      local_commands.push(["/reloadjs", function(){
+        reload_js();
+      }]);
       {{/if}}
 
       let protocol = "ws://"

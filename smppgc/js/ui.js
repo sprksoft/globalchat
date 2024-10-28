@@ -22,6 +22,7 @@ function ui_show_login(show) {
   if (show){
     login_popup.className=""
     sendinput.disabled=true;
+    username_field.focus();
   }else{
     login_popup.className="hide"; sendinput.disabled=false;
   }

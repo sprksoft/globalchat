@@ -51,6 +51,7 @@ function ui_show_login(show) {
   if (show){
     login_popup.className=""
     sendinput.disabled=true;
+    username_field.focus();
   }else{
     login_popup.className="hide"; sendinput.disabled=false;
   }
@@ -384,6 +385,7 @@ class SocketMgr{
 /* == smppgc/js/index.js == */
 let importance_filter=["ldev"];
 
+
 function update_importance_filter() {
   let css = "";
   let css_driehoek="";
@@ -413,6 +415,16 @@ function update_importance_filter() {
 
 let socketmgr = new SocketMgr();
 
+
+local_commands.push(["/clearkey", function () {
+    localStorage.removeItem("key");
+    ui_add_message("key cleared.", "system");
+    return true;
+}]);
+local_commands.push(["/leave", function () {
+  socketmgr.leave();
+  return true;
+}]);
 
 socketmgr.on_join = () => {
   ui_set_status(STATUS_CONNECTED);
@@ -481,18 +493,24 @@ socketmgr.on_keychange = (key) => {
 async function send_message() {
   let message = ui_get_input();
   if (message.length == 0 || message.length > MAX_MESSAGE_LEN){
-    return;
+    return false;
   }
-  if (message == "/clearkey"){
-    localStorage.removeItem("key");
-    ui_add_message("key cleared.", "system");
-    return;
+
+  for (const cmd of local_commands){
+    if (message == cmd[0]){
+      if(cmd[1]()){
+        ui_clear_input();
+        return true;
+      }
+      return false;
+    }
   }
-  let result = await socketmgr.send(message);
-  if (result){
+  if (await socketmgr.send(message)){
     ui_add_pending(message);
     ui_clear_input();
+    return true;
   }
+  return false;
 }
 
 function join() {
@@ -513,7 +531,11 @@ sendinput.addEventListener("keypress", (e)=>{
   }
 });
 sendbtn.addEventListener("click", ()=>{
-  send_message();
+  if (send_message()){
+    setTimeout(() => {
+      sendinput.focus();
+    }, 100);
+  }
 });
 leavebtn.addEventListener("click", ()=>{
   socketmgr.leave();
