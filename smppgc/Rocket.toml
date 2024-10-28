@@ -22,6 +22,7 @@ log_level="normal"
 static_dir="/var/smppgc/www/static"
 template_dir="/var/smppgc/www/templates"
 address = "127.0.0.1"
+port = 8081
 log_level = "critical"
 prof_wordlist="/var/smppgc/profanity.txt"
 

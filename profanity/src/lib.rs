@@ -18,7 +18,7 @@ impl ProfanityFilter {
             .map(|l| l.trim_matches(['"']).to_lowercase())
             .filter(|i| i.len() > 0)
             .collect();
-        println!("{:?}", words);
+        //println!("{:?}", words);
         Self {
             tree: StringTree::from_vec(words),
         }

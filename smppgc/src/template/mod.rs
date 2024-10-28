@@ -128,7 +128,7 @@ fn v1(
     let root_url = if debug {
         "".to_string()
     } else {
-        "s://ldev.eu.org/smpp/gc".to_string()
+        "https://ldev.eu.org/smpp/gc".to_string()
     };
     GcPageResponder::Ok {
         inner: Template::render(
