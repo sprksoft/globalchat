@@ -11,40 +11,42 @@ use tokio::sync::RwLock;
 use crate::chat::Message;
 
 pub struct ProfFilter {
-    cache_file: String,
+    //cache_file: String,
     wordlist_file: PathBuf,
     filter: RwLock<ProfanityFilter>,
 }
 impl ProfFilter {
-    async fn load_from_cache(cache_file: &str) -> Result<ProfanityFilter, bincode::Error> {
-        let data = tokio::fs::read(cache_file).await?;
-        bincode::deserialize(&data)
-    }
+    // async fn load_from_cache(cache_file: &str) -> Result<ProfanityFilter, bincode::Error> {
+    //     let data = tokio::fs::read(cache_file).await?;
+    //     bincode::deserialize(&data)
+    // }
     pub async fn new(wordlist_file: PathBuf) -> Result<Self, bincode::Error> {
-        let mut cache_file = std::env::var("XDG_CACHE_HOME").unwrap_or_else(|_| {
-            let mut str = std::env::var("HOME").expect("home env var not set");
-            str.push_str("/.cache");
-            str
-        });
-        cache_file.push_str("/smppgc");
-        tokio::fs::create_dir_all(&cache_file).await?;
-        cache_file.push_str("/profanity_tree");
+        // let mut cache_file = std::env::var("XDG_CACHE_HOME").unwrap_or_else(|_| {
+        //     let mut str = std::env::var("HOME").expect("home env var not set");
+        //     str.push_str("/.cache");
+        //     str
+        // });
+        // cache_file.push_str("/smppgc");
+        // cache_file.push_str("/profanity_tree");
+        // tokio::fs::create_dir_all(&cache_file).await?;
 
-        let filter = match Self::load_from_cache(&cache_file).await {
-            Ok(f) => f,
-            Err(e) => {
-                error!("Failed to load profanity tree from cache path. Generating a new one from wordlist ('{:?}'): {}", &wordlist_file, e);
-                let wordlist = std::fs::read_to_string(&wordlist_file)?;
-                let filter = ProfanityFilter::from_wordlist(&wordlist);
-                tokio::fs::write(&cache_file, bincode::serialize(&filter)?).await?;
-                filter
-            }
-        };
+        // let filter = match Self::load_from_cache(&cache_file).await {
+        //     Ok(f) => f,
+        //     Err(e) => {
+        //         error!("Failed to load profanity tree from cache path. Generating a new one from wordlist ('{:?}'): {}", &wordlist_file, e);
+        //         let wordlist = std::fs::read_to_string(&wordlist_file)?;
+        //         let filter = ProfanityFilter::from_wordlist(&wordlist);
+        //         tokio::fs::write(&cache_file, bincode::serialize(&filter)?).await?;
+        //         filter
+        //     }
+        // };
 
+        let wordlist = std::fs::read_to_string(&wordlist_file)?;
+        let filter = ProfanityFilter::from_wordlist(&wordlist);
         Ok(Self {
             filter: filter.into(),
             wordlist_file,
-            cache_file,
+            //cache_file,
         })
     }
 
@@ -63,8 +65,8 @@ impl ProfFilter {
         {
             self.filter.write().await.add_word(word)
         }
-        let filter = self.filter.read().await;
-        tokio::fs::write(&self.cache_file, bincode::serialize(&*filter)?).await?;
+        // let filter = self.filter.read().await;
+        // tokio::fs::write(&self.cache_file, bincode::serialize(&*filter)?).await?;
         Ok(())
     }
 
