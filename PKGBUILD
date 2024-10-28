@@ -1,5 +1,5 @@
 # Maintainer: ldev <ldev dot eu dot org>
-pkgver=2024.10.2
+pkgver=2024.10.3
 pkgrel=1
 
 pkgname=(smppgc)
