@@ -13,10 +13,7 @@ fn common_str_test() {
 }
 
 fn gen_list() -> Vec<String> {
-    let mut list: Vec<String> = wordlist::LIST_SMALL
-        .lines()
-        .map(|w| w.to_lowercase())
-        .collect();
+    let mut list: Vec<String> = wordlist::LIST.lines().map(|w| w.to_lowercase()).collect();
     list.sort();
     list
 }

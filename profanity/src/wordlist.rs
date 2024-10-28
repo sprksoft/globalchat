@@ -1,5 +1,5 @@
 pub const LIST: &'static str = "arse
-ass
+\"ass \"
 bitch
 cock
 condom
@@ -54,4 +54,6 @@ zuig
 naakt
 kys
 geil
-gijl";
+gijl
+|
+pornhub.com";

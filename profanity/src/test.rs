@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use test::Bencher;
 extern crate test;
 
-const PROF_SENTENCES: [&'static str; 9] = [
+const PROF_SENTENCES: [&'static str; 11] = [
     "i am FUCKING green",
     "hellofuckers",
     "niger",
@@ -13,8 +13,12 @@ const PROF_SENTENCES: [&'static str; 9] = [
     "k y s",
     "dingely dongs",
     "dingelydongs",
+    "k + y + s",
+    "https://pornhub.com",
 ];
-const CLEAN_SENTENCES: [&'static str; 7] = [
+const CLEAN_SENTENCES: [&'static str; 9] = [
+    "ldev234",
+    "ldev2",
     "hallo",
     "ja",
     "hoe gaat die er mee",
@@ -25,9 +29,27 @@ const CLEAN_SENTENCES: [&'static str; 7] = [
 ];
 
 fn gen_list() -> Vec<String> {
-    let mut list: Vec<String> = wordlist::LIST.lines().map(|w| w.to_lowercase()).collect();
+    let mut list: Vec<String> = wordlist::LIST
+        .lines()
+        .map(|w| w.trim_matches('"').to_lowercase())
+        .collect();
     list.sort();
     list
+}
+
+#[test]
+fn matches() {
+    assert!(super::matches("ass", "ass "))
+}
+
+#[test]
+fn test() {
+    let filter = ProfanityFilter::from_wordlist(wordlist::LIST);
+    println!("ass");
+    assert!(filter.contains_profanity("ass"));
+    assert!(filter.contains_profanity("you are ass"));
+    println!("password");
+    assert!(!filter.contains_profanity("password"));
 }
 
 #[bench]
@@ -56,8 +78,9 @@ fn sentence_contains(b: &mut Bencher) {
         for s in CLEAN_SENTENCES {
             assert!(!super::sentence_contains(&tree, s))
         }
-    })
+    });
 }
+
 #[bench]
 fn sentence_contains_naive(b: &mut Bencher) {
     let list = gen_list();

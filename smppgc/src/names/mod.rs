@@ -7,12 +7,16 @@ use thiserror::Error;
 mod userid;
 pub use userid::*;
 
+use crate::profanity::ProfFilter;
+
 #[derive(Error, Debug)]
 pub enum NameClaimError {
     #[error("Gebruikersnaam is ongeldig.")]
     Invalid,
     #[error("Gebruikersnaam is bezet.")]
     Taken,
+    #[error("Gebruikersnaam bevat scheldwoorden")]
+    Profanity,
 }
 
 struct NameSlot {
@@ -37,12 +41,16 @@ impl UsernameManager {
         }
     }
 
-    pub fn claim_name(
+    pub async fn claim_name(
         &self,
         name: &str,
         user_id: UserId,
         max_name_len: usize,
+        prof_filter: &ProfFilter,
     ) -> Result<ClaimedName, NameClaimError> {
+        if prof_filter.contains_profanity(name).await {
+            return Err(NameClaimError::Profanity);
+        }
         let name: Arc<str> = name.into();
         let norm_name = Self::normalize_name(&name, max_name_len).ok_or(NameClaimError::Invalid)?;
 

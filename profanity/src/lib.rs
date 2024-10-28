@@ -13,7 +13,12 @@ pub struct ProfanityFilter {
 }
 impl ProfanityFilter {
     pub fn from_wordlist(wordlist: &str) -> Self {
-        let words = wordlist.lines().map(|l| l.to_lowercase()).collect();
+        let words = wordlist
+            .lines()
+            .map(|l| l.trim_matches(['"']).to_lowercase())
+            .filter(|i| i.len() > 0)
+            .collect();
+        println!("{:?}", words);
         Self {
             tree: StringTree::from_vec(words),
         }
@@ -28,26 +33,32 @@ impl ProfanityFilter {
 }
 
 fn matches(sentence: &str, check: &str) -> bool {
-    if check.len() > sentence.len() {
-        return false;
-    }
     let mut iter_check = check.bytes();
     let mut iter_sentence = sentence.bytes();
+    //println!("matching {} {}", sentence, check);
     loop {
         let Some(char_check) = iter_check.next() else {
             return true;
         };
         let Some(mut char_sen) = iter_sentence.next() else {
-            return true;
+            if char_check.is_ascii_whitespace() {
+                return true;
+            }
+            return false;
         };
         loop {
+            // println!(
+            //     "{}={}",
+            //     char::from_u32(char_sen as u32).unwrap(),
+            //     char::from_u32(char_check as u32).unwrap()
+            // );
             if char_sen == char_check {
                 break;
             }
-            if char_sen.is_ascii_whitespace() {
+            if !char_sen.is_ascii_alphabetic() {
                 char_sen = match iter_sentence.next() {
                     Some(v) => v,
-                    None => return true,
+                    None => return false,
                 };
                 continue;
             }

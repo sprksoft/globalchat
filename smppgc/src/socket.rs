@@ -67,11 +67,15 @@ pub async fn socket_v1<'a>(
         None => UserId::new(),
     };
 
-    let name_lease = match usrnamemgr.claim_name(
-        username,
-        static_user_id.clone(),
-        maxlen_config.max_username_len,
-    ) {
+    let name_lease = match usrnamemgr
+        .claim_name(
+            username,
+            static_user_id.clone(),
+            maxlen_config.max_username_len,
+            &prof_filter,
+        )
+        .await
+    {
         Ok(name_lease) => name_lease,
         Err(e) => {
             return SocketV1Responder::ws_close(

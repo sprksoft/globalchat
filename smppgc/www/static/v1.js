@@ -490,7 +490,7 @@ socketmgr.on_keychange = (key) => {
 
 
 async function send_message() {
-  let message = ui_get_input();
+  let message = ui_get_input().trim();
   if (message.length == 0 || message.length > MAX_MESSAGE_LEN){
     return false;
   }

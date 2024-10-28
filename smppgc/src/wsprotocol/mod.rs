@@ -39,7 +39,6 @@ impl From<tungstenite::Error> for PacketsError {
 #[derive(Clone, Copy)]
 pub enum KickReason {
     RateLimit,
-    ChatFull,
     Spam,
 }
 impl KickReason {
@@ -47,15 +46,11 @@ impl KickReason {
         match self {
             Self::RateLimit => CloseFrame {
                 code: CloseCode::Policy,
-                reason: Cow::Borrowed("Te veel berichten. Typ de volgende keer wat langzamer."),
+                reason: Cow::Borrowed("Te veel berichten. Typ langzamer."),
             },
             Self::Spam => CloseFrame {
                 code: CloseCode::Policy,
-                reason: Cow::Borrowed("Niet spammen alstublief. Je hebt 5s cooldown"),
-            },
-            Self::ChatFull => CloseFrame {
-                code: CloseCode::Again,
-                reason: Cow::Borrowed("Chat zit vol."),
+                reason: Cow::Borrowed("Niet spammen aub. Je hebt 5s cooldown"),
             },
         }
     }
