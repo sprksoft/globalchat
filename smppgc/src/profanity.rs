@@ -8,6 +8,8 @@ use tokio::fs::OpenOptions;
 use tokio::io::AsyncWriteExt;
 use tokio::sync::RwLock;
 
+use crate::chat::Message;
+
 pub struct ProfFilter {
     cache_file: String,
     wordlist_file: PathBuf,
@@ -26,7 +28,7 @@ impl ProfFilter {
         });
         cache_file.push_str("/smppgc");
         tokio::fs::create_dir_all(&cache_file).await?;
-        cache_file.push_str("profanity_tree");
+        cache_file.push_str("/profanity_tree");
 
         let filter = match Self::load_from_cache(&cache_file).await {
             Ok(f) => f,
@@ -68,6 +70,12 @@ impl ProfFilter {
 
     pub async fn contains_profanity(&self, string: &str) -> bool {
         self.filter.read().await.contains_profanity(string)
+    }
+
+    pub async fn filter(&self, message: &mut Message) {
+        if self.contains_profanity(&message.content).await {
+            message.content = "#".repeat(message.content.len()).into();
+        }
     }
 }
 

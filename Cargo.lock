@@ -1218,6 +1218,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7a66a03ae7c801facd77a29370b4faec201768915ac14a721ba36f20bc9c209b"
 
 [[package]]
+name = "ring_buffer"
+version = "2.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "944cd13fb0222712688b9e6cf8002c31eca42e9eb963bd0a1e4d36da2a27bdbf"
+
+[[package]]
 name = "rocket"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1497,6 +1503,7 @@ dependencies = [
  "lmetrics",
  "log",
  "profanity",
+ "ring_buffer",
  "rocket",
  "rocket_dyn_templates",
  "rocket_ws",

@@ -1,6 +1,5 @@
 use std::sync::atomic::AtomicU16;
 
-pub mod dropvec;
 pub mod static_routing;
 
 pub struct IdCounter {

@@ -8,6 +8,15 @@ pub struct Message {
     pub sender_id: u16,
 }
 impl Message {
+    pub fn new_response(message: &Message, content: Arc<str>) -> Self {
+        Self {
+            sender: "system".into(),
+            content: content,
+            timestamp: message.timestamp,
+            sender_id: message.sender_id,
+        }
+    }
+
     pub fn is_valid(&self, max_len: usize) -> bool {
         if self.content.len() > max_len {
             return false;

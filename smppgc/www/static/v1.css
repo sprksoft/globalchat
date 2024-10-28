@@ -11,7 +11,8 @@ body{
   outline: 2px solid var(--color_accent) !important;
 }
 ::selection{
-  background-color: var(--color_base03) !important;
+  background: var(--color_text) !important;
+  color: var(--color_base00) !important;
 }
 
 #topbar,#botbar{

@@ -1,6 +1,8 @@
 use std::{collections::HashSet, sync::Arc};
 
+use futures_util::Future;
 use log::*;
+use ring_buffer::{IterMut, RingBuffer};
 use tokio::sync::{
     broadcast::{self, error::RecvError},
     Mutex,
@@ -10,10 +12,7 @@ mod message;
 pub use message::*;
 
 use crate::{
-    names::ClaimedName,
-    userinfo::UserInfo,
-    utils::{dropvec::DropVec, IdCounter},
-    ChatConfig,
+    names::ClaimedName, profanity::ProfFilter, userinfo::UserInfo, utils::IdCounter, ChatConfig,
 };
 use lmetrics::metrics;
 use thiserror::Error;
@@ -36,7 +35,7 @@ pub struct Chat {
     left_sender: broadcast::Sender<UserInfo>,
 
     clients: Arc<Mutex<HashSet<UserInfo>>>,
-    history: Arc<Mutex<DropVec<Message>>>,
+    history: Arc<Mutex<RingBuffer<Message>>>,
     client_ids: IdCounter,
 
     config: ChatConfig,
@@ -48,7 +47,9 @@ impl Chat {
         let (left_sender, left_receiver) = broadcast::channel(20);
 
         let clients = Arc::new(Mutex::new(HashSet::new()));
-        let history = Arc::new(Mutex::new(DropVec::new(config.max_stored_messages)));
+        let history = Arc::new(Mutex::new(RingBuffer::with_capacity(
+            config.max_stored_messages,
+        )));
 
         Self::spawn_histrec(
             left_receiver,
@@ -72,7 +73,7 @@ impl Chat {
         mut left_receiver: broadcast::Receiver<UserInfo>,
         mut messages_receiver: broadcast::Receiver<Message>,
         clients: Arc<Mutex<HashSet<UserInfo>>>,
-        history: Arc<Mutex<DropVec<Message>>>,
+        history: Arc<Mutex<RingBuffer<Message>>>,
     ) {
         tokio::task::spawn(async move {
             loop {
@@ -95,7 +96,7 @@ impl Chat {
                     mesg = messages_receiver.recv() => {
                         match mesg{
                             Ok(mesg) => {
-                                history.lock().await.push(mesg);
+                                history.lock().await.push_back(mesg);
                                 messages_total::inc();
                             },
                             Err(RecvError::Closed) => {
@@ -141,6 +142,11 @@ impl Chat {
 
     pub async fn history<'a>(&'a self) -> Vec<Message> {
         self.history.lock().await.iter().cloned().collect()
+    }
+    pub async fn filter_history_async(&self, filter: &ProfFilter) {
+        for message in self.history.lock().await.iter_mut() {
+            filter.filter(message).await
+        }
     }
     pub async fn clients<'a>(&'a self) -> Vec<UserInfo> {
         self.clients.lock().await.iter().cloned().collect()

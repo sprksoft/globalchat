@@ -76,6 +76,10 @@ pub fn new_message(mesg: &Message) -> tokio_tungstenite::tungstenite::Message {
     //|  u16 | local sender id
     //|  u32 | time (minutes since UNIX_EPOCH)
     //| [u8] | content bytes
+    #[cfg(debug_assertions)]
+    if mesg.sender_id == 0 {
+        panic!("Cant create a message with sender_id set to 0")
+    }
 
     let content_bytes = mesg.content.as_bytes();
     let mut data = Vec::with_capacity(content_bytes.len() + size_of::<u16>() + size_of::<u32>());

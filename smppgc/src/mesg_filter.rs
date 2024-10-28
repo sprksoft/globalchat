@@ -1,8 +1,11 @@
+use std::time::SystemTime;
+
 use crate::chat::Message;
+use log::*;
 
 pub enum Cmd {
-    KillMe,
-    BlockMe,
+    BanWord(Box<str>),
+    Invalid,
 }
 
 pub enum FilterResult {
@@ -11,11 +14,38 @@ pub enum FilterResult {
     Invalid,
 }
 
+fn quotes_of_the_minute() -> (&'static str, &'static str) {
+    let minutes = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .expect("Time went backwards")
+        .as_secs()
+        / 60;
+    if minutes % 2 == 0 {
+        ("\"", "'")
+    } else {
+        ("'", "\"")
+    }
+}
+
+fn parse_admin_cmd(str: &str) -> Cmd {
+    let (quote_start, quote_end) = quotes_of_the_minute();
+    let banword_cmd = "/banword ";
+    if str.starts_with(banword_cmd) && str[banword_cmd.len()..].starts_with(quote_start) {
+        let Some(end) = str.find(quote_end) else {
+            return Cmd::Invalid;
+        };
+        let word = &str[banword_cmd.len()..end];
+        Cmd::BanWord(word.into())
+    } else {
+        Cmd::Invalid
+    }
+}
+
 fn parse_cmd(str: &str) -> Option<Cmd> {
-    if str == "/killme" {
-        Some(Cmd::KillMe);
-    } else if str == "/blockme" {
-        Some(Cmd::BlockMe);
+    let admin_prefix = "%admin";
+    if str.starts_with(admin_prefix) {
+        let str = &str[admin_prefix.len()..].trim();
+        return Some(parse_admin_cmd(str));
     }
     None
 }

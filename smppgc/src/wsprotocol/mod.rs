@@ -141,7 +141,6 @@ impl WsClient {
             })
             .as_secs()
             / 60) as u32;
-
         Ok(Some(Message {
             timestamp,
             sender_id: self.user_info.id(),

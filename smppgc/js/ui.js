@@ -125,7 +125,7 @@ function mksticker(name, parent_el) {
 
 // convert urls into html tags
 function format_urls(message, parent_el) {
-  const find_link_regex = /(https?:\/\/([-.a-z0-9]{1,60})(\/[-a-zA-Z0-9()@:%_\+.~#?&//=]{0,256})?)|(:[a-z0-9_-]{3,10}:)/g;
+  const find_link_regex = /(https?:\/\/([-.a-z0-9]{1,60})(\/[-a-zA-Z0-9()@:%_\+.~#?&//=]{0,256})?)|(:[a-z0-9_-]{1,10}:)/g;
   const matches = message.matchAll(find_link_regex);
   let last_index = 0;
   for (const match of matches){
@@ -176,7 +176,6 @@ async function ui_add_message(message, sender, timestamp, scroll=false){
 
   let should_scroll = Math.abs(mesgs.scrollHeight - mesgs.clientHeight - mesgs.scrollTop) <= 1 || scroll;
   mesgs.appendChild(msg_el);
-  console.log("should scroll: "+should_scroll)
   if (should_scroll){
     msg_el.scrollIntoView();
   }

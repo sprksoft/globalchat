@@ -28,7 +28,7 @@ pub enum SocketV1Responder<'a> {
     Channel(Channel<'a>),
 }
 impl<'a> SocketV1Responder<'a> {
-    pub fn ws_close(ws: WebSocket, frame: CloseFrame<'a>) -> SocketV1Responder {
+    pub fn ws_close(ws: WebSocket, frame: CloseFrame<'a>) -> SocketV1Responder<'a> {
         SocketV1Responder::Channel(
             ws.channel(move |mut stream| Box::pin(async move { stream.close(Some(frame)).await })),
         )
@@ -119,7 +119,7 @@ pub async fn socket_v1<'a>(
                 tokio::select! {
                     mesg = wsclient.try_recv() => {
                         let Some(mesg) = mesg? else { continue; };
-                        match on_message(mesg, &mut wsclient, &prof_filter, &mut rate_limiter, &mut spam_limiter, max_message_len).await?{
+                        match on_message(mesg, &chat, &mut wsclient, &prof_filter, &mut rate_limiter, &mut spam_limiter, max_message_len).await?{
                             Some(mesg) => {
                                 chat_client.send(mesg);
                             },
@@ -162,6 +162,7 @@ pub async fn socket_v1<'a>(
 
 async fn on_message(
     message: Message,
+    chat: &Chat,
     wsclient: &mut WsClient,
     prof_filter: &ProfFilter,
     rate_limiter: &mut RateLimiter,
@@ -177,15 +178,49 @@ async fn on_message(
         return Ok(None);
     }
     match mesg_filter::filter(message.clone(), max_message_len) {
-        FilterResult::Cmd(Cmd::BlockMe) => {}
-        FilterResult::Cmd(Cmd::KillMe) => {
+        FilterResult::Cmd(Cmd::Invalid) => {
+            wsclient.forward(&message).await?;
+            wsclient
+                .forward(&Message::new_response(&message, "invalid command".into()))
+                .await?;
+            return Ok(None);
+        }
+        FilterResult::Cmd(Cmd::BanWord(word)) => {
+            wsclient.forward(&message).await?;
+            if prof_filter.contains_profanity(&word).await {
+                wsclient
+                    .forward(&Message::new_response(
+                        &message,
+                        "profanity filter already catches that one".into(),
+                    ))
+                    .await?;
+                return Ok(None);
+            }
+            match prof_filter.add_word(word).await {
+                Ok(()) => {
+                    chat.filter_history_async(prof_filter).await;
+                    wsclient
+                        .forward(&Message::new_response(
+                            &message,
+                            "word added to bad word list".into(),
+                        ))
+                        .await?;
+                }
+                Err(e) => {
+                    error!("failed to add to profanity list: {}", e);
+                    wsclient
+                        .forward(&Message::new_response(
+                            &message,
+                            "failed to add to bad word list".into(),
+                        ))
+                        .await?;
+                }
+            }
             return Ok(None);
         }
         FilterResult::Invalid => {}
         FilterResult::Message(mut filtered_mesg) => {
-            if prof_filter.contains_profanity(&filtered_mesg.content).await {
-                filtered_mesg.content = "#".repeat(filtered_mesg.content.len()).into();
-            }
+            prof_filter.filter(&mut filtered_mesg).await;
             trace!(
                 "got message from {}: {}",
                 filtered_mesg.sender,
