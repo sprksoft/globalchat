@@ -90,5 +90,6 @@ fn rocket() -> _ {
         }))
         .attach(profanity::stage());
     #[cfg(debug_assertions)]
-    r.attach(debug::stage())
+    let r = r.attach(debug::stage());
+    r
 }

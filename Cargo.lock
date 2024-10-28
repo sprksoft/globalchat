@@ -741,7 +741,7 @@ checksum = "78b3ae25bc7c8c38cec158d1f2757ee79e9b3740fbc7ccf0e59e4b08d793fa89"
 
 [[package]]
 name = "lmetrics"
-version = "2024.9.1"
+version = "2024.10.0"
 dependencies = [
  "once_cell",
  "prometheus",
@@ -1077,7 +1077,7 @@ dependencies = [
 
 [[package]]
 name = "profanity"
-version = "2024.9.1"
+version = "2024.10.0"
 dependencies = [
  "censor",
  "serde",
@@ -1494,7 +1494,7 @@ checksum = "3c5e1a9a646d36c3599cd173a41282daf47c44583ad367b8e6837255952e5c67"
 
 [[package]]
 name = "smppgc"
-version = "2024.9.1"
+version = "2024.10.0"
 dependencies = [
  "base64",
  "bincode",
@@ -1549,7 +1549,7 @@ dependencies = [
 
 [[package]]
 name = "string_tree"
-version = "2024.9.1"
+version = "2024.10.0"
 dependencies = [
  "censor",
  "serde",
