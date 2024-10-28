@@ -79,7 +79,7 @@ socketmgr.on_leave = (code, reason, user_wants_leave) => {
         join();
         return;
       }
-      error="Onverwachten fout.";
+      error="Onverwachte fout.";
   }
   ui_error(error);
   cool_down(time);
