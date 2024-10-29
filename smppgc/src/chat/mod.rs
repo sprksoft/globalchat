@@ -141,11 +141,11 @@ impl Chat {
     }
 
     pub async fn history<'a>(&'a self) -> Vec<Message> {
-        self.history.lock().await.iter().cloned().collect()
+        self.history.lock().await.asc_iter().cloned().collect()
     }
     pub async fn filter_history_async(&self, filter: &ProfFilter) {
         let mut hist = self.history.lock().await;
-        filter.filter_all(hist.iter_mut()).await;
+        filter.filter_all(hist.asc_iter_mut()).await;
     }
     pub async fn clients<'a>(&'a self) -> Vec<UserInfo> {
         self.clients.lock().await.iter().cloned().collect()
