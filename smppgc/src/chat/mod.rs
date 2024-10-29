@@ -1,8 +1,8 @@
 use std::{collections::HashSet, sync::Arc};
 
+use circular_queue::CircularQueue;
 use futures_util::Future;
 use log::*;
-use ring_buffer::{IterMut, RingBuffer};
 use tokio::sync::{
     broadcast::{self, error::RecvError},
     Mutex,
@@ -35,7 +35,7 @@ pub struct Chat {
     left_sender: broadcast::Sender<UserInfo>,
 
     clients: Arc<Mutex<HashSet<UserInfo>>>,
-    history: Arc<Mutex<RingBuffer<Message>>>,
+    history: Arc<Mutex<CircularQueue<Message>>>,
     client_ids: IdCounter,
 
     config: ChatConfig,
@@ -47,7 +47,7 @@ impl Chat {
         let (left_sender, left_receiver) = broadcast::channel(20);
 
         let clients = Arc::new(Mutex::new(HashSet::new()));
-        let history = Arc::new(Mutex::new(RingBuffer::with_capacity(
+        let history = Arc::new(Mutex::new(CircularQueue::with_capacity(
             config.max_stored_messages,
         )));
 
@@ -73,7 +73,7 @@ impl Chat {
         mut left_receiver: broadcast::Receiver<UserInfo>,
         mut messages_receiver: broadcast::Receiver<Message>,
         clients: Arc<Mutex<HashSet<UserInfo>>>,
-        history: Arc<Mutex<RingBuffer<Message>>>,
+        history: Arc<Mutex<CircularQueue<Message>>>,
     ) {
         tokio::task::spawn(async move {
             loop {
@@ -96,7 +96,7 @@ impl Chat {
                     mesg = messages_receiver.recv() => {
                         match mesg{
                             Ok(mesg) => {
-                                history.lock().await.push_back(mesg);
+                                history.lock().await.push(mesg);
                                 messages_total::inc();
                             },
                             Err(RecvError::Closed) => {
@@ -144,9 +144,8 @@ impl Chat {
         self.history.lock().await.iter().cloned().collect()
     }
     pub async fn filter_history_async(&self, filter: &ProfFilter) {
-        for message in self.history.lock().await.iter_mut() {
-            filter.filter(message).await
-        }
+        let mut hist = self.history.lock().await;
+        filter.filter_all(hist.iter_mut()).await;
     }
     pub async fn clients<'a>(&'a self) -> Vec<UserInfo> {
         self.clients.lock().await.iter().cloned().collect()

@@ -1,7 +1,6 @@
 use std::time::SystemTime;
 
 use crate::chat::Message;
-use log::*;
 
 pub enum Cmd {
     BanWord(Box<str>),
@@ -10,7 +9,7 @@ pub enum Cmd {
 
 pub enum FilterResult {
     Message(Message),
-    Cmd(Cmd),
+    Cmd(Message, Cmd),
     Invalid,
 }
 
@@ -34,7 +33,7 @@ fn parse_admin_cmd(str: &str) -> Cmd {
         let Some(end) = str.find(quote_end) else {
             return Cmd::Invalid;
         };
-        let word = &str[banword_cmd.len()..end];
+        let word = str[banword_cmd.len() + 1..end].to_lowercase();
         Cmd::BanWord(word.into())
     } else {
         Cmd::Invalid
@@ -56,7 +55,7 @@ pub fn filter(mut mesg: Message, max_msg_len: usize) -> FilterResult {
     };
     let content = mesg.content.as_ref().trim();
     if let Some(cmd) = parse_cmd(content) {
-        return FilterResult::Cmd(cmd);
+        return FilterResult::Cmd(mesg, cmd);
     }
 
     let word = ['k', 'y', 's'];

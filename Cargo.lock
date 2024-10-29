@@ -180,6 +180,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
+name = "circular-queue"
+version = "0.2.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1d34327ead1c743a10db339de35fb58957564b99d248a67985c55638b22c59b5"
+dependencies = [
+ "version_check",
+]
+
+[[package]]
 name = "cookie"
 version = "0.18.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -741,7 +750,7 @@ checksum = "78b3ae25bc7c8c38cec158d1f2757ee79e9b3740fbc7ccf0e59e4b08d793fa89"
 
 [[package]]
 name = "lmetrics"
-version = "2024.10.3"
+version = "2024.10.4"
 dependencies = [
  "once_cell",
  "prometheus",
@@ -1077,7 +1086,7 @@ dependencies = [
 
 [[package]]
 name = "profanity"
-version = "2024.10.3"
+version = "2024.10.4"
 dependencies = [
  "censor",
  "serde",
@@ -1216,12 +1225,6 @@ name = "regex-syntax"
 version = "0.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7a66a03ae7c801facd77a29370b4faec201768915ac14a721ba36f20bc9c209b"
-
-[[package]]
-name = "ring_buffer"
-version = "2.0.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "944cd13fb0222712688b9e6cf8002c31eca42e9eb963bd0a1e4d36da2a27bdbf"
 
 [[package]]
 name = "rocket"
@@ -1494,16 +1497,16 @@ checksum = "3c5e1a9a646d36c3599cd173a41282daf47c44583ad367b8e6837255952e5c67"
 
 [[package]]
 name = "smppgc"
-version = "2024.10.3"
+version = "2024.10.4"
 dependencies = [
  "base64",
  "bincode",
+ "circular-queue",
  "dashmap",
  "futures-util",
  "lmetrics",
  "log",
  "profanity",
- "ring_buffer",
  "rocket",
  "rocket_dyn_templates",
  "rocket_ws",
@@ -1549,7 +1552,7 @@ dependencies = [
 
 [[package]]
 name = "string_tree"
-version = "2024.10.3"
+version = "2024.10.4"
 dependencies = [
  "censor",
  "serde",

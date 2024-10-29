@@ -26,10 +26,9 @@
   <div id="mesgs">
   </div>
   <div class="bottom">
-    <div id="pending-mesgs"></div>
     <div id="botbar">
       <div class="grow-wrap">
-        <textarea oninput="this.parentNode.dataset.replicatedValue = this.value" maxlength="{{max_message_len}}" id="send-input" type="text"></textarea>
+        <textarea placeholder="enter a message" oninput="this.parentNode.dataset.replicatedValue = this.value" maxlength="{{max_message_len}}" id="send-input" type="text"></textarea>
       </div>
       <button id="sendbtn" class="button">
         <svg

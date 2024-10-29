@@ -58,7 +58,7 @@ impl ProfFilter {
                 .append(true)
                 .open(&self.wordlist_file)
                 .await?;
-            let string = format!("{}\n", word.clone());
+            let string = format!("\"{}\"\n", word.clone());
             wordlist_file.write_all(string.as_bytes()).await?;
         }
 
@@ -73,10 +73,31 @@ impl ProfFilter {
     pub async fn contains_profanity(&self, string: &str) -> bool {
         self.filter.read().await.contains_profanity(string)
     }
+    pub async fn contains_profanity_any(&self, strings: impl Iterator<Item = &str>) -> bool {
+        let filter = self.filter.read().await;
+        for str in strings {
+            if filter.contains_profanity(str) {
+                return true;
+            }
+        }
+        false
+    }
+
+    pub async fn filter_all(&self, messages: impl Iterator<Item = &mut Message>) {
+        let filter = self.filter.read().await;
+        for message in messages {
+            if filter.contains_profanity(&message.content) {
+                Self::hide_message(message)
+            }
+        }
+    }
+    fn hide_message(message: &mut Message) {
+        message.content = "#".repeat(message.content.len()).into();
+    }
 
     pub async fn filter(&self, message: &mut Message) {
         if self.contains_profanity(&message.content).await {
-            message.content = "#".repeat(message.content.len()).into();
+            Self::hide_message(message)
         }
     }
 }

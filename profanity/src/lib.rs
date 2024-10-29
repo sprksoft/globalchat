@@ -9,26 +9,35 @@ mod wordlist;
 
 #[derive(Serialize, Deserialize)]
 pub struct ProfanityFilter {
-    tree: StringTree,
+    wordlist: Vec<Box<str>>,
 }
 impl ProfanityFilter {
     pub fn from_wordlist(wordlist: &str) -> Self {
-        let words = wordlist
+        let wordlist = wordlist
             .lines()
             .map(|l| l.trim_matches(['"']).to_lowercase())
             .filter(|i| i.len() > 0)
+            .map(|s| Box::from(s))
             .collect();
         //println!("{:?}", words);
-        Self {
-            tree: StringTree::from_vec(words),
-        }
+        Self { wordlist }
     }
     pub fn add_word(&mut self, word: impl Into<Box<str>>) {
-        self.tree.add(word.into(), 0);
+        self.wordlist.push(word.into());
     }
 
     pub fn contains_profanity(&self, string: &str) -> bool {
-        sentence_contains(&self.tree, string)
+        sentence_contains_loop(&self.wordlist, string)
+    }
+}
+
+fn normalize_char(char: u8) -> u8 {
+    match char {
+        b'1' => b'i',
+        b'3' => b'e',
+        b'4' => b'a',
+        b'$' => b's',
+        char => char,
     }
 }
 
@@ -41,10 +50,7 @@ fn matches(sentence: &str, check: &str) -> bool {
             return true;
         };
         let Some(mut char_sen) = iter_sentence.next() else {
-            if char_check.is_ascii_whitespace() {
-                return true;
-            }
-            return false;
+            return char_check.is_ascii_whitespace();
         };
         loop {
             // println!(
@@ -55,10 +61,14 @@ fn matches(sentence: &str, check: &str) -> bool {
             if char_sen == char_check {
                 break;
             }
+            if normalize_char(char_sen) == char_check {
+                break;
+            }
+
             if !char_sen.is_ascii_alphabetic() {
                 char_sen = match iter_sentence.next() {
                     Some(v) => v,
-                    None => return false,
+                    None => return char_check.is_ascii_whitespace(),
                 };
                 continue;
             }
@@ -67,7 +77,7 @@ fn matches(sentence: &str, check: &str) -> bool {
     }
 }
 
-fn sentence_contains(tree: &StringTree, sentence: &str) -> bool {
+fn sentence_contains_tree(tree: &StringTree, sentence: &str) -> bool {
     let mut index = 0;
     let sentence = sentence.to_lowercase();
     loop {
@@ -82,10 +92,10 @@ fn sentence_contains(tree: &StringTree, sentence: &str) -> bool {
     }
 }
 
-fn sentence_contains_naive(tree: &Vec<String>, sentence: &str) -> bool {
+fn sentence_contains_loop(wordlist: &Vec<Box<str>>, sentence: &str) -> bool {
     let sentence = sentence.to_lowercase();
     for i in 0..sentence.len() {
-        for item in tree.iter() {
+        for item in wordlist.iter() {
             //println!("check '{}' starts with '{}'", &sentence[i..], item);
             if matches(&sentence[i..], &item) {
                 //println!("MATCH '{}' starts with '{}'", &sentence[i..], item);

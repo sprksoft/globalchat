@@ -2,7 +2,6 @@ const leavebtn = document.getElementById("leavebtn");
 const sendbtn = document.getElementById("sendbtn");
 const sendinput = document.getElementById("send-input");
 const mesgs = document.getElementById("mesgs");
-const pending_mesgs = document.getElementById("pending-mesgs");
 const username_field = document.getElementById("name-input");
 const connectbtn = document.getElementById("connectbtn");
 const constatus = document.getElementById("connection-status");
@@ -82,25 +81,8 @@ function ui_clear_input() {
 
 function ui_clear_chat() {
   mesgs.innerHTML="";
-  pending_mesgs.innerHTML="";
 }
 
-function ui_add_pending(message) {
-  let msg = document.createElement("div");
-  msg.innerText=message;
-  pending_mesgs.appendChild(msg);
-}
-
-function ui_remove_pending(message) {
-  let mesgs = pending_mesgs.childNodes;
-  for (let i=0; i<mesgs.length; i++){
-    let mesg = mesgs[i];
-    if (mesg.innerText == message){
-      pending_mesgs.removeChild(mesg);
-      break;
-    }
-  }
-}
 
 function mkspan(innerText, parent_el){
     let span = document.createElement("span");
@@ -181,3 +163,8 @@ async function ui_add_message(message, sender, timestamp, scroll=false){
   }
 }
 
+
+// Er is geen betere manier om dit te doen denk ik.
+function ui_has_virtkb(){
+  return /Mobi|Android|iPad|iPhone|Tablet|Touch/i.test(navigator.userAgent);
+}

@@ -181,15 +181,15 @@ async fn on_message(
         wsclient.kick(KickReason::Spam).await?;
         return Ok(None);
     }
-    match mesg_filter::filter(message.clone(), max_message_len) {
-        FilterResult::Cmd(Cmd::Invalid) => {
+    match mesg_filter::filter(message, max_message_len) {
+        FilterResult::Cmd(message, Cmd::Invalid) => {
             wsclient.forward(&message).await?;
             wsclient
                 .forward(&Message::new_response(&message, "invalid command".into()))
                 .await?;
             return Ok(None);
         }
-        FilterResult::Cmd(Cmd::BanWord(word)) => {
+        FilterResult::Cmd(message, Cmd::BanWord(word)) => {
             wsclient.forward(&message).await?;
             if prof_filter.contains_profanity(&word).await {
                 wsclient
@@ -230,7 +230,7 @@ async fn on_message(
                 filtered_mesg.sender,
                 filtered_mesg.content
             );
-            wsclient.forward(&message).await?;
+            wsclient.forward(&filtered_mesg).await?;
             return Ok(Some(filtered_mesg));
         }
     }

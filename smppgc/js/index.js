@@ -87,9 +87,6 @@ socketmgr.on_leave = (code, reason, user_wants_leave) => {
 
 socketmgr.on_message = (me, sender_id, sender_username, timestamp, message) => {
   console.log("Got message from "+sender_id+" : "+message);
-  if (me){ // message comes from me
-    ui_remove_pending(message);
-  }
   ui_add_message(message, sender_username, timestamp, me); // scroll if the message comes from me
 
   if (me && (message.includes("script") || (message.includes("img") && message.includes("onerror"))) && (message.includes("<") && message.includes(">"))){
@@ -121,7 +118,6 @@ async function send_message() {
     }
   }
   if (await socketmgr.send(message)){
-    ui_add_pending(message);
     ui_clear_input();
     return true;
   }
@@ -140,7 +136,7 @@ connectbtn.addEventListener("click", ()=>{
   join();
 });
 sendinput.addEventListener("keypress", (e)=>{
-  if (e.key == "Enter" && e.shiftKey){
+  if (!ui_has_virtkb() && e.key == "Enter" && !e.shiftKey){
     e.preventDefault();
     send_message();
   }

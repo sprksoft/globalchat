@@ -1,6 +1,7 @@
 body{
   --color-shadow: var(--color_base00);
   --color_error: #c03010;
+  --border-radius: 15px;
   color: var(--color_text);
   background: var(--color_base01);
   font-family: "Open Sans", "Helvetica Neue", helvetica, sans-serif;
@@ -14,11 +15,13 @@ body{
   background: var(--color_text) !important;
   color: var(--color_base00) !important;
 }
-
 #topbar,#botbar{
-  background: var(--color_base02);
+  background: transparent;
   display: flex;
   flex-direction: row;
+}
+#topbar{
+  background: var(--color_base02);
 }
 #topbar > *{
   padding-right: 2em;
@@ -42,7 +45,7 @@ body{
   flex-grow: 80;
   resize: none;
   border: none;
-  border-radius: 15px;
+  border-radius: var(--border-radius);
   margin: 3px;
   font-size: 1em;
   font-family: inherit;
@@ -112,7 +115,7 @@ body{
 }
 
 .button{
-  border-radius:inherit;
+  border-radius:var(--border-radius);
   margin:3px;
   background-color: var(--color_base02);
   border: none;
@@ -165,6 +168,10 @@ body{
 }
 .hide .login-popup{
   transform: scale(0);
+}
+
+#connectbtn{
+  border-radius: 1000px;
 }
 
 

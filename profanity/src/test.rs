@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use test::Bencher;
 extern crate test;
 
-const PROF_SENTENCES: [&'static str; 11] = [
+const PROF_SENTENCES: [&'static str; 12] = [
     "i am FUCKING green",
     "hellofuckers",
     "niger",
@@ -13,7 +13,8 @@ const PROF_SENTENCES: [&'static str; 11] = [
     "k y s",
     "dingely dongs",
     "dingelydongs",
-    "k + y + s",
+    "+k + y + s",
+    "n-1gg4",
     "https://pornhub.com",
 ];
 const CLEAN_SENTENCES: [&'static str; 9] = [
@@ -28,10 +29,10 @@ const CLEAN_SENTENCES: [&'static str; 9] = [
     "Yuww iemand online?",
 ];
 
-fn gen_list() -> Vec<String> {
-    let mut list: Vec<String> = wordlist::LIST
+fn gen_list<T: From<String> + std::cmp::Ord>() -> Vec<T> {
+    let mut list: Vec<T> = wordlist::LIST
         .lines()
-        .map(|w| w.trim_matches('"').to_lowercase())
+        .map(|w| w.trim_matches('"').to_lowercase().into())
         .collect();
     list.sort();
     list
@@ -66,8 +67,8 @@ fn sentence_contains_censor(b: &mut Bencher) {
     })
 }
 
-#[bench]
-fn sentence_contains(b: &mut Bencher) {
+/* #[bench]
+fn sentence_contains_stringtree(b: &mut Bencher) {
     let list = gen_list();
     let tree = StringTree::from_vec(list.clone());
 
@@ -79,18 +80,18 @@ fn sentence_contains(b: &mut Bencher) {
             assert!(!super::sentence_contains(&tree, s))
         }
     });
-}
+} */
 
 #[bench]
-fn sentence_contains_naive(b: &mut Bencher) {
+fn sentence_contains_loop(b: &mut Bencher) {
     let list = gen_list();
 
     b.iter(|| {
         for s in PROF_SENTENCES {
-            assert!(super::sentence_contains_naive(&list, s))
+            assert!(super::sentence_contains_loop(&list, s))
         }
         for s in CLEAN_SENTENCES {
-            assert!(!super::sentence_contains_naive(&list, s))
+            assert!(!super::sentence_contains_loop(&list, s))
         }
     })
 }
