@@ -8,7 +8,7 @@ use rocket::{
 };
 use rocket_dyn_templates::{context, Template};
 
-use crate::{MaxLengthConfig, OfflineConfig};
+use crate::{MaxLengthConfig, OfflineConfig, RootUrl};
 
 macro_rules! css_var {
     ($name:ident, $($alpha:literal),*) => {
@@ -118,25 +118,21 @@ fn v1(
     skip_login: Option<bool>,
     offline_config: &State<OfflineConfig>,
     max_length_config: &State<MaxLengthConfig>,
+    root_url: &State<RootUrl>,
+    debug: &State<crate::debug::Debug>,
 ) -> GcPageResponder {
     let placeholder = placeholder.unwrap_or("");
     if placeholder.contains(['<', '>', '=', '"', '"']) {
         return GcPageResponder::BadRequest("xss detected");
     }
 
-    let debug = cfg!(debug_assertions);
-    let root_url = if debug {
-        "".to_string()
-    } else {
-        "/smpp/gc".to_string()
-    };
     GcPageResponder::Ok {
         inner: Template::render(
             "v1",
             context! (theme_css:theme.css(),
             placeholder:placeholder,
-            root_url: root_url,
-            debug: debug,
+            root_url: &root_url.root_url,
+            debug: debug.debug,
             offline: offline_config.offline,
             skip_login: skip_login.unwrap_or(false),
             version: env!("CARGO_PKG_VERSION"),

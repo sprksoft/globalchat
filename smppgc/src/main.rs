@@ -1,10 +1,12 @@
+use std::ops::Deref;
+
 use chat::Chat;
 use lmetrics::LMetrics;
-use rocket::get;
 use rocket::response::Redirect;
 use rocket::routes;
 use rocket::serde::Deserialize;
 use rocket::{fairing::AdHoc, launch};
+use rocket::{get, State};
 use utils::static_routing;
 
 #[cfg(test)]
@@ -43,9 +45,29 @@ pub struct OfflineConfig {
     pub offline: bool,
 }
 
+#[derive(Deserialize, Debug)]
+#[serde(crate = "rocket::serde", default = "RootUrl::default")]
+pub struct RootUrl {
+    pub root_url: String,
+}
+
+impl Default for RootUrl {
+    fn default() -> Self {
+        Self {
+            root_url: String::new(),
+        }
+    }
+}
+impl Deref for RootUrl {
+    type Target = String;
+    fn deref(&self) -> &Self::Target {
+        &self.root_url
+    }
+}
+
 #[get("/version")]
-fn server_version() -> &'static str {
-    if cfg!(debug_assertions) {
+fn server_version(debug: &State<debug::Debug>) -> &'static str {
+    if debug.debug {
         concat!(env!("CARGO_PKG_NAME"), "-debug-", env!("CARGO_PKG_VERSION"))
     } else {
         concat!(env!("CARGO_PKG_NAME"), "-", env!("CARGO_PKG_VERSION"))
@@ -53,8 +75,8 @@ fn server_version() -> &'static str {
 }
 
 #[get("/")]
-fn index() -> Redirect {
-    if cfg!(debug_assertions) {
+fn index(debug: &State<debug::Debug>) -> Redirect {
+    if debug.debug {
         Redirect::permanent("/v1")
     } else {
         Redirect::permanent("/smpp/gc/v1")
@@ -70,7 +92,7 @@ fn rocket() -> _ {
         &chat::messages_total::METRIC,
     ]);
     metrics.on_before_handle(|| {});
-    let r = rocket::build()
+    rocket::build()
         .mount("/", routes![index, server_version])
         .mount("/metrics", metrics)
         .attach(static_routing::stage())
@@ -78,6 +100,7 @@ fn rocket() -> _ {
         .attach(names::stage())
         .attach(AdHoc::config::<ratelimit::RateLimitConfig>())
         .attach(AdHoc::config::<OfflineConfig>())
+        .attach(AdHoc::config::<RootUrl>())
         .attach(AdHoc::config::<MaxLengthConfig>())
         .attach(AdHoc::on_ignite("chat", |r| async {
             let config = r
@@ -88,8 +111,6 @@ fn rocket() -> _ {
             r.mount("/", routes![socket::socket_v1])
                 .manage(Chat::new(config))
         }))
-        .attach(profanity::stage());
-    #[cfg(debug_assertions)]
-    let r = r.attach(debug::stage());
-    r
+        .attach(profanity::stage())
+        .attach(debug::stage())
 }

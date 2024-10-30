@@ -8,6 +8,16 @@ fn reload_js() -> Redirect {
     Redirect::temporary("/v1")
 }
 
+pub struct Debug {
+    pub debug: bool,
+}
 pub fn stage() -> AdHoc {
-    AdHoc::on_ignite("debug", |r| async { r.mount("/debug", routes![reload_js]) })
+    AdHoc::on_ignite("try_stage_debug", |r| async {
+        let debug = r.figment().extract_inner("debug").unwrap_or(false);
+        let r = r.manage(Debug { debug });
+        if !debug {
+            return r;
+        }
+        r.mount("/debug", routes![reload_js])
+    })
 }

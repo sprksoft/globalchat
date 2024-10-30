@@ -12,13 +12,16 @@ min_message_time_hard=50
 kick_burst=1000
 
 [debug]
+debug=true
 static_dir="www/static"
 template_dir="www/templates"
 prof_wordlist="profanity.txt"
 address = "0.0.0.0"
 log_level="normal"
 
+
 [release]
+root_url="/smpp/gc"
 static_dir="/var/smppgc/www/static"
 template_dir="/var/smppgc/www/templates"
 address = "127.0.0.1"
@@ -26,3 +29,8 @@ port = 8081
 log_level = "critical"
 prof_wordlist="/var/smppgc/profanity.txt"
 
+[staging]
+root_url="/smpp/gc"
+static_dir="www/static"
+template_dir="www/templates"
+prof_wordlist="profanity.txt"
