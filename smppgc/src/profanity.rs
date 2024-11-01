@@ -89,15 +89,25 @@ impl ProfFilter {
             if filter.contains_profanity(&message.content) {
                 Self::hide_message(message)
             }
+            if filter.contains_profanity(&message.sender) {
+                Self::hide_message_sender(message)
+            }
         }
     }
     fn hide_message(message: &mut Message) {
         message.content = "#".repeat(message.content.len()).into();
     }
+    fn hide_message_sender(message: &mut Message) {
+        message.sender = "#".repeat(message.sender.len()).into();
+    }
 
     pub async fn filter(&self, message: &mut Message) {
-        if self.contains_profanity(&message.content).await {
+        let filter = self.filter.read().await;
+        if filter.contains_profanity(&message.content) {
             Self::hide_message(message)
+        }
+        if filter.contains_profanity(&message.sender) {
+            Self::hide_message_sender(message)
         }
     }
 }
