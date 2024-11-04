@@ -31,16 +31,28 @@ impl ProfanityFilter {
     }
 }
 
-fn normalize_char(char: u8) -> u8 {
-    match char {
-        b'i' => b'l',
-        b'l' => b'i',
-        b'1' => b'i',
-        b'3' => b'e',
-        b'4' => b'a',
-        b'$' => b's',
-        char => char,
+macro_rules! char_match_table {
+    ($char1:ident, $char2:ident, $($char:literal=>[$($match_option:literal),*]),*) => {
+        match $char1{
+        $($char => $($match_option == $char2 ||)* true,)*
+        _=>false
+        }
+    };
+}
+
+fn char_equals_normalized(char: u8, other: u8) -> bool {
+    if char == other {
+        return true;
     }
+    char_match_table!(char, other,
+        b'!' => [b'i', b'l'],
+        b'i' => [b'l'],
+        b'l' => [b'i'],
+        b'1' => [b'i', b'l'],
+
+        b'3' => [b'e'],
+        b'$' => [b'4']
+    )
 }
 
 fn matches(sentence: &str, check: &str) -> bool {
@@ -55,15 +67,7 @@ fn matches(sentence: &str, check: &str) -> bool {
             return char_check.is_ascii_whitespace();
         };
         loop {
-            // println!(
-            //     "{}={}",
-            //     char::from_u32(char_sen as u32).unwrap(),
-            //     char::from_u32(char_check as u32).unwrap()
-            // );
-            if char_sen == char_check {
-                break;
-            }
-            if normalize_char(char_sen) == char_check {
+            if char_equals_normalized(char_sen, char_check) {
                 break;
             }
 
