@@ -33,6 +33,8 @@ impl ProfanityFilter {
 
 fn normalize_char(char: u8) -> u8 {
     match char {
+        b'i' => b'l',
+        b'l' => b'i',
         b'1' => b'i',
         b'3' => b'e',
         b'4' => b'a',
