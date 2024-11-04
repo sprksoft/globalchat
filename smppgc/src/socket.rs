@@ -1,4 +1,4 @@
-use rocket::{get, Responder, State};
+use rocket::{get, Responder, Shutdown, State};
 use std::{borrow::Cow, sync::Arc};
 
 use log::*;
@@ -46,6 +46,7 @@ pub async fn socket_v1<'a>(
     prof_filter: &'a State<ProfFilter>,
     chat: &'a State<Chat>,
     usrnamemgr: &State<UsernameManager>,
+    mut shutdown: Shutdown,
 ) -> SocketV1Responder<'a> {
     if offline_config.offline {
         return SocketV1Responder::Offline("smppgc offline");
@@ -121,6 +122,9 @@ pub async fn socket_v1<'a>(
             let mut spam_limiter = SpamLimiter::new();
             loop {
                 tokio::select! {
+                    _ = &mut shutdown => {
+                        return wsclient.kick(KickReason::ServerShutdown).await;
+                    }
                     mesg = wsclient.try_recv() => {
                         let Some(mesg) = mesg? else { continue; };
                         match on_message(mesg, &chat, &mut wsclient, &prof_filter, &mut rate_limiter, &mut spam_limiter, max_message_len).await?{

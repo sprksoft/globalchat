@@ -40,6 +40,7 @@ impl From<tungstenite::Error> for PacketsError {
 pub enum KickReason {
     RateLimit,
     Spam,
+    ServerShutdown,
 }
 impl KickReason {
     pub fn into_close_frame(self) -> CloseFrame<'static> {
@@ -51,6 +52,10 @@ impl KickReason {
             Self::Spam => CloseFrame {
                 code: CloseCode::Policy,
                 reason: Cow::Borrowed("Niet spammen aub. Je hebt 5s cooldown"),
+            },
+            Self::ServerShutdown => CloseFrame {
+                code: CloseCode::Away,
+                reason: Cow::Borrowed("Globalchat gaat even offline. Sorry voor het ongemak"),
             },
         }
     }
