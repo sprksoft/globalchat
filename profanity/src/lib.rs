@@ -31,28 +31,26 @@ impl ProfanityFilter {
     }
 }
 
-macro_rules! char_match_table {
-    ($char1:ident, $char2:ident, $($char:literal=>[$($match_option:literal),*]),*) => {
-        match $char1{
-        $($char => $($match_option == $char2 ||)* true,)*
-        _=>false
-        }
-    };
-}
-
-fn char_equals_normalized(char: u8, other: u8) -> bool {
-    if char == other {
+fn char_equals_normalized(nchar: u8, cchar: u8) -> bool {
+    if nchar == cchar {
         return true;
     }
-    char_match_table!(char, other,
-        b'!' => [b'i', b'l'],
-        b'i' => [b'l'],
-        b'l' => [b'i'],
-        b'1' => [b'i', b'l'],
 
-        b'3' => [b'e'],
-        b'$' => [b'4']
-    )
+    let a: &[u8] = match nchar {
+        b'!' => &[b'i', b'l'],
+        b'i' => &[b'l'],
+        b'l' => &[b'i'],
+
+        b'1' => &[b'i', b'l'],
+        b'3' => &[b'e'],
+        b'4' => &[b'a'],
+
+        b'@' => &[b'a', b'e', b'i', b'o', b'u'],
+        b'*' => &[b'a', b'e', b'i', b'o', b'u'],
+        b'$' => &[b'4', b's'],
+        _ => &[],
+    };
+    a.contains(&cchar)
 }
 
 fn matches(sentence: &str, check: &str) -> bool {
@@ -68,6 +66,11 @@ fn matches(sentence: &str, check: &str) -> bool {
         };
         loop {
             if char_equals_normalized(char_sen, char_check) {
+                // println!(
+                //     "normalize check between {}={}",
+                //     char::from_u32(char_sen as u32).unwrap(),
+                //     char::from_u32(char_check as u32).unwrap()
+                // );
                 break;
             }
 
@@ -101,10 +104,17 @@ fn sentence_contains_tree(tree: &StringTree, sentence: &str) -> bool {
 fn sentence_contains_loop(wordlist: &Vec<Box<str>>, sentence: &str) -> bool {
     let sentence = sentence.to_lowercase();
     for i in 0..sentence.len() {
+        if !sentence.is_char_boundary(i) {
+            continue;
+        }
         for item in wordlist.iter() {
-            //println!("check '{}' starts with '{}'", &sentence[i..], item);
             if matches(&sentence[i..], &item) {
-                //println!("MATCH '{}' starts with '{}'", &sentence[i..], item);
+                // println!(
+                //     "MATCH '{}' starts with '{}' index: {}",
+                //     &sentence[i..],
+                //     item,
+                //     i
+                // );
                 return true;
             }
         }

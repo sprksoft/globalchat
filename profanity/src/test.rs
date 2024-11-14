@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use test::Bencher;
 extern crate test;
 
-const PROF_SENTENCES: [&'static str; 12] = [
+const PROF_SENTENCES: [&'static str; 13] = [
     "i am FUCKING green",
     "hellofuckers",
     "niger",
@@ -16,8 +16,9 @@ const PROF_SENTENCES: [&'static str; 12] = [
     "+k + y + s",
     "n-1gg4",
     "https://pornhub.com",
+    "so hot 💦💦💦",
 ];
-const CLEAN_SENTENCES: [&'static str; 9] = [
+const CLEAN_SENTENCES: [&'static str; 13] = [
     "ldev234",
     "ldev2",
     "hallo",
@@ -27,8 +28,11 @@ const CLEAN_SENTENCES: [&'static str; 9] = [
     "whahahahahahhahahah",
     "hallo mannen (en vrouwen) ik ga vandaag een les geven van Pneumatica",
     "Yuww iemand online?",
+    "Hallo hoe gaat die 😊",
+    "🎄🎄🎄🎄🎄",
+    "ik schreef da met 2 k's",
+    "fun@gmail.com",
 ];
-
 fn gen_list<T: From<String> + std::cmp::Ord>() -> Vec<T> {
     let mut list: Vec<T> = wordlist::LIST
         .lines()
@@ -40,7 +44,8 @@ fn gen_list<T: From<String> + std::cmp::Ord>() -> Vec<T> {
 
 #[test]
 fn matches() {
-    assert!(super::matches("ass", "ass "))
+    assert!(super::matches("ass", "ass "));
+    assert!(!super::matches("password", "ass "));
 }
 
 #[test]
@@ -88,10 +93,18 @@ fn sentence_contains_loop(b: &mut Bencher) {
 
     b.iter(|| {
         for s in PROF_SENTENCES {
-            assert!(super::sentence_contains_loop(&list, s))
+            assert!(
+                super::sentence_contains_loop(&list, s),
+                "profanity wrongly marked as clean. {}",
+                s
+            )
         }
         for s in CLEAN_SENTENCES {
-            assert!(!super::sentence_contains_loop(&list, s))
+            assert!(
+                !super::sentence_contains_loop(&list, s),
+                "clean wrongly marked as profanity. {}",
+                s
+            )
         }
     })
 }

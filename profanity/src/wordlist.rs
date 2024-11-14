@@ -55,5 +55,4 @@ naakt
 kys
 geil
 gijl
-|
 pornhub.com";
