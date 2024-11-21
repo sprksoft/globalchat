@@ -44,6 +44,7 @@ fn char_equals_normalized(nchar: u8, cchar: u8) -> bool {
         b'1' => &[b'i', b'l'],
         b'3' => &[b'e'],
         b'4' => &[b'a'],
+        b'6' => &[b'g'],
 
         b'@' => &[b'a', b'e', b'i', b'o', b'u'],
         b'*' => &[b'a', b'e', b'i', b'o', b'u'],

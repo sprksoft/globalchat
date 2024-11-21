@@ -4,6 +4,7 @@ use crate::chat::Message;
 
 pub enum Cmd {
     BanWord(Box<str>),
+    KickMe,
     Invalid,
 }
 
@@ -29,12 +30,15 @@ fn quotes_of_the_minute() -> (&'static str, &'static str) {
 fn parse_admin_cmd(str: &str) -> Cmd {
     let (quote_start, quote_end) = quotes_of_the_minute();
     let banword_cmd = "/banword ";
+    let kickme_cmd = "/kickme";
     if str.starts_with(banword_cmd) && str[banword_cmd.len()..].starts_with(quote_start) {
         let Some(end) = str.find(quote_end) else {
             return Cmd::Invalid;
         };
         let word = str[banword_cmd.len() + 1..end].to_lowercase();
         Cmd::BanWord(word.into())
+    } else if str == kickme_cmd {
+        Cmd::KickMe
     } else {
         Cmd::Invalid
     }

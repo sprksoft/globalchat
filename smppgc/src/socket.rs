@@ -35,10 +35,11 @@ impl<'a> SocketV1Responder<'a> {
     }
 }
 
-#[get("/socket/v1?<username>&<key>")]
+#[get("/socket/v1?<username>&<key>&<start_time>")]
 pub async fn socket_v1<'a>(
     username: &str,
     key: Option<&str>,
+    start_time: Option<u32>,
     ws: WebSocket,
     offline_config: &State<OfflineConfig>,
     maxlen_config: &State<MaxLengthConfig>,
@@ -51,7 +52,7 @@ pub async fn socket_v1<'a>(
     if offline_config.offline {
         return SocketV1Responder::Offline("smppgc offline");
     }
-
+    let start_time = start_time.unwrap_or(0);
     let static_user_id = match key {
         Some(key) => match UserId::parse_str(key) {
             Some(sui) => sui,
@@ -115,7 +116,7 @@ pub async fn socket_v1<'a>(
                 static_user_id,
                 chat_client.user_info(),
                 chat.clients().await,
-                chat.history().await
+                chat.history(start_time).await
             )
                 .await?;
 
@@ -193,6 +194,10 @@ async fn on_message(
                 .await?;
             return Ok(None);
         }
+        FilterResult::Cmd(_, Cmd::KickMe) => {
+            wsclient.kick(KickReason::Cmd).await?;
+        }
+
         FilterResult::Cmd(message, Cmd::BanWord(word)) => {
             wsclient.forward(&message).await?;
             if prof_filter.contains_profanity(&word).await {

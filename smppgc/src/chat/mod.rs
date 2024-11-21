@@ -140,8 +140,14 @@ impl Chat {
         Ok(client)
     }
 
-    pub async fn history<'a>(&'a self) -> Vec<Message> {
-        self.history.lock().await.asc_iter().cloned().collect()
+    pub async fn history<'a>(&'a self, starting_time: u32) -> Vec<Message> {
+        self.history
+            .lock()
+            .await
+            .asc_iter()
+            .filter(|m| m.timestamp > starting_time)
+            .cloned()
+            .collect()
     }
     pub async fn filter_history_async(&self, filter: &ProfFilter) {
         let mut hist = self.history.lock().await;

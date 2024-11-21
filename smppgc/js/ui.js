@@ -41,7 +41,6 @@ function ui_set_status(value){
       constatus.style="display:none";
       if (cur_status != value){
         sendinput.focus();
-        ui_clear_chat();
       }
       break;
     case STATUS_CONNECTING:

@@ -44,6 +44,10 @@ class Reader{
   }
 }
 
+function into_gcdate(date){
+  return (date.getTime()/1000)/60
+}
+
 class SocketMgr{
   on_message;
   on_leave;
@@ -99,7 +103,7 @@ class SocketMgr{
 
   }
 
-  async join(key, username){
+  async join(key, username, start_time){
     this.user_wants_leave=false;
     if (this.ws !== undefined){
       await this.ws.close();
@@ -108,6 +112,9 @@ class SocketMgr{
     let query=`username=${encoded_username}`;
     if (key !== undefined && key !== null && key !== ""){
       query+="&key="+key;
+    }
+    if (start_time !== undefined && start_time !== null){
+      query+="&start_time="+into_gcdate(start_time);
     }
     let fullurl = WEBSOCKET_URL+"?"+query;
     console.log("creating socket: "+fullurl);

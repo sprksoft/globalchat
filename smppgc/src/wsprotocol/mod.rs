@@ -38,6 +38,7 @@ impl From<tungstenite::Error> for PacketsError {
 
 #[derive(Clone, Copy)]
 pub enum KickReason {
+    Cmd,
     RateLimit,
     Spam,
     ServerShutdown,
@@ -56,6 +57,10 @@ impl KickReason {
             Self::ServerShutdown => CloseFrame {
                 code: CloseCode::Away,
                 reason: Cow::Borrowed("Globalchat gaat even offline. Sorry voor het ongemak"),
+            },
+            Self::Cmd => CloseFrame {
+                code: CloseCode::Abnormal,
+                reason: Cow::Borrowed("Kicked using the command"),
             },
         }
     }

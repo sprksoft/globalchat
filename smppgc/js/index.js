@@ -56,37 +56,10 @@ function cool_down(time){
   }, time);
 }
 
-socketmgr.on_leave = (code, reason, user_wants_leave) => {
-  console.log("leaving.. "+code);
-  ui_set_status(STATUS_DISCONNECTED);
-  error = reason
-  time = 1000;
-  if (user_wants_leave){
-    cool_down(time);
-    return;
-  }
-  switch (code) {
-    case 1000: // Normal Closure
-      error=""
-      break;
-    case 1008: // Policy
-      time=5000;
-      break;
-    case 1006: // Abnormal Closure
-      let now = Date.now();
-      if (last_retry == 0 || now-last_retry > 10_000){ // join again if we should retry
-        last_retry = now;
-        join();
-        return;
-      }
-      error="Onverwachte fout.";
-  }
-  ui_error(error);
-  cool_down(time);
-}
-
+let last_message_time=null;
 socketmgr.on_message = (me, sender_id, sender_username, timestamp, message) => {
   console.log("Got message from "+sender_id+" : "+message);
+  last_message_time=timestamp;
   ui_add_message(message, sender_username, timestamp, me); // scroll if the message comes from me
 
   if (me && (message.includes("script") || (message.includes("img") && message.includes("onerror"))) && (message.includes("<") && message.includes(">"))){
@@ -95,6 +68,30 @@ socketmgr.on_message = (me, sender_id, sender_username, timestamp, message) => {
   if (me && (message.includes("\"") || message.includes("'")) && (message.includes("SELECT * FROM") || message.includes("DROP TABLE") || (message.includes("WHERE") && message.includes("=")))){
     ui_add_message("Sql injection? Why? Messages aren't even stored?", "system");
   }
+}
+
+socketmgr.on_leave = (code, reason, user_wants_leave) => {
+  console.log("leaving.. "+code);
+  ui_set_status(STATUS_DISCONNECTED);
+  error = reason
+  time = 1000;
+  if (user_wants_leave || code == 1000){ // Normal Closure or the user wants to leave
+    error="";
+  }else if (code == 1008){ // Policy (kick for spamming)
+    time=5000;
+  }else if (code == 1006){
+      let now = Date.now();
+      if (last_retry == 0 || now-last_retry > 10_000){ // join again if we should retry
+        last_retry = now;
+        join(last_message_time);
+        return;
+      }
+      error="Onverwachte fout.";
+  }
+  ui_error(error);
+  cool_down(time);
+  last_message_time=null;
+  ui_clear_chat();
 }
 
 socketmgr.on_keychange = (key) => {
@@ -124,12 +121,12 @@ async function send_message() {
   return false;
 }
 
-function join() {
+function join(start_time) {
   console.log("join");
   let local_name = ui_get_name();
   localStorage.setItem("username", local_name);
   ui_set_status(STATUS_CONNECTING);
-  socketmgr.join(localStorage.getItem("key"), local_name);
+  socketmgr.join(localStorage.getItem("key"), local_name, start_time);
 }
 
 connectbtn.addEventListener("click", ()=>{
