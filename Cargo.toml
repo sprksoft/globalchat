@@ -3,6 +3,6 @@ resolver="2"
 members= ["smppgc", "lmetrics", "string_tree", "profanity", "integration_tests"]
 
 [workspace.package]
-version="2024.11.1"
+version="2024.11.2"
 authors=["ldev <ldev@ldev.eu.org>"]
 edition = "2021"
