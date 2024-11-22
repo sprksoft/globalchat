@@ -13,7 +13,6 @@ use utils::static_routing;
 mod test;
 
 pub mod chat;
-#[cfg(debug_assertions)]
 mod debug;
 mod mesg_filter;
 pub mod names;
