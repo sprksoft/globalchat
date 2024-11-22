@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use test::Bencher;
 extern crate test;
 
-const PROF_SENTENCES: [&'static str; 13] = [
+const PROF_SENTENCES: [&'static str; 16] = [
     "i am FUCKING green",
     "hellofuckers",
     "niger",
@@ -15,17 +15,25 @@ const PROF_SENTENCES: [&'static str; 13] = [
     "dingelydongs",
     "+k + y + s",
     "n-1gg4",
+    "nigga",
+    "🍑🍑",
     "https://pornhub.com",
+    "niggggggggggger",
     "so hot 💦💦💦",
 ];
-const CLEAN_SENTENCES: [&'static str; 13] = [
+const CLEAN_SENTENCES: [&'static str; 18] = [
     "ldev234",
+    "so hot",
     "ldev2",
     "hallo",
     "ja",
     "hoe gaat die er mee",
     "kom naar mijn huis",
     "whahahahahahhahahah",
+    "waaaa",
+    "x 3]",
+    "]ð 3]",
+    "Ÿð",
     "hallo mannen (en vrouwen) ik ga vandaag een les geven van Pneumatica",
     "Yuww iemand online?",
     "Hallo hoe gaat die 😊",

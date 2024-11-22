@@ -58,6 +58,7 @@ fn matches(sentence: &str, check: &str) -> bool {
     let mut iter_check = check.bytes();
     let mut iter_sentence = sentence.bytes();
     //println!("matching {} {}", sentence, check);
+    let mut prev_char_sen = None;
     loop {
         let Some(char_check) = iter_check.next() else {
             return true;
@@ -75,7 +76,8 @@ fn matches(sentence: &str, check: &str) -> bool {
                 break;
             }
 
-            if !char_sen.is_ascii_alphabetic() {
+            if !char_sen.is_ascii_alphabetic() || Some(char_sen) == prev_char_sen {
+                prev_char_sen = Some(char_sen);
                 char_sen = match iter_sentence.next() {
                     Some(v) => v,
                     None => return char_check.is_ascii_whitespace(),
@@ -84,6 +86,7 @@ fn matches(sentence: &str, check: &str) -> bool {
             }
             return false;
         }
+        prev_char_sen = Some(char_sen);
     }
 }
 

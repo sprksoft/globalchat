@@ -40,8 +40,6 @@ vagina
 🍑
 🍆
 💦
-nigger
-nigga
 niger
 niga
 neger
