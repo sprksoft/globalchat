@@ -49,26 +49,26 @@ impl RateLimiter {
     }
 }
 
-pub struct SpamLimiter<T> {
-    last_message: Option<T>,
-    last_message_instant: Instant,
-}
-impl<T: std::cmp::PartialEq> SpamLimiter<T> {
-    pub fn new() -> Self {
-        Self {
-            last_message: None,
-            last_message_instant: Instant::now(),
-        }
-    }
-    pub fn update(&mut self, message: T) -> bool {
-        let allow = self.last_message_instant.elapsed().as_secs() > 5
-            || Some(&message) != self.last_message.as_ref();
-
-        self.last_message = Some(message);
-        self.last_message_instant = Instant::now();
-        allow
-    }
-}
+// pub struct SpamLimiter<T> {
+//     last_message: Option<T>,
+//     last_message_instant: Instant,
+// }
+// impl<T: std::cmp::PartialEq> SpamLimiter<T> {
+//     pub fn new() -> Self {
+//         Self {
+//             last_message: None,
+//             last_message_instant: Instant::now(),
+//         }
+//     }
+//     pub fn update(&mut self, message: T) -> bool {
+//         let allow = self.last_message_instant.elapsed().as_secs() > 5
+//             || Some(&message) != self.last_message.as_ref();
+//
+//         self.last_message = Some(message);
+//         self.last_message_instant = Instant::now();
+//         allow
+//     }
+// }
 
 #[derive(Deserialize, Debug, Clone)]
 #[serde(crate = "rocket::serde")]

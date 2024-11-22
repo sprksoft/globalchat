@@ -19,7 +19,7 @@ impl ProfanityFilter {
             .filter(|i| i.len() > 0)
             .map(|s| Box::from(s))
             .collect();
-        //println!("{:?}", words);
+        //println!("{:?}", wordlist);
         Self { wordlist }
     }
     pub fn add_word(&mut self, word: impl Into<Box<str>>) {
@@ -58,7 +58,7 @@ fn matches(sentence: &str, check: &str) -> bool {
     let mut iter_check = check.bytes();
     let mut iter_sentence = sentence.bytes();
     //println!("matching {} {}", sentence, check);
-    let mut prev_char_sen = None;
+    let mut prev_char_check = None;
     loop {
         let Some(char_check) = iter_check.next() else {
             return true;
@@ -76,8 +76,11 @@ fn matches(sentence: &str, check: &str) -> bool {
                 break;
             }
 
-            if !char_sen.is_ascii_alphabetic() || Some(char_sen) == prev_char_sen {
-                prev_char_sen = Some(char_sen);
+            if !char_sen.is_ascii_alphabetic()
+                || prev_char_check
+                    .map(|prev_char_check| char_equals_normalized(char_sen, prev_char_check))
+                    .unwrap_or(false)
+            {
                 char_sen = match iter_sentence.next() {
                     Some(v) => v,
                     None => return char_check.is_ascii_whitespace(),
@@ -86,7 +89,7 @@ fn matches(sentence: &str, check: &str) -> bool {
             }
             return false;
         }
-        prev_char_sen = Some(char_sen);
+        prev_char_check = Some(char_check);
     }
 }
 

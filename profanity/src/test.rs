@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use test::Bencher;
 extern crate test;
 
-const PROF_SENTENCES: [&'static str; 16] = [
+const PROF_SENTENCES: [&'static str; 17] = [
     "i am FUCKING green",
     "hellofuckers",
     "niger",
@@ -16,12 +16,13 @@ const PROF_SENTENCES: [&'static str; 16] = [
     "+k + y + s",
     "n-1gg4",
     "nigga",
+    "n!iiiiiiger",
     "🍑🍑",
     "https://pornhub.com",
     "niggggggggggger",
     "so hot 💦💦💦",
 ];
-const CLEAN_SENTENCES: [&'static str; 18] = [
+const CLEAN_SENTENCES: [&'static str; 19] = [
     "ldev234",
     "so hot",
     "ldev2",
@@ -40,11 +41,14 @@ const CLEAN_SENTENCES: [&'static str; 18] = [
     "🎄🎄🎄🎄🎄",
     "ik schreef da met 2 k's",
     "fun@gmail.com",
+    "69696293",
 ];
 fn gen_list<T: From<String> + std::cmp::Ord>() -> Vec<T> {
     let mut list: Vec<T> = wordlist::LIST
         .lines()
-        .map(|w| w.trim_matches('"').to_lowercase().into())
+        .map(|w| w.trim_matches('"').to_lowercase())
+        .filter(|w| w.len() > 0)
+        .map(|w| w.into())
         .collect();
     list.sort();
     list

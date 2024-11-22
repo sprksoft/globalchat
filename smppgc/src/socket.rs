@@ -13,7 +13,7 @@ use crate::{
     mesg_filter::{self, Cmd, FilterResult},
     names::{UserId, UsernameManager},
     profanity::ProfFilter,
-    ratelimit::{RateLimitConfig, RateLimiter, SpamLimiter},
+    ratelimit::{RateLimitConfig, RateLimiter},
     wsprotocol::{KickReason, WsClient},
     MaxLengthConfig, OfflineConfig,
 };
@@ -111,16 +111,17 @@ pub async fn socket_v1<'a>(
     let max_message_len = maxlen_config.max_message_len;
     SocketV1Responder::Channel(ws.channel(move |stream| {
         Box::pin(async move {
+            let chat_hist = chat.history(start_time).await;
             let mut wsclient = WsClient::new(
                 stream,
                 static_user_id,
                 chat_client.user_info(),
                 chat.clients().await,
-                chat.history(start_time).await
+                chat_hist
+
             )
                 .await?;
 
-            let mut spam_limiter = SpamLimiter::new();
             loop {
                 tokio::select! {
                     _ = &mut shutdown => {
@@ -128,7 +129,7 @@ pub async fn socket_v1<'a>(
                     }
                     mesg = wsclient.try_recv() => {
                         let Some(mesg) = mesg? else { continue; };
-                        match on_message(mesg, &chat, &mut wsclient, &prof_filter, &mut rate_limiter, &mut spam_limiter, max_message_len).await?{
+                        match on_message(mesg, &chat, &mut wsclient, &prof_filter, &mut rate_limiter, max_message_len).await?{
                             Some(mesg) => {
                                 chat_client.send(mesg);
                             },
@@ -175,15 +176,10 @@ async fn on_message(
     wsclient: &mut WsClient,
     prof_filter: &ProfFilter,
     rate_limiter: &mut RateLimiter,
-    smap_limiter: &mut SpamLimiter<Arc<str>>,
     max_message_len: usize,
 ) -> Result<Option<Message>, tokio_tungstenite::tungstenite::Error> {
     if !rate_limiter.update() {
         wsclient.kick(KickReason::RateLimit).await?;
-        return Ok(None);
-    }
-    if !smap_limiter.update(message.content.clone()) {
-        wsclient.kick(KickReason::Spam).await?;
         return Ok(None);
     }
     match mesg_filter::filter(message, max_message_len) {

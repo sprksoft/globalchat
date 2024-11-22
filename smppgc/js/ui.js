@@ -9,7 +9,7 @@ const err_mesg = document.getElementById("err-mesg");
 
 const login_popup=document.getElementById("login");
 
-const STICKERS=["404", "arch", "tux", "smpp", "gc"]; // avail stickers (used to prevent unneeded 404s to the server)
+const STICKERS=["404", "arch", "tux", "smpp", "gc", "fire"]; // avail stickers (used to prevent unneeded 404s to the server)
 
 const STATUS_DISCONNECTED=0;
 const STATUS_CONNECTING=1;

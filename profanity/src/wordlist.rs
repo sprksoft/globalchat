@@ -1,5 +1,8 @@
-pub const LIST: &'static str = "arse
+pub const LIST: &'static str = "
+arse
 \"ass \"
+\"asses\"
+\"asscheeks\"
 bitch
 cock
 condom
@@ -8,7 +11,6 @@ crap
 cunt
 dick
 fuck
-fucking
 gyatt
 skibdi
 godverdomme
@@ -19,6 +21,8 @@ klote
 kut
 lijer
 lul
+lulzuiger
+lultrekker
 merd
 neuken
 pijp
@@ -40,17 +44,76 @@ vagina
 🍑
 🍆
 💦
-niger
+nigger
+nigga
 niga
+niger
 neger
-harder daddy
+harderdaddy
 dingelydongs
-juicy pics
+juicypics
 hitler
 kanker
 zuig
 naakt
 kys
+killyourself
+kill
 geil
 gijl
-pornhub.com";
+gadood
+moord
+murder
+hjb
+adolf
+
+myshopify.com
+pornhub.com
+hanime.tv
+nhentai.net
+\"sex\"
+\"nigge\"
+\"communisme\"
+\"piemol\"
+\"piemel\"
+\"voginale\"
+\"neeger\"
+\"neegr\"
+\"vagine\"
+\"negeer\"
+\"neeeger\"
+\"neegor\"
+\"pliemol\"
+\"plemol\"
+\"umoeder\"
+\"blowjob\"
+\"dingelidong\"
+\"slaaf\"
+\"kekma.net\"
+\"kankr\"
+\"adlf\"
+\"htler\"
+\"ngga\"
+\"niggger\"
+\"neggers\"
+\"neuke\"
+\"verkrachten\"
+\"negr\"
+\"seks\"
+\"neuk\"
+\"ngger\"
+\"nudes\"
+\"suicide\"
+\"dikzak\"
+\"dildo\"
+\"bek \"
+\"onlyfans\"
+\"niggggggggggggggger\"
+\"zwartmens\"
+\"zwartemens\"
+\"niggr\"
+\"nigr\"
+\"niiger\"
+\"pimol \"
+\"pik\"
+";
