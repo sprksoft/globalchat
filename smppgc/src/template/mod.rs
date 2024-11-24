@@ -1,3 +1,4 @@
+use lmetrics::metrics;
 use rocket::{
     fairing::AdHoc,
     get,
@@ -9,6 +10,10 @@ use rocket::{
 use rocket_dyn_templates::{context, Template};
 
 use crate::{MaxLengthConfig, OfflineConfig, RootUrl};
+
+metrics! {
+    pub counter page_req_total("Total amount of requests to the main page", [version]);
+}
 
 macro_rules! css_var {
     ($name:ident, $($alpha:literal),*) => {
@@ -121,6 +126,7 @@ fn v1(
     root_url: &State<RootUrl>,
     debug: &State<crate::debug::Debug>,
 ) -> GcPageResponder {
+    page_req_total::inc("1");
     let placeholder = placeholder.unwrap_or("");
     if placeholder.contains(['<', '>', '=', '"', '"']) {
         return GcPageResponder::BadRequest("xss detected");
