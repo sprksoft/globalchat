@@ -47,7 +47,7 @@ vagina
 nigger
 nigga
 niga
-niger
+\"niger \"
 neger
 harderdaddy
 dingelydongs
@@ -108,12 +108,10 @@ nhentai.net
 \"dildo\"
 \"bek \"
 \"onlyfans\"
-\"niggggggggggggggger\"
 \"zwartmens\"
 \"zwartemens\"
 \"niggr\"
 \"nigr\"
-\"niiger\"
 \"pimol \"
 \"pik\"
 ";

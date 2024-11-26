@@ -3,10 +3,9 @@ use std::collections::HashSet;
 use test::Bencher;
 extern crate test;
 
-const PROF_SENTENCES: [&'static str; 17] = [
+const PROF_SENTENCES: [&'static str; 14] = [
     "i am FUCKING green",
     "hellofuckers",
-    "niger",
     "zuig mij please",
     "ik eet jou dick op zo",
     "nigga man",
@@ -16,12 +15,20 @@ const PROF_SENTENCES: [&'static str; 17] = [
     "+k + y + s",
     "n-1gg4",
     "nigga",
-    "n!iiiiiiger",
     "🍑🍑",
     "https://pornhub.com",
-    "niggggggggggger",
     "so hot 💦💦💦",
 ];
+
+// prof sentences not caught by censor to see performance difference
+const EXT_PROF_SENTENCES: [&'static str; 4] = [
+    "niger",
+    "n!iiiiiiger",
+    "niggggggggggger",
+    "njggggr",
+    //"nigerdigger", //TODO: need whitelist for this to not be confused with nigeria
+];
+
 const CLEAN_SENTENCES: [&'static str; 19] = [
     "ldev234",
     "so hot",
@@ -43,6 +50,10 @@ const CLEAN_SENTENCES: [&'static str; 19] = [
     "fun@gmail.com",
     "69696293",
 ];
+
+// clean sentences not caught by censor to see performance difference
+const EXT_CLEAN_SENTENCES: [&'static str; 2] = ["nigeria", "password"];
+
 fn gen_list<T: From<String> + std::cmp::Ord>() -> Vec<T> {
     let mut list: Vec<T> = wordlist::LIST
         .lines()
@@ -76,10 +87,14 @@ fn sentence_contains_censor(b: &mut Bencher) {
     let censor = censor::Custom(HashSet::from_iter(list.drain(..)));
     b.iter(|| {
         for s in PROF_SENTENCES {
-            assert!(censor.check(s));
+            assert!(censor.check(s), "profanity wrongly marked as clean. {}", s)
         }
         for s in CLEAN_SENTENCES {
-            assert!(!censor.check(s));
+            assert!(
+                !censor.check(s),
+                "profanity wrongly marked as profanity. {}",
+                s
+            )
         }
     })
 }
@@ -119,4 +134,23 @@ fn sentence_contains_loop(b: &mut Bencher) {
             )
         }
     })
+}
+
+#[test]
+fn sentence_contains_loop_test() {
+    let list = gen_list();
+    for s in PROF_SENTENCES.iter().chain(EXT_PROF_SENTENCES.iter()) {
+        assert!(
+            super::sentence_contains_loop(&list, s),
+            "profanity wrongly marked as clean. {}",
+            s
+        )
+    }
+    for s in CLEAN_SENTENCES.iter().chain(EXT_CLEAN_SENTENCES.iter()) {
+        assert!(
+            !super::sentence_contains_loop(&list, s),
+            "clean wrongly marked as profanity. {}",
+            s
+        )
+    }
 }

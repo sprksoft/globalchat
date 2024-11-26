@@ -37,11 +37,12 @@ fn char_equals_normalized(nchar: u8, cchar: u8) -> bool {
     }
 
     let a: &[u8] = match nchar {
-        b'!' => &[b'i', b'l'],
-        b'i' => &[b'l'],
-        b'l' => &[b'i'],
+        b'!' => &[b'i', b'l', b'j'],
+        b'i' => &[b'l', b'j'],
+        b'l' => &[b'i', b'j'],
+        b'j' => &[b'i', b'j'],
 
-        b'1' => &[b'i', b'l'],
+        b'1' => &[b'i', b'l', b'j'],
         b'3' => &[b'e'],
         b'4' => &[b'a'],
         b'6' => &[b'g'],
