@@ -1,3 +1,4 @@
+use lmetrics::metrics;
 use rocket::{get, Responder, Shutdown, State};
 use std::{borrow::Cow, sync::Arc};
 
@@ -33,6 +34,11 @@ impl<'a> SocketV1Responder<'a> {
             ws.channel(move |mut stream| Box::pin(async move { stream.close(Some(frame)).await })),
         )
     }
+}
+
+metrics! {
+    pub counter messages_total("Total count of sent messages");
+    pub counter profanity_messages_total("Total count of sent messages that contain profanity");
 }
 
 #[get("/socket/v1?<username>&<key>&<start_time>")]
@@ -144,7 +150,7 @@ pub async fn socket_v1<'a>(
                                 }
                             }
                             Err(RecvError::Lagged(count)) => {
-                                error!("{} Messages lost", count);
+                                error!("Lost {} messages", count);
                             },
                             Err(RecvError::Closed)=>{
                                 return Ok(());
@@ -182,6 +188,7 @@ async fn on_message(
         wsclient.kick(KickReason::RateLimit).await?;
         return Ok(None);
     }
+    messages_total::inc();
     match mesg_filter::filter(message, max_message_len) {
         FilterResult::Cmd(message, Cmd::Invalid) => {
             wsclient.forward(&message).await?;
@@ -229,7 +236,9 @@ async fn on_message(
         }
         FilterResult::Invalid => {}
         FilterResult::Message(mut filtered_mesg) => {
-            prof_filter.filter(&mut filtered_mesg).await;
+            if prof_filter.filter(&mut filtered_mesg).await {
+                profanity_messages_total::inc();
+            }
             trace!(
                 "got message from {}: {}",
                 filtered_mesg.sender,

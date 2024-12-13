@@ -1760,6 +1760,7 @@ dependencies = [
  "circular-queue",
  "dashmap",
  "futures-util",
+ "lazy_static",
  "lmetrics",
  "log",
  "profanity",

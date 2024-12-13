@@ -85,11 +85,15 @@ fn index(debug: &State<debug::Debug>) -> Redirect {
 #[launch]
 fn rocket() -> _ {
     let mut metrics = LMetrics::new(&[
-        &template::page_req_total::METRIC,
         &static_routing::static_req_total::METRIC,
         &chat::joined_total::METRIC,
         &chat::left_total::METRIC,
-        &chat::messages_total::METRIC,
+        &chat::client_left_events_lost_total::METRIC,
+        &chat::history_messages_lost_total::METRIC,
+        &socket::messages_total::METRIC,
+        &socket::profanity_messages_total::METRIC,
+        &lmetrics::http_errors_total::METRIC,
+        &lmetrics::http_req_total::METRIC,
     ]);
     metrics.on_before_handle(|| {});
     rocket::build()

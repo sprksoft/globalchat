@@ -48,6 +48,25 @@ function into_gcdate(date){
   return (date.getTime()/1000)/60
 }
 
+function handle_version_check(protocol_ver, ver){
+  if (protocol_ver > ver){
+    let last_reload_time = localStorage.getItem("last_client_outdated_reload");
+    let now = new Date().getTime();
+    if (last_reload_time == null || now-parseInt(last_reload_time) > 1000){
+      localStorage.setItem("last_client_outdated_reload", now);
+      console.log("NEW PROTOCOL VERSION. RELOADING PAGE TO UPDATE CLIENT");
+      location.reload();
+    }else{
+      console.error("Infinite reload loop detected");
+      alert("Alles is kapot aaaaaaaaaaaaa.");
+    }
+  }
+  if (protocol_ver < ver){
+    console.error("Server older than me");
+    alert("Alles is kapot aaaaaaaaaaaaa.\nOp een of anderen manier is deze versie van global chat nieuwer dan de server");
+  }
+}
+
 class SocketMgr{
   on_message;
   on_leave;
@@ -66,7 +85,14 @@ class SocketMgr{
     switch(sub_id){
       case SUBID_SETUP:
         this.on_join();
+        let version = reader.getUint16(0);
+        if (LOG){
+          console.log("Protocol version: "+version+ " My version: "+VERSION_INT);
+        }
+        handle_version_check(version, VERSION_INT);
+
         this.local_id = reader.getUint16();
+
         this.local_key = reader.getString(0, KEY_LENGTH);
         this.on_keychange(this.local_key);
 
@@ -76,7 +102,9 @@ class SocketMgr{
           let name_length = reader.getUint8();
           let username = reader.getString(0, name_length);
           this.users[id]=username;
-          console.log("(hist_user) "+username+" ("+id+")")
+          if (LOG){
+            console.log("(hist_user) "+username+" ("+id+")")
+          }
         }
 
         while(!reader.end()){
@@ -88,12 +116,16 @@ class SocketMgr{
           this.on_message(this.local_id, -1, username, timestamp, message);
         }
 
-        console.log("Setup packet "+this.local_id+" "+this.local_key);
+        if (LOG){
+          console.log("Setup packet "+this.local_id+" "+this.local_key);
+        }
         break;
       case SUBID_USERJOIN:
         let id = reader.getUint16(0);
         let username = reader.getString(0)
-        console.log("user join: "+username+" ("+id+")");
+        if (LOG){
+          console.log("user join: "+username+" ("+id+")");
+        }
         this.users[id] = username;
         break;
       default:
@@ -117,7 +149,9 @@ class SocketMgr{
       query+="&start_time="+into_gcdate(start_time);
     }
     let fullurl = WEBSOCKET_URL+"?"+query;
-    console.log("creating socket: "+fullurl);
+    if (LOG){
+      console.log("creating socket: "+fullurl);
+    }
     this.ws = new WebSocket(fullurl);
     this.ws.binaryType = "arraybuffer";
 

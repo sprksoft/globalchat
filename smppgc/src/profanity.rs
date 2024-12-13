@@ -101,14 +101,19 @@ impl ProfFilter {
         message.sender = "#".repeat(message.sender.len()).into();
     }
 
-    pub async fn filter(&self, message: &mut Message) {
+    pub async fn filter(&self, message: &mut Message) -> bool {
         let filter = self.filter.read().await;
+
+        let mut prof = false;
         if filter.contains_profanity(&message.content) {
-            Self::hide_message(message)
+            Self::hide_message(message);
+            prof = true;
         }
         if filter.contains_profanity(&message.sender) {
-            Self::hide_message_sender(message)
+            Self::hide_message_sender(message);
+            prof = true;
         }
+        prof
     }
 }
 

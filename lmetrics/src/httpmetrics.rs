@@ -6,7 +6,7 @@ metrics! {
 pub counter http_errors_total("Amount of total http errors",
     [method, status_code]);
 pub counter http_req_total("Amount of total http requests",
-    [method]);
+    [method, status_code]);
 }
 
 pub fn http_errors_metrics() -> AdHoc {
@@ -14,7 +14,7 @@ pub fn http_errors_metrics() -> AdHoc {
         Box::pin(async move {
             let class = res.status().class();
             let meth = req.method().to_string();
-            http_req_total::inc(&meth);
+            http_req_total::inc(&meth, &res.status().code.to_string());
             if class == StatusClass::ClientError || class == StatusClass::ServerError {
                 http_errors_total::inc(&meth, &res.status().code.to_string());
             }

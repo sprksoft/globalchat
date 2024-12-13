@@ -1,3 +1,4 @@
+use lazy_static::lazy_static;
 use tokio_tungstenite::tungstenite;
 
 use crate::{chat::Message, names::UserId, userinfo::UserInfo};
@@ -5,6 +6,23 @@ use crate::{chat::Message, names::UserId, userinfo::UserInfo};
 pub const USERID_SPECIAL: u16 = 0;
 pub const SUBID_SETUP: u8 = 0;
 pub const SUBID_USERJOIN: u8 = 1;
+
+lazy_static! {
+    static ref VERSION: u16 = {
+        let year: usize = env!("CARGO_PKG_VERSION_MAJOR")
+            .parse()
+            .expect("Major version number can't be parsed into a usize");
+        let month: usize = env!("CARGO_PKG_VERSION_MINOR")
+            .parse()
+            .expect("Minor version number can't be parsed into a u8");
+
+        let serial: usize = env!("CARGO_PKG_VERSION_PATCH")
+            .parse()
+            .expect("Patch version number can't be parsed into a u8");
+
+        ((year - 2024) + month + serial) as u16
+    };
+}
 
 pub fn new_setup<'a, 'b>(
     key: UserId,
@@ -14,6 +32,7 @@ pub fn new_setup<'a, 'b>(
 ) -> tokio_tungstenite::tungstenite::Message {
     //|    u16   | const USERID_SPECIAL
     //|    u8    | const SUBID_SETUP
+    //| [u8; 3]  | version
     //|    u16   | id
     //| [u8; 33] | key
     //
@@ -32,9 +51,10 @@ pub fn new_setup<'a, 'b>(
 
     let key_str = key.to_string();
     let key_str_bytes = key_str.as_bytes();
-    let mut data = Vec::with_capacity(2 + 1 + 2 + key_str_bytes.len());
+    let mut data = Vec::with_capacity(size_of::<u16>() + 2 + 1 + 2 + key_str_bytes.len());
     data.extend_from_slice(&USERID_SPECIAL.to_be_bytes());
     data.push(SUBID_SETUP);
+    data.extend_from_slice(&VERSION.to_be_bytes());
     data.extend_from_slice(&id.to_be_bytes());
     data.extend_from_slice(key_str_bytes);
 

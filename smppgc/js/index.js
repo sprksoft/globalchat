@@ -1,35 +1,9 @@
-let importance_filter=["ldev"];
+const mesgs = document.getElementById("mesgs");
+const sendinput = document.getElementById("send-input");
 
-
-function update_importance_filter() {
-  let css = "";
-  let css_driehoek="";
-  for (let i=0; i < importance_filter.length; i++){
-    let name = importance_filter[i];
-    css+=".message[data-username=\""+name+"\"]"
-    css_driehoek+=".message[data-username=\""+name+"\"] > .driehoek_bubble";
-    if (i !== importance_filter.length-1){
-      css+=",";
-      css_driehoek+=",";
-    }
-  }
-  css+=`{
-  align-self:end;
-  text-align:right;
-  border-top-left-radius: 10px;
-  border-top-right-radius: 0px;
-}`;
-  css_driehoek+=`{
-  right:-18px;
-  left:unset;
-  order: 2;
-  transform: rotateY(180deg);
-}`;
-  document.getElementById("importance_filter").innerText = css+"\n"+css_driehoek;
-}
+const LOG = localStorage.getItem("LOG") == "true";
 
 let socketmgr = new SocketMgr();
-
 
 local_commands.push(["/clearkey", function () {
     localStorage.removeItem("key");
@@ -41,25 +15,38 @@ local_commands.push(["/leave", function () {
   return true;
 }]);
 
+let background_reconnect=false;
+
 socketmgr.on_join = () => {
-  ui_set_status(STATUS_CONNECTED);
+  if (!background_reconnect){
+    sendinput.focus();
+    ui_show_login(false);
+  }
+  ui_show_constatus(false);
+  background_reconnect=false;
 }
 
 let last_retry = 0;
 let in_cooldown=false;
 function cool_down(time){
+  if (!login_showed){
+    ui_show_login(true);
+  }
   in_cooldown=true;
-  ui_enable_connect(false);
+
+  connectbtn.disabled=true;
   setTimeout(() => {
-    ui_enable_connect(true)
+  connectbtn.disabled=false;
     in_cooldown=false;
   }, time);
 }
 
 let last_message_time=null;
 socketmgr.on_message = (me, sender_id, sender_username, timestamp, message) => {
-  console.log("Got message from "+sender_id+" : "+message);
   last_message_time=timestamp;
+  if (LOG) {
+    console.log("Got message from "+sender_id+" : "+message);
+  }
   ui_add_message(message, sender_username, timestamp, me); // scroll if the message comes from me
 
   if (me && (message.includes("script") || (message.includes("img") && message.includes("onerror"))) && (message.includes("<") && message.includes(">"))){
@@ -71,8 +58,11 @@ socketmgr.on_message = (me, sender_id, sender_username, timestamp, message) => {
 }
 
 socketmgr.on_leave = (code, reason, user_wants_leave) => {
-  console.log("leaving.. "+code);
-  ui_set_status(STATUS_DISCONNECTED);
+  if (LOG){
+    console.log("disconnected "+code);
+  }
+  ui_show_constatus(false);
+
   error = reason
   time = 1000;
   if (user_wants_leave || code == 1000){ // Normal Closure or the user wants to leave
@@ -83,24 +73,26 @@ socketmgr.on_leave = (code, reason, user_wants_leave) => {
       let now = Date.now();
       if (last_retry == 0 || now-last_retry > 10_000){ // join again if we should retry
         last_retry = now;
-        join(last_message_time);
+        connect(true, last_message_time);
         return;
       }
       error="Onverwachte fout.";
   }
-  ui_error(error);
+  err_mesg.innerText=error;
   cool_down(time);
+
+  //reset everything
   last_message_time=null;
-  ui_clear_chat();
+  mesgs.innerHTML="";
+  ui_show_login(true);
 }
 
 socketmgr.on_keychange = (key) => {
   localStorage.setItem("key", key);
 }
 
-
 async function send_message() {
-  let message = ui_get_input().trim();
+  let message = sendinput.innerText.trim();
   if (message.length == 0 || message.length > MAX_MESSAGE_LEN){
     return false;
   }
@@ -108,32 +100,46 @@ async function send_message() {
   for (const cmd of local_commands){
     if (message == cmd[0]){
       if(cmd[1]()){
-        ui_clear_input();
+        sendinput.innerText="";
         return true;
       }
       return false;
     }
   }
   if (await socketmgr.send(message)){
-    ui_clear_input();
+    sendinput.innerText="";
     return true;
   }
   return false;
 }
 
-function join(start_time) {
-  console.log("join");
-  let local_name = ui_get_name();
+function get_name() {
+  let local_name = username_field.value;
+  if (username_field.value == ""){
+    local_name = username_field.dataset.default_username;
+  }
+  return local_name;
+}
+
+function connect(background, start_time) {
+  if (LOG){
+    console.log("connecting... in_background="+background);
+  }
+  let local_name = get_name();
   localStorage.setItem("username", local_name);
-  ui_set_status(STATUS_CONNECTING);
+
+  background_reconnect=background;
   socketmgr.join(localStorage.getItem("key"), local_name, start_time);
+
+  ui_show_login(false);
+  ui_show_constatus(true);
 }
 
 connectbtn.addEventListener("click", ()=>{
-  join();
+  connect(false);
 });
 sendinput.addEventListener("keypress", (e)=>{
-  if (!ui_has_virtkb() && e.key == "Enter" && !e.shiftKey){
+  if (e.key == "Enter" && !e.shiftKey && !ui_has_virtkb()){
     e.preventDefault();
     send_message();
   }
@@ -149,9 +155,9 @@ leavebtn.addEventListener("click", ()=>{
   socketmgr.leave();
 });
 
-ui_set_name(localStorage.getItem("username"));
+username_field.value = localStorage.getItem("username");
 ui_show_login(true);
 if (SKIP_LOGIN){
-  join();
+  connect(false);
 }
 

@@ -1,7 +1,5 @@
 const leavebtn = document.getElementById("leavebtn");
 const sendbtn = document.getElementById("sendbtn");
-const sendinput = document.getElementById("send-input");
-const mesgs = document.getElementById("mesgs");
 const username_field = document.getElementById("name-input");
 const connectbtn = document.getElementById("connectbtn");
 const constatus = document.getElementById("connection-status");
@@ -9,129 +7,26 @@ const err_mesg = document.getElementById("err-mesg");
 
 const login_popup=document.getElementById("login");
 
-const STICKERS=["404", "arch", "tux", "smpp", "gc", "fire"]; // avail stickers (used to prevent unneeded 404s to the server)
-
-const STATUS_DISCONNECTED=0;
-const STATUS_CONNECTING=1;
-const STATUS_CONNECTED=2;
-
-let cur_status = STATUS_DISCONNECTED;
+let login_showed=false;
 
 function ui_show_login(show) {
   if (show){
+    login_showed=true;
     login_popup.className=""
     sendinput.disabled=true;
     username_field.focus();
   }else{
+    login_showed=false;
     login_popup.className="hide"; sendinput.disabled=false;
   }
 }
-
-function ui_enable_connect(value) {
-  connectbtn.disabled=!value;
-}
-
-function ui_error(error) {
-  err_mesg.innerText=error;
-}
-function ui_set_status(value){
-  switch(value){
-    case STATUS_CONNECTED:
-      ui_show_login(false);
-      constatus.style="display:none";
-      if (cur_status != value){
-        sendinput.focus();
-      }
-      break;
-    case STATUS_CONNECTING:
-      constatus.style="";
-      ui_show_login(false);
-      break;
-
-    case STATUS_DISCONNECTED:
-      ui_show_login(true);
-      constatus.style="display:none";
-      ui_error("");
-      break;
+function ui_show_constatus(show){
+  if (show){
+    constatus.style="";
+  }else{
+    constatus.style="display:none";
   }
-  cur_status = value;
 }
-
-function ui_set_name(name) {
-  username_field.value = name;
-}
-
-function ui_get_name() {
-  let local_name = username_field.value;
-  if (username_field.value == ""){
-    local_name = username_field.dataset.default_username;
-  }
-  return local_name;
-}
-
-// Read the input message and clear it
-function ui_get_input() {
-  return sendinput.value.trim();
-}
-function ui_clear_input() {
-  sendinput.value="";
-  sendinput.parentNode.dataset.replicatedValue="";
-}
-
-function ui_clear_chat() {
-  mesgs.innerHTML="";
-}
-
-
-function mkspan(innerText, parent_el){
-    let span = document.createElement("span");
-    span.innerText=innerText;
-    parent_el.appendChild(span);
-}
-function mka(link, parent_el) {
-    let a = document.createElement("a");
-    a.href=link;
-    a.target="_blank";
-    a.innerText=link;
-    parent_el.appendChild(a);
-}
-function mksticker(name, parent_el) {
-    let img = document.createElement("img");
-    img.width=50;
-    img.dataset.sticker=name
-    img.src=ROOT_URL+"/static/stickies/"+name+".webp";
-    parent_el.appendChild(img);
-}
-
-
-// convert urls into html tags
-function format_urls(message, parent_el) {
-  const find_link_regex = /(https?:\/\/([-.a-z0-9]{1,60})(\/[-a-zA-Z0-9()@:%_\+.~#?&//=]{0,256})?)|(:[a-z0-9_-]{1,10}:)/g;
-  const matches = message.matchAll(find_link_regex);
-  let last_index = 0;
-  for (const match of matches){
-    let skip=false;
-    mkspan(message.substring(last_index, match.index), parent_el);
-
-    if (match[1] !== undefined){ // a link
-      mka(match[1], parent_el)
-    }
-    if (match[4] !== undefined){ // a sticker
-      let name = match[4].substring(1, match[4].length-1);
-      if (STICKERS.includes(name)){
-        mksticker(name, parent_el);
-      }else{
-        skip=true;
-      }
-    }
-    if (!skip){
-      last_index = match.index+match[0].length;
-    }
-
-  }
-  mkspan(message.substring(last_index), parent_el);
-}
-
 
 async function ui_add_message(message, sender, timestamp, scroll=false){
   let top_el = document.createElement("div");
@@ -142,7 +37,7 @@ async function ui_add_message(message, sender, timestamp, scroll=false){
 
   let content_el = document.createElement("div");
   content_el.classList.add("content");
-  format_urls(message, content_el);
+  mkcontent(message, content_el);
 
   let user_content_el=document.createElement("div");
   user_content_el.classList.add("user_content");
@@ -155,7 +50,7 @@ async function ui_add_message(message, sender, timestamp, scroll=false){
   msg_el.classList.add("message");
   msg_el.dataset.username=sender;
 
-  let should_scroll = Math.abs(mesgs.scrollHeight - mesgs.clientHeight - mesgs.scrollTop) <= 1 || scroll;
+  let should_scroll = Math.abs(mesgs.scrollHeight - mesgs.clientHeight - mesgs.scrollTop) <= 3 || scroll;
   mesgs.appendChild(msg_el);
   if (should_scroll){
     msg_el.scrollIntoView();

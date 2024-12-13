@@ -1,7 +1,6 @@
 use std::{collections::HashSet, sync::Arc};
 
 use circular_queue::CircularQueue;
-use futures_util::Future;
 use log::*;
 use tokio::sync::{
     broadcast::{self, error::RecvError},
@@ -20,7 +19,8 @@ use thiserror::Error;
 metrics! {
     pub counter joined_total("Total joined users",[]);
     pub counter left_total("Total left users", []);
-    pub counter messages_total("Total count of messages sent", []);
+    pub counter history_messages_lost_total("Total count of messages lost while trying to record msg history", []);
+    pub counter client_left_events_lost_total("Total count of client_left events lost.", []);
 }
 
 #[derive(Debug, Error)]
@@ -89,6 +89,7 @@ impl Chat {
                                 return;
                             },
                             Err(RecvError::Lagged(count))=>{
+                                client_left_events_lost_total::inc();
                                 error!("main client_left receiver lagged behind {} times. Ghosts will appear", count);
                             }
                         }
@@ -97,13 +98,13 @@ impl Chat {
                         match mesg{
                             Ok(mesg) => {
                                 history.lock().await.push(mesg);
-                                messages_total::inc();
                             },
                             Err(RecvError::Closed) => {
                                 return;
                             },
                             Err(RecvError::Lagged(count))=>{
-                                error!("Lost {} messages", count);
+                                history_messages_lost_total::inc();
+                                error!("Lost {} messages. while recording storing history", count);
                             }
                         }
                     }
