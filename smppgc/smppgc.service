@@ -6,7 +6,7 @@ ExecStart=/bin/smppgc
 User=smppgc
 Group=smppgc
 Environment=ROCKET_CONFIG=/etc/smppgc.toml ROCKET_ENV=production
-Restart=always
+Restart=on-failure
 RestartSec=5
 KillSignal=SIGINT
 
