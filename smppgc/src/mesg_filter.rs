@@ -61,13 +61,13 @@ pub fn filter(mut mesg: Message, max_msg_len: usize) -> FilterResult {
     if let Some(cmd) = parse_cmd(content) {
         return FilterResult::Cmd(mesg, cmd);
     }
-
     let word = ['k', 'y', 's'];
-    let is_kys = content
-        .chars()
-        .zip(word)
-        .filter(|(char, char2)| !char.is_whitespace() && !char2.is_whitespace())
-        .all(|(char, word_char)| char.to_lowercase().next() == Some(word_char));
+    let is_kys = content.len() >= 3
+        && content
+            .chars()
+            .filter(|char| !char.is_whitespace())
+            .zip(word)
+            .all(|(char, word_char)| char.to_lowercase().next() == Some(word_char));
 
     if is_kys {
         mesg.content = "Kiss me pwees".into();
