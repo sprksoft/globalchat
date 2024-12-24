@@ -1,7 +1,34 @@
+import * as utils from './utils.js';
+
 const CLOSED=3;
 const SUBID_SETUP=0;
 const SUBID_USERJOIN=1;
 const KEY_LENGTH=33;
+
+const ERRORS={
+  "err_cmd": "Je bent gekicked door een admin.",
+  "err_ratelimit":"Te veel berichten. Typ langzamer.",
+  "err_ipratelimit":"Er zijn spammers met het zelfde ip als jou.",
+  "err_toomanyusers": "Er worden op dit moment te veel nieuwe gebruikers gemaakt. Dit komt waarschijnlijk door spammers.",
+  "err_505": "Stop and wait a sec when you look at me like that my darling what do you expect. In my imagination you're waiting lying on your side with your hands between your theights.",
+  "err_full": "De chat zit vol.",
+  "err_shutdown": "Globalchat gaat even offline. Sorry voor het ongemak",
+
+  "err_username_invalid":"Gebruikersnaam is ongeldig.",
+  "err_username_taken":"Gebruikersnaam is bezet.",
+  "err_username_prof":"Gebruikersnaam bevat scheldwoorden",
+}
+
+export function human_err(protoerr) {
+  if (protoerr == "err_ratelimit" && Math.floor(Math.random * 505) == 1) {
+    return ERRORS["err_505"];
+  }
+  let herr = ERRORS[protoerr];
+  if (!herr){
+    herr="Onverwachte fout.";
+  }
+  return herr;
+}
 
 class Reader{
   #dv;
@@ -67,7 +94,7 @@ function handle_version_check(protocol_ver, ver){
   }
 }
 
-class SocketMgr{
+export class SocketMgr{
   on_message;
   on_leave;
   on_join;
@@ -86,9 +113,7 @@ class SocketMgr{
       case SUBID_SETUP:
         this.on_join();
         let version = reader.getUint16(0);
-        if (LOG){
-          console.log("Protocol version: "+version+ " My version: "+VERSION_INT);
-        }
+        utils.log("Protocol version: "+version+ " My version: "+VERSION_INT);
         handle_version_check(version, VERSION_INT);
 
         this.local_id = reader.getUint16();
@@ -102,9 +127,7 @@ class SocketMgr{
           let name_length = reader.getUint8();
           let username = reader.getString(0, name_length);
           this.users[id]=username;
-          if (LOG){
-            console.log("(hist_user) "+username+" ("+id+")")
-          }
+          utils.log("(hist_user) "+username+" ("+id+")")
         }
 
         while(!reader.end()){
@@ -116,16 +139,12 @@ class SocketMgr{
           this.on_message(this.local_id, -1, username, timestamp, message);
         }
 
-        if (LOG){
-          console.log("Setup packet "+this.local_id+" "+this.local_key);
-        }
+        utils.log("Setup packet "+this.local_id+" "+this.local_key);
         break;
       case SUBID_USERJOIN:
         let id = reader.getUint16(0);
         let username = reader.getString(0)
-        if (LOG){
-          console.log("user join: "+username+" ("+id+")");
-        }
+        utils.log("user join: "+username+" ("+id+")");
         this.users[id] = username;
         break;
       default:
@@ -149,25 +168,14 @@ class SocketMgr{
       query+="&start_time="+into_gcdate(start_time);
     }
     let fullurl = WEBSOCKET_URL+"?"+query;
-    if (LOG){
-      console.log("creating socket: "+fullurl);
-    }
+    utils.log("creating socket: "+fullurl);
     this.ws = new WebSocket(fullurl);
     this.ws.binaryType = "arraybuffer";
 
     this.ws.onclose = async (e) => {
       this.users={};
-      let reason = e.reason;
-      if (!e.reason || e.reason.startsWith("INT:")){
-        if (e.reason) {
-          console.error("Internal Error: "+e.reason);
-        }else{
-          console.error("Reason empty");
-          console.error(e);
-        }
-        reason="Onverwachte fout.";
-      }
-      this.on_leave(e.code, reason, this.user_wants_leave);
+      utils.log("disconnect reason: "+e.reason);
+      this.on_leave(e.code, e.reason, this.user_wants_leave);
     }
 
     this.ws.onmessage = async (e) =>{

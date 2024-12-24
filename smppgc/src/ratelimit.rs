@@ -1,79 +1,135 @@
-use std::time::Instant;
+use crate::names::UserSid;
+use std::{net::IpAddr, time::Instant};
 
-use rocket::serde::Deserialize;
+use dashmap::DashMap;
+use log::*;
+use rocket::{fairing::AdHoc, serde::Deserialize};
+
+pub struct UserRateLimiters(pub RateLimiters<IpAddr>);
+pub struct IpRateLimiters(pub RateLimiters<IpAddr>);
+pub struct MesgRateLimiters(pub RateLimiters<UserSid>);
+
+pub struct RateLimiters<T: std::hash::Hash> {
+    conf: RateLimitConfig,
+    limiters: DashMap<T, RateLimiter>,
+}
+impl<T: std::hash::Hash + std::cmp::Eq> RateLimiters<T> {
+    pub fn new(conf: RateLimitConfig) -> Self {
+        Self {
+            conf,
+            limiters: DashMap::with_capacity(1000),
+        }
+    }
+
+    pub fn update(&self, key: T, increase: u32) -> bool {
+        match self.limiters.get_mut(&key) {
+            Some(mut limiter) => limiter.update(increase),
+            None => {
+                self.limiters
+                    .insert(key, RateLimiter::new(self.conf.clone()));
+                true
+            }
+        }
+    }
+}
 
 pub struct RateLimiter {
     conf: RateLimitConfig,
-    burst: isize,
-    last_message_instant: Instant,
+
+    count: u32,
+    last_reset: Instant,
 }
 impl RateLimiter {
     pub fn new(conf: RateLimitConfig) -> Self {
         Self {
             conf,
-            burst: 0,
-            last_message_instant: Instant::now(),
+            count: 0,
+            last_reset: Instant::now(),
         }
     }
+    /// Resets the rate limiter.
+    /// frames: is the amount of frames to reset by.
+    pub fn reset(&mut self, frames: u32) {
+        //If max count was over the limit last time frame. Take that into account in this frame.
+        self.count = self.count.saturating_sub(self.conf.amount * frames);
+        if frames > 0 {
+            self.last_reset = Instant::now();
+        }
+    }
+    pub fn update(&mut self, increase: u32) -> bool {
+        if self.conf.timeframe == 0 {
+            warn!("timeframe can't be 0")
+        }
+        self.count = self.count.saturating_add(increase);
+        let elapsed = self.last_reset.elapsed();
+        let elapsed_frames = elapsed.as_secs() as u32 / self.conf.timeframe;
+        self.reset(elapsed_frames);
 
-    pub fn update(&mut self) -> bool {
-        let last_mesg_sec: isize = self
-            .last_message_instant
-            .elapsed()
-            .as_millis()
-            .try_into()
-            .unwrap_or(isize::MAX);
-        self.last_message_instant = Instant::now();
-
-        if last_mesg_sec < self.conf.min_message_time_hard {
-            return false;
-        }
-        self.burst += self
-            .conf
-            .min_message_time_hard
-            .saturating_sub(last_mesg_sec);
-        if self.burst < 0 {
-            self.burst = 0;
-        }
-        if self.burst > self.conf.kick_burst {
-            return false;
-        }
-        if last_mesg_sec < self.conf.min_message_time_soft {
-            self.burst += self
-                .conf
-                .min_message_time_soft
-                .saturating_sub(last_mesg_sec)
-                * 2.clamp(0, isize::MAX);
-        }
-        true
+        let block = self.count >= self.conf.amount;
+        !block
     }
 }
-
-// pub struct SpamLimiter<T> {
-//     last_message: Option<T>,
-//     last_message_instant: Instant,
-// }
-// impl<T: std::cmp::PartialEq> SpamLimiter<T> {
-//     pub fn new() -> Self {
-//         Self {
-//             last_message: None,
-//             last_message_instant: Instant::now(),
-//         }
-//     }
-//     pub fn update(&mut self, message: T) -> bool {
-//         let allow = self.last_message_instant.elapsed().as_secs() > 5
-//             || Some(&message) != self.last_message.as_ref();
-//
-//         self.last_message = Some(message);
-//         self.last_message_instant = Instant::now();
-//         allow
-//     }
-// }
 
 #[derive(Deserialize, Debug, Clone)]
 #[serde(crate = "rocket::serde")]
 pub struct RateLimitConfig {
-    pub min_message_time_hard: isize,
-    pub min_message_time_soft: isize,
-    pub kick_burst: isize,
+    pub timeframe: u32,
+    pub amount: u32,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+#[serde(crate = "rocket::serde")]
+pub struct MessageLimits {
+    pub small_message_len: usize,
+    pub max_message_len: usize,
+    pub large_message_penalty: u32,
+    #[serde(flatten)]
+    pub ratelimit: RateLimitConfig,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+#[serde(crate = "rocket::serde")]
+pub struct UserLimits {
+    pub max_username_len: usize,
+    #[serde(flatten)]
+    pub ratelimit: RateLimitConfig,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+#[serde(crate = "rocket::serde")]
+pub struct IpLimits {
+    pub xx_penalty: u32,
+    pub not_be_penalty: u32,
+    #[serde(flatten)]
+    pub ratelimit: RateLimitConfig,
+}
+
+pub fn stage() -> AdHoc {
+    AdHoc::on_ignite("ratelimiting", |r| async {
+        let mesg_limits: MessageLimits = r
+            .figment()
+            .extract_inner("mesg_limits")
+            .expect("Failed to read message ratelimiting config value");
+        let user_limits: UserLimits = r
+            .figment()
+            .extract_inner("user_limits")
+            .expect("Failed to read user ratelimiting config value");
+        let ip_limits: IpLimits = r
+            .figment()
+            .extract_inner("ip_limits")
+            .expect("Failed to read ip ratelimiting config value");
+
+        r.manage(MesgRateLimiters(RateLimiters::<UserSid>::new(
+            mesg_limits.ratelimit.clone(),
+        )))
+        .manage(mesg_limits)
+        .manage(UserRateLimiters(RateLimiters::<IpAddr>::new(
+            user_limits.ratelimit.clone(),
+        )))
+        .manage(user_limits)
+        .manage(IpRateLimiters(RateLimiters::<IpAddr>::new(
+            ip_limits.ratelimit.clone(),
+        )))
+        .manage(ip_limits)
+    })
 }

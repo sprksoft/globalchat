@@ -4,7 +4,7 @@ use crate::chat::Message;
 
 pub enum Cmd {
     BanWord(Box<str>),
-    KickMe,
+    KickMe { hard: bool },
     Invalid,
 }
 
@@ -31,6 +31,7 @@ fn parse_admin_cmd(str: &str) -> Cmd {
     let (quote_start, quote_end) = quotes_of_the_minute();
     let banword_cmd = "/banword ";
     let kickme_cmd = "/kickme";
+    let kickmehard_cmd = "/kickme hard";
     if str.starts_with(banword_cmd) && str[banword_cmd.len()..].starts_with(quote_start) {
         let Some(end) = str.find(quote_end) else {
             return Cmd::Invalid;
@@ -38,7 +39,9 @@ fn parse_admin_cmd(str: &str) -> Cmd {
         let word = str[banword_cmd.len() + 1..end].to_lowercase();
         Cmd::BanWord(word.into())
     } else if str == kickme_cmd {
-        Cmd::KickMe
+        Cmd::KickMe { hard: false }
+    } else if str == kickmehard_cmd {
+        Cmd::KickMe { hard: true }
     } else {
         Cmd::Invalid
     }
@@ -53,8 +56,8 @@ fn parse_cmd(str: &str) -> Option<Cmd> {
     None
 }
 
-pub fn filter(mut mesg: Message, max_msg_len: usize) -> FilterResult {
-    if !mesg.is_valid(max_msg_len) {
+pub fn filter(mut mesg: Message) -> FilterResult {
+    if !mesg.is_valid() {
         return FilterResult::Invalid;
     };
     let content = mesg.content.as_ref().trim();

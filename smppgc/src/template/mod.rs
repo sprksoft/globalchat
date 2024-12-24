@@ -8,7 +8,7 @@ use rocket::{
 };
 use rocket_dyn_templates::{context, Template};
 
-use crate::{MaxLengthConfig, OfflineConfig, RootUrl};
+use crate::{ratelimit::MessageLimits, ratelimit::UserLimits, RootUrl};
 
 macro_rules! css_var {
     ($name:ident, $($alpha:literal),*) => {
@@ -116,8 +116,8 @@ fn v1(
     theme: SmppTheme,
     placeholder: Option<&str>,
     skip_login: Option<bool>,
-    offline_config: &State<OfflineConfig>,
-    max_length_config: &State<MaxLengthConfig>,
+    message_limits: &State<MessageLimits>,
+    user_limits: &State<UserLimits>,
     root_url: &State<RootUrl>,
     debug: &State<crate::debug::Debug>,
 ) -> GcPageResponder {
@@ -133,11 +133,10 @@ fn v1(
             placeholder:placeholder,
             root_url: &root_url.root_url,
             debug: debug.debug,
-            offline: offline_config.offline,
             skip_login: skip_login.unwrap_or(false),
             version: env!("CARGO_PKG_VERSION"),
-            max_username_len: max_length_config.max_username_len,
-            max_message_len: max_length_config.max_message_len),
+            max_username_len: user_limits.max_username_len,
+            max_message_len: message_limits.max_message_len),
         ),
         csp: CSPFrameAncestors {
             frame_ancestors: "*.smartschool.be".to_string(),

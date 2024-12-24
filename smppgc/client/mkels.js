@@ -1,6 +1,6 @@
 const STICKERS=["404", "arch", "tux", "smpp", "gc", "fire"]; // avail stickers (used to prevent unneeded 404s to the server)
 
-function mksender(sender, parent_el) {
+export function mksender(sender, parent_el) {
   let special = sender == "system";
   let sender_el = document.createElement("span");
   if (special){
@@ -10,13 +10,13 @@ function mksender(sender, parent_el) {
   sender_el.innerText=sender;
   parent_el.appendChild(sender_el);
 }
-function mkspace(parent_el) {
+export function mkspace(parent_el) {
   let space = document.createElement("div");
   space.classList.add("space");
   parent_el.appendChild(space);
 }
 
-function mktime(time, parent_el) {
+export function mktime(time, parent_el) {
   if (time == undefined){ return; }
   let time_el = document.createElement("small");
   time_el.classList.add("message_timestamp")
@@ -26,19 +26,19 @@ function mktime(time, parent_el) {
   });
   parent_el.appendChild(time_el);
 }
-function mkspan(innerText, parent_el){
+export function mkspan(innerText, parent_el){
     let span = document.createElement("span");
     span.innerText=innerText;
     parent_el.appendChild(span);
 }
-function mka(link, parent_el) {
+export function mka(link, parent_el) {
     let a = document.createElement("a");
     a.href=link;
     a.target="_blank";
     a.innerText=link;
     parent_el.appendChild(a);
 }
-function mksticker(name, parent_el) {
+export function mksticker(name, parent_el) {
     let img = document.createElement("img");
     img.width=50;
     img.dataset.sticker=name
@@ -47,7 +47,7 @@ function mksticker(name, parent_el) {
 }
 
 // Parse the string message and generate html elements for stickers, links,...
-function mkcontent(message, parent_el) {
+export function mkcontent(message, parent_el) {
   const find_link_regex = /(https?:\/\/([-.a-z0-9]{1,60})(\/[-a-zA-Z0-9()@:%_\+.~#?&//=]{0,256})?)|(:[a-z0-9_-]{1,10}:)/g;
   const matches = message.matchAll(find_link_regex);
   let last_index = 0;

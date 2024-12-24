@@ -2,7 +2,7 @@ use rocket::{fairing::AdHoc, get, response::Redirect, routes};
 
 #[get("/reload_js")]
 fn reload_js() -> Redirect {
-    std::process::Command::new("smppgc/gen_js.sh")
+    std::process::Command::new("smppgc/build_js.sh")
         .spawn()
         .unwrap();
     Redirect::temporary("/v1")

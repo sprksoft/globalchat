@@ -2,6 +2,7 @@ use std::ops::Deref;
 
 use chat::Chat;
 use lmetrics::LMetrics;
+use ratelimit::RateLimitConfig;
 use rocket::response::Redirect;
 use rocket::routes;
 use rocket::serde::Deserialize;
@@ -29,19 +30,6 @@ mod wsprotocol;
 pub struct ChatConfig {
     pub max_stored_messages: usize,
     pub max_users: u16,
-}
-
-#[derive(Deserialize, Debug)]
-#[serde(crate = "rocket::serde")]
-pub struct MaxLengthConfig {
-    pub max_message_len: usize,
-    pub max_username_len: usize,
-}
-
-#[derive(Deserialize, Debug)]
-#[serde(crate = "rocket::serde")]
-pub struct OfflineConfig {
-    pub offline: bool,
 }
 
 #[derive(Deserialize, Debug)]
@@ -92,6 +80,8 @@ fn rocket() -> _ {
         &chat::history_messages_lost_total::METRIC,
         &socket::messages_total::METRIC,
         &socket::profanity_messages_total::METRIC,
+        &socket::messages_blocked::METRIC,
+        &socket::new_users::METRIC,
         &lmetrics::http_errors_total::METRIC,
         &lmetrics::http_req_total::METRIC,
     ]);
@@ -99,13 +89,11 @@ fn rocket() -> _ {
     rocket::build()
         .mount("/", routes![index, server_version])
         .mount("/metrics", metrics)
+        .attach(ratelimit::stage())
         .attach(static_routing::stage())
         .attach(template::stage())
         .attach(names::stage())
-        .attach(AdHoc::config::<ratelimit::RateLimitConfig>())
-        .attach(AdHoc::config::<OfflineConfig>())
         .attach(AdHoc::config::<RootUrl>())
-        .attach(AdHoc::config::<MaxLengthConfig>())
         .attach(AdHoc::on_ignite("chat", |r| async {
             let config = r
                 .figment()

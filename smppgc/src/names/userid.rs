@@ -2,13 +2,13 @@ use std::fmt::Display;
 
 use uuid::Uuid;
 
-#[derive(Eq, PartialEq, Clone, Hash)]
-pub struct UserId {
+#[derive(Eq, PartialEq, Hash, Clone)]
+pub struct UserSid {
     uuid: Uuid,
     anon: bool,
 }
-impl UserId {
-    pub fn new() -> UserId {
+impl UserSid {
+    pub fn new() -> UserSid {
         Self {
             uuid: Uuid::new_v4(),
             anon: true,
@@ -42,7 +42,7 @@ impl UserId {
         self.uuid
     }
 }
-impl Display for UserId {
+impl Display for UserSid {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if self.anon {
             f.write_str("a")?;

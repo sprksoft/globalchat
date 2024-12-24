@@ -17,14 +17,14 @@ impl Message {
         }
     }
 
-    pub fn is_valid(&self, max_len: usize) -> bool {
-        if self.content.len() > max_len {
-            return false;
-        }
+    pub fn is_valid(&self) -> bool {
         if self.is_empty() {
             return false;
         }
         true
+    }
+    pub fn len(&self) -> usize {
+        self.content.len()
     }
     pub fn is_empty(&self) -> bool {
         for char in self.content.chars() {

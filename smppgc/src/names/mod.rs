@@ -7,7 +7,7 @@ use thiserror::Error;
 mod userid;
 pub use userid::*;
 
-use crate::profanity::ProfFilter;
+use crate::{profanity::ProfFilter, wsprotocol::KickReason};
 
 #[derive(Error, Debug)]
 pub enum NameClaimError {
@@ -18,10 +18,19 @@ pub enum NameClaimError {
     #[error("Gebruikersnaam bevat scheldwoorden")]
     Profanity,
 }
+impl NameClaimError {
+    pub fn into_kickreason(self) -> KickReason {
+        match self {
+            Self::Profanity => KickReason::UsernameProfanity,
+            Self::Taken => KickReason::UsernameTaken,
+            Self::Invalid => KickReason::UsernameInvalid,
+        }
+    }
+}
 
 struct NameSlot {
     name: Arc<str>,
-    owner: Option<UserId>,
+    owner: Option<UserSid>,
 }
 
 #[derive(Eq, PartialEq, PartialOrd, Ord, Hash, Clone)]
@@ -30,7 +39,7 @@ struct NormName(String);
 pub struct UsernameManager {
     max_reserved: u16,
     names: DashMap<NormName, NameSlot>,
-    claims: DashMap<UserId, VecDeque<NormName>>,
+    claims: DashMap<UserSid, VecDeque<NormName>>,
 }
 impl UsernameManager {
     pub fn new(max_reserved: u16) -> Self {
@@ -44,7 +53,7 @@ impl UsernameManager {
     pub async fn claim_name(
         &self,
         name: &str,
-        user_id: UserId,
+        user_id: UserSid,
         max_name_len: usize,
         prof_filter: &ProfFilter,
     ) -> Result<ClaimedName, NameClaimError> {

@@ -12,7 +12,7 @@ use rocket_ws::{
 use thiserror::Error;
 use tokio_tungstenite::tungstenite;
 
-use crate::{chat::Message, names::UserId, userinfo::UserInfo};
+use crate::{chat::Message, names::UserSid, userinfo::UserInfo};
 
 use log::*;
 
@@ -36,33 +36,41 @@ impl From<tungstenite::Error> for PacketsError {
     }
 }
 
-#[derive(Clone, Copy)]
-pub enum KickReason {
-    Cmd,
-    RateLimit,
-    Spam,
-    ServerShutdown,
-}
-impl KickReason {
-    pub fn into_close_frame(self) -> CloseFrame<'static> {
-        match self {
-            Self::RateLimit => CloseFrame {
-                code: CloseCode::Policy,
-                reason: Cow::Borrowed("Te veel berichten. Typ langzamer."),
-            },
-            Self::Spam => CloseFrame {
-                code: CloseCode::Policy,
-                reason: Cow::Borrowed("Niet spammen aub. Je hebt 5s cooldown"),
-            },
-            Self::ServerShutdown => CloseFrame {
-                code: CloseCode::Away,
-                reason: Cow::Borrowed("Globalchat gaat even offline. Sorry voor het ongemak"),
-            },
-            Self::Cmd => CloseFrame {
-                code: CloseCode::Abnormal,
-                reason: Cow::Borrowed("Kicked using the command"),
-            },
+macro_rules! kick_reason {
+    ($vis:vis $ty:ident{$($enum:ident($code:ident, $proto_mesg:literal)),*}) => {
+        #[derive(Clone)]
+        $vis enum $ty {
+            $(
+                $enum
+            ),*
         }
+
+        impl $ty{
+            pub fn into_close_frame(self) -> CloseFrame<'static>{
+                match self{
+                    $(
+                        Self::$enum => CloseFrame{
+                            code: CloseCode::$code,
+                            reason: Cow::Borrowed($proto_mesg)
+                        }
+                    ),*
+                }
+            }
+        }
+    };
+}
+kick_reason! {
+    pub KickReason{
+        Hard(Policy,""),
+        Cmd(Abnormal,"err_cmd"),
+        IpRateLimit(Policy, "err_ipratelimit"),
+        TooManyUsers(Policy, "err_toomanyusers"),
+        RateLimit(Policy,"err_ratelimit"),
+        ServerShutdown(Away,"err_shutdown"),
+        ChatFull(Again,"err_full"),
+        UsernameProfanity(Error,"err_username_prof"),
+        UsernameTaken(Error,"err_username_taken"),
+        UsernameInvalid(Error,"err_username_invalid")
     }
 }
 
@@ -73,7 +81,7 @@ pub struct WsClient {
 impl WsClient {
     pub async fn new(
         mut ws: DuplexStream,
-        user_static_id: UserId,
+        user_static_id: UserSid,
         user_info: UserInfo,
         clients: Vec<UserInfo>,
         history: Vec<Message>,

@@ -1,44 +1,91 @@
 use lmetrics::metrics;
-use rocket::{get, Responder, Shutdown, State};
-use std::{borrow::Cow, sync::Arc};
+use rocket::{
+    get,
+    request::{FromRequest, Outcome},
+    Request, Responder, Shutdown, State,
+};
+use std::{convert::Infallible, net::IpAddr};
 
 use log::*;
-use rocket_ws::{
-    frame::{CloseCode, CloseFrame},
-    Channel, WebSocket,
-};
+use rocket_ws::{Channel, WebSocket};
 use tokio::sync::broadcast::error::RecvError;
 
 use crate::{
     chat::{Chat, Message, NewClientError},
     mesg_filter::{self, Cmd, FilterResult},
-    names::{UserId, UsernameManager},
+    names::{UserSid, UsernameManager},
     profanity::ProfFilter,
-    ratelimit::{RateLimitConfig, RateLimiter},
+    ratelimit::{IpLimits, MessageLimits, UserLimits},
+    ratelimit::{IpRateLimiters, MesgRateLimiters, UserRateLimiters},
     wsprotocol::{KickReason, WsClient},
-    MaxLengthConfig, OfflineConfig,
 };
 
 #[derive(Responder)]
 pub enum SocketV1Responder<'a> {
-    #[response(status = 503)]
-    Offline(&'static str),
     #[response(status = 500)]
     Error(&'static str),
     #[response(status = 200)]
     Channel(Channel<'a>),
 }
 impl<'a> SocketV1Responder<'a> {
-    pub fn ws_close(ws: WebSocket, frame: CloseFrame<'a>) -> SocketV1Responder<'a> {
-        SocketV1Responder::Channel(
-            ws.channel(move |mut stream| Box::pin(async move { stream.close(Some(frame)).await })),
-        )
+    pub fn ws_close(ws: WebSocket, reason: KickReason) -> SocketV1Responder<'a> {
+        SocketV1Responder::Channel(ws.channel(move |mut stream| {
+            Box::pin(async move { stream.close(Some(reason.into_close_frame())).await })
+        }))
     }
 }
 
 metrics! {
     pub counter messages_total("Total count of sent messages");
     pub counter profanity_messages_total("Total count of sent messages that contain profanity");
+    pub counter messages_blocked("Total count of blocked messages", [reason]);
+    pub counter new_users("Total count of new sid's being generated");
+}
+
+pub struct IpCountry {
+    code: [u8; 2],
+}
+impl IpCountry {
+    pub fn unknown() -> Self {
+        Self { code: [b'X'; 2] }
+    }
+    pub fn parse(str: &str) -> Option<Self> {
+        let mut chars = str.chars();
+        let first = chars.next()?;
+        let second = chars.next()?;
+        if !first.is_ascii() || !second.is_ascii() {
+            return None;
+        }
+        Some(Self {
+            code: [first as u8, second as u8],
+        })
+    }
+
+    pub fn is_be(&self) -> bool {
+        self.code == [b'B', b'E']
+    }
+    pub fn is_unknown(&self) -> bool {
+        self.code == [b'X', b'X']
+    }
+    pub fn is_tor(&self) -> bool {
+        self.code == [b'T', b'1']
+    }
+}
+//CF-IPCountry
+#[rocket::async_trait]
+impl<'r> FromRequest<'r> for IpCountry {
+    type Error = Infallible;
+
+    async fn from_request(request: &'r Request<'_>) -> Outcome<Self, Infallible> {
+        Outcome::Success(
+            request
+                .headers()
+                .get_one("CF-IPCountry")
+                .map(|cc| IpCountry::parse(cc))
+                .flatten()
+                .unwrap_or(IpCountry::unknown()),
+        )
+    }
 }
 
 #[get("/socket/v1?<username>&<key>&<start_time>")]
@@ -47,52 +94,54 @@ pub async fn socket_v1<'a>(
     key: Option<&str>,
     start_time: Option<u32>,
     ws: WebSocket,
-    offline_config: &State<OfflineConfig>,
-    maxlen_config: &State<MaxLengthConfig>,
-    ratelimit_config: &State<RateLimitConfig>,
+    mesg_limits: &State<MessageLimits>,
+    user_limits: &State<UserLimits>,
+    ip_limits: &State<IpLimits>,
+    mesg_ratelimiters: &'a State<MesgRateLimiters>,
+    ip_ratelimiters: &'a State<IpRateLimiters>,
+    user_ratelimiting: &State<UserRateLimiters>,
     prof_filter: &'a State<ProfFilter>,
     chat: &'a State<Chat>,
     usrnamemgr: &State<UsernameManager>,
     mut shutdown: Shutdown,
+    addr: IpAddr,
+    country: IpCountry,
 ) -> SocketV1Responder<'a> {
-    if offline_config.offline {
-        return SocketV1Responder::Offline("smppgc offline");
+    if !ip_ratelimiters.0.update(addr, 0) {
+        return SocketV1Responder::ws_close(ws, KickReason::IpRateLimit);
     }
-    let start_time = start_time.unwrap_or(0);
-    let static_user_id = match key {
-        Some(key) => match UserId::parse_str(key) {
-            Some(sui) => sui,
-            None => {
-                return SocketV1Responder::ws_close(
-                    ws,
-                    CloseFrame {
-                        code: CloseCode::Error,
-                        reason: Cow::Borrowed("INT: Ongeldige statische gebruikers id."),
-                    },
-                );
-            }
-        },
-        None => UserId::new(),
+    let ip_penalty_multiplier = if country.is_be() {
+        1
+    } else if country.is_unknown() {
+        ip_limits.xx_penalty
+    } else {
+        ip_limits.not_be_penalty
     };
+    let start_time = start_time.unwrap_or(0);
+    let (new_user, sid) = key
+        .map(|sid| UserSid::parse_str(sid))
+        .flatten()
+        .map(|sid| (false, sid))
+        .unwrap_or_else(|| (true, UserSid::new()));
+    if new_user {
+        if !user_ratelimiting.0.update(addr, ip_penalty_multiplier) {
+            return SocketV1Responder::ws_close(ws, KickReason::TooManyUsers);
+        }
+        new_users::inc();
+    }
 
     let name_lease = match usrnamemgr
         .claim_name(
             username,
-            static_user_id.clone(),
-            maxlen_config.max_username_len,
+            sid.clone(),
+            user_limits.max_username_len,
             &prof_filter,
         )
         .await
     {
         Ok(name_lease) => name_lease,
         Err(e) => {
-            return SocketV1Responder::ws_close(
-                ws,
-                CloseFrame {
-                    code: CloseCode::Error,
-                    reason: Cow::Owned(e.to_string()),
-                },
-            );
+            return SocketV1Responder::ws_close(ws, e.into_kickreason());
         }
     };
 
@@ -102,31 +151,23 @@ pub async fn socket_v1<'a>(
             info!("Closing connection: {:?}", e);
             match e {
                 NewClientError::MaxConcurrentUserCount => {
-                    return SocketV1Responder::ws_close(
-                        ws,
-                        CloseFrame {
-                            code: CloseCode::Again,
-                            reason: Cow::Borrowed("De chat zit vol"),
-                        },
-                    )
+                    return SocketV1Responder::ws_close(ws, KickReason::ChatFull)
                 }
             }
         }
     };
-    let mut rate_limiter = RateLimiter::new(ratelimit_config.inner().clone());
-    let max_message_len = maxlen_config.max_message_len;
+    let mesg_limits = mesg_limits.inner().clone();
     SocketV1Responder::Channel(ws.channel(move |stream| {
         Box::pin(async move {
             let chat_hist = chat.history(start_time).await;
             let mut wsclient = WsClient::new(
                 stream,
-                static_user_id,
+                sid.clone(),
                 chat_client.user_info(),
                 chat.clients().await,
-                chat_hist
-
+                chat_hist,
             )
-                .await?;
+            .await?;
 
             loop {
                 tokio::select! {
@@ -135,7 +176,22 @@ pub async fn socket_v1<'a>(
                     }
                     mesg = wsclient.try_recv() => {
                         let Some(mesg) = mesg? else { continue; };
-                        match on_message(mesg, &chat, &mut wsclient, &prof_filter, &mut rate_limiter, max_message_len).await?{
+                        if mesg.len() > mesg_limits.max_message_len{
+                            messages_blocked::inc("msgtoobig");
+                            continue;
+                        }
+                        let rl_points = if mesg.len() > mesg_limits.small_message_len { mesg_limits.large_message_penalty } else { 1 };
+                        if !ip_ratelimiters.0.update(addr, rl_points*ip_penalty_multiplier){
+                            messages_blocked::inc("ipratelimit");
+                            wsclient.kick(KickReason::IpRateLimit).await?;
+                            continue;
+                        }
+                        if !mesg_ratelimiters.0.update(sid.clone(), rl_points){
+                            wsclient.kick(KickReason::RateLimit).await?;
+                            messages_blocked::inc("ratelimit");
+                            continue;
+                        }
+                        match on_message(mesg, &chat, &mut wsclient, &prof_filter).await?{
                             Some(mesg) => {
                                 chat_client.send(mesg);
                             },
@@ -181,15 +237,9 @@ async fn on_message(
     chat: &Chat,
     wsclient: &mut WsClient,
     prof_filter: &ProfFilter,
-    rate_limiter: &mut RateLimiter,
-    max_message_len: usize,
 ) -> Result<Option<Message>, tokio_tungstenite::tungstenite::Error> {
-    if !rate_limiter.update() {
-        wsclient.kick(KickReason::RateLimit).await?;
-        return Ok(None);
-    }
     messages_total::inc();
-    match mesg_filter::filter(message, max_message_len) {
+    match mesg_filter::filter(message) {
         FilterResult::Cmd(message, Cmd::Invalid) => {
             wsclient.forward(&message).await?;
             wsclient
@@ -197,8 +247,12 @@ async fn on_message(
                 .await?;
             return Ok(None);
         }
-        FilterResult::Cmd(_, Cmd::KickMe) => {
-            wsclient.kick(KickReason::Cmd).await?;
+        FilterResult::Cmd(_, Cmd::KickMe { hard }) => {
+            if hard {
+                wsclient.kick(KickReason::Hard).await?;
+            } else {
+                wsclient.kick(KickReason::Cmd).await?;
+            }
         }
 
         FilterResult::Cmd(message, Cmd::BanWord(word)) => {
@@ -234,7 +288,9 @@ async fn on_message(
             }
             return Ok(None);
         }
-        FilterResult::Invalid => {}
+        FilterResult::Invalid => {
+            messages_blocked::inc("invalid");
+        }
         FilterResult::Message(mut filtered_mesg) => {
             if prof_filter.filter(&mut filtered_mesg).await {
                 profanity_messages_total::inc();

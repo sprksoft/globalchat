@@ -1,7 +1,7 @@
 use lazy_static::lazy_static;
 use tokio_tungstenite::tungstenite;
 
-use crate::{chat::Message, names::UserId, userinfo::UserInfo};
+use crate::{chat::Message, names::UserSid, userinfo::UserInfo};
 
 pub const USERID_SPECIAL: u16 = 0;
 pub const SUBID_SETUP: u8 = 0;
@@ -25,7 +25,7 @@ lazy_static! {
 }
 
 pub fn new_setup<'a, 'b>(
-    key: UserId,
+    key: UserSid,
     id: u16,
     clients: Vec<UserInfo>,
     history: Vec<Message>,
