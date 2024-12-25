@@ -19,7 +19,7 @@ NIGHTLY="false"
 
 prepare() {
   cd "$srcdir/smppserver"
-  smppgc/gen_js.sh
+  smppgc/build_js.sh
   export RUSTUP_TOOLCHAIN=stable
   if [[ "$NIGHTLY" == "true" ]] ; then
   export RUSTUP_TOOLCHAIN=nightly
