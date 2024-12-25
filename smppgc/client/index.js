@@ -3,6 +3,7 @@ import * as utils from './utils.js';
 import * as mk from './mkels.js'
 
 import './index.css'
+import './login.css'
 
 const mesgs = document.getElementById("mesgs");
 const sendinput = document.getElementById("send-input");
@@ -12,7 +13,6 @@ const sendbtn = document.getElementById("sendbtn");
 const connectbtn = document.getElementById("connectbtn");
 const constatus = document.getElementById("connection-status");
 const err_mesg = document.getElementById("err-mesg");
-
 const login_popup=document.getElementById("login");
 
 async function add_message(message, sender, timestamp, scroll=false){
@@ -44,25 +44,6 @@ async function add_message(message, sender, timestamp, scroll=false){
   }
 }
 
-let login_showed=false;
-function show_login(show) {
-  if (show){
-    login_showed=true;
-    login_popup.className=""
-    sendinput.disabled=true;
-    username_field.focus();
-  }else{
-    login_showed=false;
-    login_popup.className="hide"; sendinput.disabled=false;
-  }
-}
-function show_constatus(show){
-  if (show){
-    constatus.style="";
-  }else{
-    constatus.style="display:none";
-  }
-}
 
 let socketmgr = new proto.SocketMgr();
 
@@ -81,19 +62,15 @@ local_commands.push(["/leave", function () {
 let background_reconnect=false;
 
 socketmgr.on_join = () => {
-  if (!background_reconnect){
-    sendinput.focus();
-    show_login(false);
-  }
-  show_constatus(false);
+  constatus.close();
   background_reconnect=false;
 }
 
 let last_retry = 0;
 let in_cooldown=false;
 function cool_down(time){
-  if (!login_showed){
-    show_login(true);
+  if (!login_popup.open){
+    login_popup.showModal();
   }
   in_cooldown=true;
 
@@ -120,7 +97,7 @@ socketmgr.on_message = (me, sender_id, sender_username, timestamp, message) => {
 
 socketmgr.on_leave = (code, protoerr, user_wants_leave) => {
   utils.log("disconnected "+code)
-  show_constatus(false);
+  constatus.close();
 
   error = proto.human_err(protoerr);
   time = 1000;
@@ -142,7 +119,7 @@ socketmgr.on_leave = (code, protoerr, user_wants_leave) => {
   //reset everything
   last_message_time=null;
   mesgs.innerHTML="";
-  show_login(true);
+  login_popup.showModal();
 }
 
 socketmgr.on_keychange = (key) => {
@@ -187,8 +164,7 @@ function connect(background, start_time) {
   background_reconnect=background;
   socketmgr.join(localStorage.getItem("key"), local_name, start_time);
 
-  show_login(false);
-  show_constatus(true);
+  constatus.showModal();
 }
 
 // Er is geen betere manier om dit te doen denk ik.
@@ -196,9 +172,7 @@ function has_virtkb(){
   return /Mobi|Android|iPad|iPhone|Tablet|Touch/i.test(navigator.userAgent);
 }
 
-connectbtn.addEventListener("click", ()=>{
-  connect(false);
-});
+
 sendinput.addEventListener("keypress", (e)=>{
   if (e.key == "Enter" && !e.shiftKey && !has_virtkb()){
     e.preventDefault();
@@ -212,13 +186,29 @@ sendbtn.addEventListener("click", ()=>{
     }, 100);
   }
 });
+
+constatus.addEventListener("cancel", (e)=>{
+  e.preventDefault();
+})
 leavebtn.addEventListener("click", ()=>{
   socketmgr.leave();
 });
 
-username_field.value = localStorage.getItem("username");
-show_login(true);
-if (SKIP_LOGIN){
+login_popup.addEventListener("close", (e)=>{
   connect(false);
+})
+login_popup.addEventListener("cancel", (e)=>{
+  e.preventDefault();
+})
+
+connectbtn.addEventListener("click", ()=>{
+  login_popup.close();
+});
+
+
+username_field.value = localStorage.getItem("username");
+login_popup.showModal();
+if (SKIP_LOGIN){
+  connectbtn.click();
 }
 

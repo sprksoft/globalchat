@@ -7,7 +7,7 @@ const KEY_LENGTH=33;
 
 const ERRORS={
   "err_cmd": "Je bent gekicked door een admin.",
-  "err_ratelimit":"Te veel berichten. Typ langzamer.",
+  "err_ratelimit":"Te veel berichten. Typ langzamer.\nJe kunt terug joinen binnen 10 seconden",
   "err_ipratelimit":"Er zijn spammers met het zelfde ip als jou.",
   "err_toomanyusers": "Er worden op dit moment te veel nieuwe gebruikers gemaakt. Dit komt waarschijnlijk door spammers.",
   "err_505": "Stop and wait a sec when you look at me like that my darling what do you expect. In my imagination you're waiting lying on your side with your hands between your theights.",
