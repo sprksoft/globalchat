@@ -76,7 +76,7 @@ function into_gcdate(date){
 }
 
 function handle_version_check(protocol_ver, ver){
-  if (protocol_ver > ver){
+  if (protocol_ver !== ver){
     let last_reload_time = localStorage.getItem("last_client_outdated_reload");
     let now = new Date().getTime();
     if (last_reload_time == null || now-parseInt(last_reload_time) > 1000){
@@ -87,10 +87,6 @@ function handle_version_check(protocol_ver, ver){
       console.error("Infinite reload loop detected");
       alert("Alles is kapot aaaaaaaaaaaaa.");
     }
-  }
-  if (protocol_ver < ver){
-    console.error("Server older than me");
-    alert("Alles is kapot aaaaaaaaaaaaa.\nOp een of anderen manier is deze versie van global chat nieuwer dan de server");
   }
 }
 

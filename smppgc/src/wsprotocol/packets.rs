@@ -20,7 +20,7 @@ lazy_static! {
             .parse()
             .expect("Patch version number can't be parsed into a u8");
 
-        ((year - 2024) + month + serial) as u16
+        ((year - 2024) * 12 + month + serial) as u16
     };
 }
 
