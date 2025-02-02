@@ -1,5 +1,9 @@
 [default]
+address = "0.0.0.0"
 port = 8080
+prof_wordlist="/var/profanity.txt"
+static_dir="/app/www"
+template_dir="/app/templates"
 ip_header="CF-Connecting-IP"
 
 max_stored_messages=30
@@ -26,19 +30,10 @@ new_user_ip_rate={timeframe=120, amount=60} # 2 minuten
 
 [debug]
 debug=true
-static_dir="www/static"
-template_dir="www/templates"
-prof_wordlist="profanity.txt"
-address = "0.0.0.0"
 log_level="normal"
 
-
 [release]
+debug=false
 root_url="/smpp/gc"
-static_dir="/var/smppgc/www/static"
-template_dir="/var/smppgc/www/templates"
-address = "127.0.0.1"
-port = 8081
 log_level = "critical"
-prof_wordlist="/var/smppgc/profanity.txt"
 

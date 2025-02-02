@@ -1,0 +1,17 @@
+services:
+  smppgc:
+    build:
+      dockerfile: Dockerfile
+      args:
+        DEBUG: true
+    networks:
+      - ldeveuorg_frontend_net
+      - gc_net
+
+    expose:
+      - 8080
+
+networks:
+  gc_net:
+  ldeveuorg_frontend_net:
+    external: true
