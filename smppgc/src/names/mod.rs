@@ -141,16 +141,19 @@ impl Into<Arc<str>> for ClaimedName {
 
 #[derive(Deserialize)]
 #[serde(crate = "rocket::serde")]
-pub struct NameConfig {
+pub struct UserConfig {
     pub max_reserved_names: u16,
+    pub max_username_len: usize,
 }
 
 pub fn stage() -> AdHoc {
     AdHoc::on_ignite("username manager", |r| async {
         let config = r
             .figment()
-            .extract::<NameConfig>()
+            .extract::<UserConfig>()
             .expect("No username config");
-        r.manage(UsernameManager::new(config.max_reserved_names))
+        let max_reserved_names = config.max_reserved_names;
+        r.manage(config)
+            .manage(UsernameManager::new(max_reserved_names))
     })
 }

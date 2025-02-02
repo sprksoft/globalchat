@@ -2,7 +2,6 @@ use std::ops::Deref;
 
 use chat::Chat;
 use lmetrics::LMetrics;
-use ratelimit::RateLimitConfig;
 use rocket::response::Redirect;
 use rocket::routes;
 use rocket::serde::Deserialize;
@@ -31,6 +30,21 @@ pub struct ChatConfig {
     pub max_stored_messages: usize,
     pub max_users: u16,
 }
+
+#[derive(Deserialize, Debug, Clone)]
+#[serde(crate = "rocket::serde")]
+pub struct MessageConfig {
+    pub small_message_len: usize,
+    pub max_message_len: usize,
+    pub large_message_penalty: u32,
+
+    pub max_same_message_streak: u32,
+    pub same_message_penalty: u32,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+#[serde(crate = "rocket::serde")]
+pub struct UserConfig {}
 
 #[derive(Deserialize, Debug)]
 #[serde(crate = "rocket::serde", default = "RootUrl::default")]
@@ -89,6 +103,7 @@ fn rocket() -> _ {
     rocket::build()
         .mount("/", routes![index, server_version])
         .mount("/metrics", metrics)
+        .attach(AdHoc::config::<MessageConfig>())
         .attach(ratelimit::stage())
         .attach(static_routing::stage())
         .attach(template::stage())

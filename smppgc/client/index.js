@@ -104,7 +104,7 @@ socketmgr.on_leave = (code, protoerr, user_wants_leave) => {
   if (user_wants_leave || code == 1000){ // Normal Closure or the user wants to leave
     error="";
   }else if (protoerr == "err_ratelimit"){
-    time=10000;
+    time=5000;
   }else if (code == 1006 && protoerr == ""){
       let now = Date.now();
       if (last_retry == 0 || now-last_retry > 10_000){ // join again if we should retry
@@ -172,6 +172,20 @@ function has_virtkb(){
   return /Mobi|Android|iPad|iPhone|Tablet|Touch/i.test(navigator.userAgent);
 }
 
+sendinput.addEventListener("input", (e) =>{
+  if (e.dataTransfer !== null){
+    console.log(sendinput);
+    for (let i =0; i < sendinput.childNodes.length; i++){
+      let child = sendinput.childNodes[i];
+      if (child.nodeName !== "#text"){
+        let text_node = document.createTextNode(child.innerText);
+        sendinput.insertBefore(text_node, child);
+        child.remove();
+        i--;
+      }
+    }
+  }
+});
 
 sendinput.addEventListener("keypress", (e)=>{
   if (e.key == "Enter" && !e.shiftKey && !has_virtkb()){

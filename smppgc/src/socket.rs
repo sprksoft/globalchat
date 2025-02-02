@@ -13,11 +13,12 @@ use tokio::sync::broadcast::error::RecvError;
 use crate::{
     chat::{Chat, Message, NewClientError},
     mesg_filter::{self, Cmd, FilterResult},
-    names::{UserSid, UsernameManager},
+    names::{UserConfig, UserSid, UsernameManager},
     profanity::ProfFilter,
-    ratelimit::{IpLimits, MessageLimits, UserLimits},
-    ratelimit::{IpRateLimiters, MesgRateLimiters, UserRateLimiters},
+    ratelimit::RateLimitIpPenalty,
+    ratelimit::{MesgIpRateLimiters, MesgRateLimiters, NewUserIpRateLimiters},
     wsprotocol::{KickReason, WsClient},
+    MessageConfig,
 };
 
 #[derive(Responder)]
@@ -39,6 +40,7 @@ metrics! {
     pub counter messages_total("Total count of sent messages");
     pub counter profanity_messages_total("Total count of sent messages that contain profanity");
     pub counter messages_blocked("Total count of blocked messages", [reason]);
+    pub counter blocked_newusers("Total amount of blocked new user creation requests");
     pub counter new_users("Total count of new sid's being generated");
 }
 
@@ -94,12 +96,12 @@ pub async fn socket_v1<'a>(
     key: Option<&str>,
     start_time: Option<u32>,
     ws: WebSocket,
-    mesg_limits: &State<MessageLimits>,
-    user_limits: &State<UserLimits>,
-    ip_limits: &State<IpLimits>,
+    mesg_limits: &State<MessageConfig>,
+    user_config: &State<UserConfig>,
+    ip_limits: &State<RateLimitIpPenalty>,
     mesg_ratelimiters: &'a State<MesgRateLimiters>,
-    ip_ratelimiters: &'a State<IpRateLimiters>,
-    user_ratelimiting: &State<UserRateLimiters>,
+    ip_ratelimiters: &'a State<MesgIpRateLimiters>,
+    user_ratelimiting: &State<NewUserIpRateLimiters>,
     prof_filter: &'a State<ProfFilter>,
     chat: &'a State<Chat>,
     usrnamemgr: &State<UsernameManager>,
@@ -125,6 +127,7 @@ pub async fn socket_v1<'a>(
         .unwrap_or_else(|| (true, UserSid::new()));
     if new_user {
         if !user_ratelimiting.0.update(addr, ip_penalty_multiplier) {
+            blocked_newusers::inc();
             return SocketV1Responder::ws_close(ws, KickReason::TooManyUsers);
         }
         new_users::inc();
@@ -134,7 +137,7 @@ pub async fn socket_v1<'a>(
         .claim_name(
             username,
             sid.clone(),
-            user_limits.max_username_len,
+            user_config.max_username_len,
             &prof_filter,
         )
         .await
@@ -169,6 +172,8 @@ pub async fn socket_v1<'a>(
             )
             .await?;
 
+            let mut last_message = None;
+            let mut same_mesg_streak=0;
             loop {
                 tokio::select! {
                     _ = &mut shutdown => {
@@ -186,11 +191,22 @@ pub async fn socket_v1<'a>(
                             wsclient.kick(KickReason::IpRateLimit).await?;
                             continue;
                         }
+                        if Some(&mesg.content) == last_message.as_ref(){
+                            same_mesg_streak+=1;
+                        }else{
+                            same_mesg_streak=0;
+                            last_message = Some(mesg.content.clone());
+                        }
+                        if same_mesg_streak >= mesg_limits.max_same_message_streak{
+                            mesg_ratelimiters.0.update(sid.clone(), mesg_limits.same_message_penalty);
+                            messages_blocked::inc("same_mesg_spam");
+                        }
                         if !mesg_ratelimiters.0.update(sid.clone(), rl_points){
                             wsclient.kick(KickReason::RateLimit).await?;
                             messages_blocked::inc("ratelimit");
                             continue;
                         }
+
                         match on_message(mesg, &chat, &mut wsclient, &prof_filter).await?{
                             Some(mesg) => {
                                 chat_client.send(mesg);
