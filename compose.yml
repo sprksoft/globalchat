@@ -5,13 +5,13 @@ services:
       args:
         DEBUG: true
     networks:
-      - ldeveuorg_frontend_net
-      - gc_net
+      - ldeveuorg_backend_net
+      - gc
 
     expose:
       - 8080
 
 networks:
-  gc_net:
-  ldeveuorg_frontend_net:
+  gc:
+  ldeveuorg_backend_net:
     external: true

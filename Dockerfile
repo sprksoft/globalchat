@@ -22,10 +22,12 @@ mkdir /app
 cp target/release/smppgc /app/app
 EOF
 
+
 COPY smppgc/Rocket.toml /app/Rocket.toml
 COPY smppgc/templates /app/templates
 COPY smppgc/www /app/www
-RUN esbuild smppgc/client/index.js --bundle --minify --sourcemap --outfile=smppgc/www/v1.js
+
+RUN esbuild smppgc/client/index.js --bundle --minify --sourcemap --outfile=/app/www/v1.js
 
 FROM debian:bookworm-slim
 RUN apt-get update && apt-get install -y

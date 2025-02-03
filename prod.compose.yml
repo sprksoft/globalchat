@@ -1,0 +1,7 @@
+services:
+  smppgc:
+    build:
+      args:
+        DEBUG: false
+    restart: always
+
