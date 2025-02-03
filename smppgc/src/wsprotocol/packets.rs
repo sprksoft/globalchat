@@ -20,7 +20,14 @@ lazy_static! {
             .parse()
             .expect("Patch version number can't be parsed into a u8");
 
-        ((year - 2024) * 12 + month + serial) as u16
+        // max sure to also modify the js if you change this
+        const MAX_SERIALS_PER_MONTH: usize = 20;
+        #[cfg(debug_assertions)]
+        if serial > MAX_SERIALS_PER_MONTH {
+            panic!("Version overflow");
+        }
+        ((year - 2025) * (12 * MAX_SERIALS_PER_MONTH) + month * MAX_SERIALS_PER_MONTH + serial)
+            as u16
     };
 }
 

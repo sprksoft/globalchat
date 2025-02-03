@@ -45,8 +45,9 @@
         protocol =  "wss://"
       }
       const VERSION="{{version}}";
+      const MAX_SERIALS_PER_MONTH = 20;
       let [year, month, serial] = VERSION.split(".").map((value)=>parseInt(value));
-      const VERSION_INT = (year-2024)*12+month+serial;
+      const VERSION_INT = ((year - 2025) * (12 * MAX_SERIALS_PER_MONTH) + month * MAX_SERIALS_PER_MONTH + serial);
 
 
       const WEBSOCKET_URL=protocol+location.host+"{{root_url}}/socket/v1";
