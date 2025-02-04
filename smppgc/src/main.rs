@@ -13,6 +13,7 @@ use utils::static_routing;
 mod test;
 
 pub mod chat;
+mod csp;
 mod debug;
 mod mesg_filter;
 pub mod names;
@@ -42,12 +43,8 @@ pub struct MessageConfig {
     pub same_message_penalty: u32,
 }
 
-#[derive(Deserialize, Debug, Clone)]
-#[serde(crate = "rocket::serde")]
-pub struct UserConfig {}
-
 #[derive(Deserialize, Debug)]
-#[serde(crate = "rocket::serde", default = "RootUrl::default")]
+#[serde(crate = "rocket::serde")]
 pub struct RootUrl {
     pub root_url: String,
 }
@@ -67,12 +64,15 @@ impl Deref for RootUrl {
 }
 
 #[get("/version")]
-fn server_version(debug: &State<debug::Debug>) -> &'static str {
-    if debug.debug {
-        concat!(env!("CARGO_PKG_NAME"), "-debug-", env!("CARGO_PKG_VERSION"))
-    } else {
-        concat!(env!("CARGO_PKG_NAME"), "-", env!("CARGO_PKG_VERSION"))
-    }
+fn server_version(debug: &State<debug::Debug>) -> String {
+    let ver_str = concat!(env!("CARGO_PKG_NAME"), "-", env!("CARGO_PKG_VERSION"));
+
+    format!(
+        "{} debug_assertions: {} debug: {} ",
+        ver_str,
+        debug.debug,
+        cfg!(debug_assertions)
+    )
 }
 
 #[get("/")]

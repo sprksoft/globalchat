@@ -8,7 +8,7 @@ use rocket::{
 };
 use rocket_dyn_templates::{context, Template};
 
-use crate::{names::UserConfig, MessageConfig, RootUrl};
+use crate::{csp::CSPFrameAncestors, names::UserConfig, MessageConfig, RootUrl};
 
 macro_rules! css_var {
     ($name:ident, $($alpha:literal),*) => {
@@ -78,34 +78,12 @@ theme! {
     }
 }
 
-struct CSPFrameAncestors {
-    frame_ancestors: String,
-}
-impl From<CSPFrameAncestors> for Header<'static> {
-    fn from(csp: CSPFrameAncestors) -> Self {
-        Header::new(
-            "Content-Security-Policy",
-            format!("frame-ancestors {};", csp.frame_ancestors),
-        )
-    }
-}
-
-struct XFrameOptions {
-    allow_from: String,
-}
-impl From<XFrameOptions> for Header<'static> {
-    fn from(xfo: XFrameOptions) -> Self {
-        Header::new("X-Frame-Options", format!("ALLOW-FROM {}", xfo.allow_from))
-    }
-}
-
 #[derive(Responder)]
 enum GcPageResponder {
     #[response(status = 200)]
     Ok {
         inner: Template,
         csp: CSPFrameAncestors,
-        xfo: XFrameOptions,
     },
     #[response(status = 400)]
     BadRequest(&'static str),
@@ -140,9 +118,6 @@ fn v1(
         ),
         csp: CSPFrameAncestors {
             frame_ancestors: "*.smartschool.be".to_string(),
-        },
-        xfo: XFrameOptions {
-            allow_from: "*.smartschool.be".to_string(),
         },
     }
 }

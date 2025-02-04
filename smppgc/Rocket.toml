@@ -1,10 +1,12 @@
 [default]
 address = "0.0.0.0"
 port = 8080
-prof_wordlist="/var/profanity.txt"
+ip_header="CF-Connecting-IP"
+
+root_url=""
+prof_wordlist="/app/profanity.txt"
 static_dir="/app/www"
 template_dir="/app/templates"
-ip_header="CF-Connecting-IP"
 
 max_stored_messages=30
 max_users=1000

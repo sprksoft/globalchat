@@ -1,5 +1,6 @@
 FROM rust:latest AS builder
 RUN apt-get update && apt-get install -y esbuild
+ARG DEBUG
 
 
 ENV SQLX_OFFLINE=true
@@ -14,24 +15,27 @@ RUN --mount=type=cache,target=target/ \
     <<EOF
 set -e
 extra_args="--release"
-if [[ "$DEBUG" == "true" ]] ; then
+out_dir="target/release"
+if $DEBUG ; then
   extra_args=""
+  out_dir="target/debug"
 fi
 cargo build --locked $extra_args --bin smppgc
 mkdir /app
-cp target/release/smppgc /app/app
+
+cp $out_dir/smppgc /app/app
 EOF
 
 
 COPY smppgc/Rocket.toml /app/Rocket.toml
 COPY smppgc/templates /app/templates
+COPY smppgc/profanity.txt /app/profanity.txt
 COPY smppgc/www /app/www
 
 RUN esbuild smppgc/client/index.js --bundle --minify --sourcemap --outfile=/app/www/v1.js
 
 FROM debian:bookworm-slim
 RUN apt-get update && apt-get install -y
-
 
 RUN adduser \
     --disabled-password \

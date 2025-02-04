@@ -26,7 +26,7 @@ lazy_static! {
         if serial > MAX_SERIALS_PER_MONTH {
             panic!("Version overflow");
         }
-        ((year - 2025) * (12 * MAX_SERIALS_PER_MONTH) + month * MAX_SERIALS_PER_MONTH + serial)
+        ((year - 2024) * (12 * MAX_SERIALS_PER_MONTH) + month * MAX_SERIALS_PER_MONTH + serial)
             as u16
     };
 }

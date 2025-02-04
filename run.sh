@@ -1,8 +1,11 @@
 DOCKER="sudo docker"
 
-if [[ "$1" == "--nodebugdb" ]] ; then
-$DOCKER compose up -f compose.yml || exit 1
+if [[ $* != *--restart* ]] ; then
+  $DOCKER image rm --force smppserver-smppgc
+fi
+if [[ $* == *--nodbgenv* ]] ; then
+$DOCKER compose -f compose.yml up || exit 1
 else
-$DOCKER compose up -f debug.compose.yml || exit 1
+$DOCKER compose -f compose.yml -f debugenv.compose.yml up || exit 1
 fi
 
