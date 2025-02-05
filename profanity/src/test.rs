@@ -82,6 +82,32 @@ fn test() {
 }
 
 #[bench]
+fn sentence_contains_v2(b: &mut Bencher) {
+    let list = gen_list();
+    let mut filter = ProfanityFilter2::empty();
+    for item in list {
+        filter.insert_rule(ProfRule::from_str(str))
+    }
+
+    b.iter(|| {
+        for s in PROF_SENTENCES {
+            assert!(
+                super::sentence_contains_loop(&list, s),
+                "profanity wrongly marked as clean. {}",
+                s
+            )
+        }
+        for s in CLEAN_SENTENCES {
+            assert!(
+                !super::sentence_contains_loop(&list, s),
+                "clean wrongly marked as profanity. {}",
+                s
+            )
+        }
+    })
+}
+
+#[bench]
 fn sentence_contains_censor(b: &mut Bencher) {
     let mut list = gen_list();
     let censor = censor::Custom(HashSet::from_iter(list.drain(..)));

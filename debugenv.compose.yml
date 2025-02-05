@@ -2,12 +2,12 @@ services:
   smppgc:
     ports:
       - 80:8080
-  db:
-    extends:
-      file: db.compose.yml
-      service: db
-    networks:
-      - gc
+  # db:
+  #   extends:
+  #     file: db.compose.yml
+  #     service: db
+  #   networks:
+  #     - gc
 
 volumes:
   debugdb-data:
