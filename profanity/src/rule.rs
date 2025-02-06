@@ -1,57 +1,72 @@
-use std::num::NonZeroU8;
-
 use crate::{Token, TokenizedMessage};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ProfRule {
     tokens: Vec<crate::Token>,
-    flags: u32,
+    flags: u8,
 }
 impl ProfRule {
     pub fn from_match_str(str: &str) -> Option<Self> {
         let me = Self {
             flags: 0,
-            tokens: Vec::with_capacity(str.len()),
+            tokens: Self::match_str_to_tokens(str, true)?,
         };
-        for char in &str.chars() {
-            let t = Token::from_char(char)?;
-            if me.tokens.last() != Some(&t) {
-                me.tokens.push(t);
-            }
-        }
         Some(me)
     }
-    pub fn from_str(str: &str) -> Option<Self> {
-        let mut me = Self {
-            flags: 0,
-            tokens: Vec::with_capacity(str.len()),
-        };
-
-        let flag_sep_index = str.find(':')?;
-        let flag_region = &str[..flag_sep_index];
-        if flag_region.contains('w') {
-            me.set_wordmatch();
-        }
-
-        for char in (&str[flag_sep_index + 1..]).chars() {
-            let t = Token::from_char(char)?;
-            if me.tokens.last() != Some(&t) {
-                me.tokens.push(t);
+    fn match_str_to_tokens(str: &str, dedup: bool) -> Option<Vec<Token>> {
+        let mut tokens = Vec::with_capacity(str.len());
+        let mut chars = str.chars();
+        loop {
+            if let Some(t) = Token::from_iter(&mut chars) {
+                if t.is_whitespace() {
+                    continue;
+                }
+                if tokens.last().cloned() != Some(t) || !dedup {
+                    tokens.push(t);
+                }
+            } else {
+                break;
             }
         }
-        Some(me)
+        Some(tokens)
+    }
+
+    pub fn from_str(str: &str) -> Option<Self> {
+        if let Some(sep_index) = str.find(':') {
+            let mut me = Self::from_match_str(&str[sep_index + 1..])?;
+            let flag_region = &str[..sep_index];
+            if flag_region.contains('w') {
+                me.set_wordmatch();
+            }
+            if flag_region.contains('l') {
+                me.set_exactlen();
+                me.tokens = Self::match_str_to_tokens(&str[sep_index + 1..], false)?;
+            }
+            Some(me)
+        } else {
+            Self::from_match_str(&str)
+        }
     }
     pub fn to_string(&self) -> String {
         let mut str = String::with_capacity(2 + self.tokens.len());
         if self.wordmatch() {
             str.push('w');
         }
+        if self.exactlen() {
+            str.push('w');
+        }
         str.push(':');
         for token in self.tokens.iter() {
-            str.push(token.to_char());
+            str.push_str(&token.to_string())
         }
 
         str
+    }
+    pub fn exactlen(&self) -> bool {
+        self.get_flag(1)
+    }
+    pub fn set_exactlen(&mut self) {
+        self.set_flag(1);
     }
     pub fn wordmatch(&self) -> bool {
         self.get_flag(0)
@@ -61,36 +76,44 @@ impl ProfRule {
     }
 
     fn get_flag(&self, index: u8) -> bool {
-        (self.flags << index) & 0x80000000 == 0x80000000
+        (self.flags << index) & 0x80 == 0x80
     }
 
     fn set_flag(&mut self, index: u8) {
         //0x8000... = 0b10000000...
-        self.flags |= 0x80000000 >> index;
+        self.flags |= 0x80 >> index;
     }
 
+    #[inline]
     pub fn matches(&self, other: &TokenizedMessage) -> bool {
-        let mut iter_me = self.tokens.iter();
+        //println!("{:?}", self);
         let mut iter_other = other.tokens();
         let mut prev_char_check = None;
+
+        let mut match_index = 0;
+        let mut t_me = self.tokens[match_index];
         loop {
-            let Some(t_me) = iter_me.next() else {
-                return true;
+            let Some(t_other) = iter_other.next() else {
+                return false;
             };
-            loop {
-                let Some(t_other) = iter_other.next() else {
-                    return false;
-                };
-                if prev_char_check == Some(t_other) {
-                    continue;
+            if t_other.is_whitespace() && !self.wordmatch() {
+                continue;
+            }
+            if prev_char_check == Some(t_other) && !self.exactlen() {
+                continue;
+            }
+            prev_char_check = Some(t_other);
+            if t_other.contains(t_me) {
+                //println!("rule: {:?} token: {:?}", t_me, t_other);
+                match_index += 1;
+                if match_index == self.tokens.len() {
+                    return true;
                 }
-                prev_char_check = Some(t_other);
-                if t_other.is_whitespace() && !self.wordmatch() {
-                    continue;
-                }
-                if t_me == t_other {
-                    break;
-                }
+                t_me = self.tokens[match_index];
+            } else {
+                match_index = 0;
+                t_me = self.tokens[match_index];
+                //println!("reset");
             }
         }
     }
@@ -111,7 +134,7 @@ mod test {
         assert_eq!(
             rule,
             Some(ProfRule {
-                flags: 0x80000000,
+                flags: 0x80,
                 tokens: tokens!['a', 'b', 'c', 'd'],
             })
         );

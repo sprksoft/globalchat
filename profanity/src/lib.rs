@@ -1,5 +1,5 @@
 #![cfg_attr(test, feature(test))]
-use std::{collections::HashMap, num::NonZeroU8};
+use std::{collections::HashMap, num::NonZeroU8, rc::Rc};
 
 use serde::{Deserialize, Serialize};
 use string_tree::StringTree;
@@ -10,44 +10,26 @@ mod test;
 mod wordlist;
 
 mod rule;
+mod tokens;
 use rule::ProfRule;
+use tokens::{Token, TokenGroup};
 
-#[macro_export]
-macro_rules! tokens {
-    [$($c:literal),*] => {
-        vec![$(crate::Token::from_char($c).unwrap()),*]
-    };
-}
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-struct Token(NonZeroU8);
-impl Token {
-    pub fn from_char(char: char) -> Option<Token> {
-        if char.is_ascii_alphanumeric() {
-            return Some(Self(NonZeroU8::new(char as u8).unwrap()));
-        }
-        None
-    }
-    pub fn new_whitespace() -> Token {
-        Token(unsafe { NonZeroU8::new_unchecked(1) })
-    }
-    pub fn is_whitespace(&self) -> bool {
-        self.0.get() == 1
-    }
-    pub fn to_char(self) -> char {
-        self.0.get() as char
-    }
-}
-
-pub struct TokenizedMessage(Vec<Token>);
+pub struct TokenizedMessage(Vec<TokenGroup>);
 impl TokenizedMessage {
-    pub fn tokens(&self) -> std::slice::Iter<'_, Token> {
+    pub fn tokens(&self) -> std::slice::Iter<'_, TokenGroup> {
         self.0.iter()
     }
 }
 
+#[derive(Debug)]
+pub struct ProfSyntaxErr {
+    linenum: usize,
+    message: String,
+}
+#[derive(Debug)]
 pub struct ProfanityFilter2 {
     rules: Vec<ProfRule>,
-    char_to_token_map: HashMap<char, Token>,
+    char_to_token_map: HashMap<char, TokenGroup>,
 }
 impl ProfanityFilter2 {
     pub fn empty() -> Self {
@@ -56,13 +38,65 @@ impl ProfanityFilter2 {
             char_to_token_map: HashMap::new(),
         }
     }
+    pub fn from_str(str: &str) -> Result<Self, ProfSyntaxErr> {
+        let mut char_replacements = true;
+        let mut me = Self::empty();
+        for (i, line) in str.lines().enumerate() {
+            if line.is_empty() || line.starts_with('#') {
+                continue;
+            }
+            if line == "[RULES]" {
+                char_replacements = false;
+                continue;
+            }
+            if char_replacements {
+                me.insert_char_replace_from_str(line)
+                    .map_err(|e| ProfSyntaxErr {
+                        linenum: i + 1,
+                        message: e,
+                    })?;
+            } else {
+                me.insert_rule(ProfRule::from_str(line).ok_or(ProfSyntaxErr {
+                    linenum: i + 1,
+                    message: "invalid rule".to_string(),
+                })?);
+            }
+        }
 
-    pub fn insert_rule(&self, new_rule: ProfRule) -> bool {
+        Ok(me)
+    }
+    fn insert_char_replace_from_str(&mut self, str: &str) -> Result<(), String> {
+        let mut chars = str.char_indices();
+        let (_, char) = chars.next().ok_or(format!("Expected char replace rule"))?;
+        let (char_index, colon_char) = chars.next().ok_or(format!(
+            "Expected a : after the target character in a char replace rule"
+        ))?;
+        if colon_char != ':' {
+            return Err(format!(
+                "Expected a : at the start of the char replace statement got '{}'",
+                colon_char
+            ));
+        }
+        self.char_to_token_map.insert(
+            char,
+            TokenGroup::from_str(&str[char_index + 1..])
+                .ok_or(format!("Invalid token group '{}'", &str[char_index + 1..]))?,
+        );
+        Ok(())
+    }
+    pub fn insert_char_replace(&mut self, char: char, tg: TokenGroup) {
+        self.char_to_token_map.insert(char, tg);
+    }
+
+    pub fn insert_rule(&mut self, new_rule: ProfRule) -> bool {
+        let insert_index = self.rules.len();
         for rule in self.rules.iter() {
             if rule == &new_rule {
                 return false;
             }
         }
+
+        self.rules.insert(insert_index, new_rule);
 
         true
     }
@@ -88,24 +122,12 @@ impl ProfanityFilter2 {
         (TokenizedMessage(tokens), new_str)
     }
 
-    fn char_to_token(&self, char: char) -> Option<Token> {
-        if char.is_whitespace() {
-            return Some(Token::new_whitespace());
-        }
-        if let Some(token) = self.char_to_token_map.get(&char) {
-            return Some(*token);
+    fn char_to_token(&self, char: char) -> Option<TokenGroup> {
+        if let Some(tgroup) = self.char_to_token_map.get(&char).cloned() {
+            return Some(tgroup);
         }
 
-        if char.is_ascii_alphanumeric() {
-            let mut u8_char = char as u8;
-            if u8_char <= 90 && u8_char >= 65 {
-                u8_char += 32;
-            }
-            //SAFETY: not null checks are above
-            return Some(Token(unsafe { NonZeroU8::new_unchecked(u8_char) }));
-        }
-
-        None
+        TokenGroup::from_char(char)
     }
 }
 
@@ -157,6 +179,7 @@ fn char_equals_normalized(nchar: u8, cchar: u8) -> bool {
     a.contains(&cchar)
 }
 
+#[inline]
 fn matches(sentence: &str, check: &str) -> bool {
     let mut iter_check = check.bytes();
     let mut iter_sentence = sentence.bytes();

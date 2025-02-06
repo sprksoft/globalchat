@@ -1,8 +1,6 @@
 pub const LIST: &'static str = "
 arse
-\"ass \"
-\"asses\"
-\"asscheeks\"
+ass
 bitch
 cock
 condom
@@ -38,6 +36,8 @@ sucker
 sukkel
 tering
 tyfus
+🍑
+🍑
 vaffanculo
 vagina
 卐
@@ -94,7 +94,6 @@ nhentai.net
 \"adlf\"
 \"htler\"
 \"ngga\"
-\"niggger\"
 \"neggers\"
 \"neuke\"
 \"verkrachten\"
@@ -110,8 +109,22 @@ nhentai.net
 \"onlyfans\"
 \"zwartmens\"
 \"zwartemens\"
-\"niggr\"
-\"nigr\"
 \"pimol \"
 \"pik\"
+tiete
+gay
+zweer
+homo
+hoemo
+nig
+kurwa
+splaygore
+kill
+unalive
+endingyou
+joueinde
+nueke
+lesbi
 ";
+
+pub const PROFANITY_V2: &'static str = include_str!("profanity_v2.filter");

@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use test::Bencher;
 extern crate test;
 
-const PROF_SENTENCES: [&'static str; 14] = [
+const PROF_SENTENCES: [&'static str; 41] = [
     "i am FUCKING green",
     "hellofuckers",
     "zuig mij please",
@@ -15,22 +15,99 @@ const PROF_SENTENCES: [&'static str; 14] = [
     "+k + y + s",
     "n-1gg4",
     "nigga",
-    "🍑🍑",
+    "k.y.s",
     "https://pornhub.com",
-    "so hot 💦💦💦",
-];
+    "sexting",
+
+    "zwarte mensen mafia",
+
+    "ik lik je tieten af van meisjes met dikke teieten",
+
+    "oke iedereen is dom en gay",
+
+    "wie niet antwoord is dom en gay",
+
+    //"iemand die een muur te komen bouwen met mij?",
+
+    //"kijk hij is zo gy",
+
+    "Ik zweer op de kop van sinterklaas",
+
+    "i am FUCKING green",
+
+    "hellofuckers",
+
+    "zuig mij please",
+
+    "ik eet jou dick op zo",
+
+    "nigga man",
+
+    "k y s",
+
+    "dingely dongs",
+
+    "dingelydongs",
+
+    "+k + y + s",
+
+    "n-1gg4",
+
+    "https://pornhub.com",
+
+    "niger",
+
+    "n!iiiiiger",
+
+    "HOEMOE PAKISTAN",
+
+    "YOO IK BEN EEN NIGG2R",
+
+    //"Zeg eerst uw snap dan",
+
+    "nigerdigger",
+
+    "fat ass",
+
+    "kurwa",
+
+    "Machine I will cut you down, break you appart, splay the gore of your profane form across the stars. I will grind you down until the very sparks cry for mercy. My hands shall relish ending you here and now.",
+
+    "nueken",
+
+    //"lesbîeb",
+
+    //"gây",
+
+    "neuk",
+
+    "piemel",
+    ];
 
 // prof sentences not caught by censor to see performance difference
-const EXT_PROF_SENTENCES: [&'static str; 4] = [
+const EXT_PROF_SENTENCES: [&'static str; 7] = [
     "niger",
     "n!iiiiiiger",
     "niggggggggggger",
     "njggggr",
-    //"nigerdigger", //TODO: need whitelist for this to not be confused with nigeria
+    "69696293",
+    "nigerdigger",
+    "nîger",
 ];
 
-const CLEAN_SENTENCES: [&'static str; 19] = [
+const MODIFY_PROF_SENTENCES: [(&'static str, &'static str); 7] = [
+    ("so hot 💦💦💦", "so hot "),
+    ("🍑🍑", ""),
+    ("]ð 3]", " 3"),
+    ("x 3]", "x 3"),
+    ("Ÿð", ""),
+    ("🎄🎄🎄🎄🎄", ""),
+    ("fun@gmail.com", "fungmail.com"),
+];
+
+const CLEAN_SENTENCES: [&'static str; 14] = [
     "ldev234",
+    ":smppgc:",
     "so hot",
     "ldev2",
     "hallo",
@@ -39,16 +116,10 @@ const CLEAN_SENTENCES: [&'static str; 19] = [
     "kom naar mijn huis",
     "whahahahahahhahahah",
     "waaaa",
-    "x 3]",
-    "]ð 3]",
-    "Ÿð",
     "hallo mannen (en vrouwen) ik ga vandaag een les geven van Pneumatica",
     "Yuww iemand online?",
-    "Hallo hoe gaat die 😊",
-    "🎄🎄🎄🎄🎄",
+    "Hallo hoe gaat die",
     "ik schreef da met 2 k's",
-    "fun@gmail.com",
-    "69696293",
 ];
 
 // clean sentences not caught by censor to see performance difference
@@ -71,38 +142,29 @@ fn matches() {
     assert!(!super::matches("password", "ass "));
 }
 
-#[test]
-fn test() {
-    let filter = ProfanityFilter::from_wordlist(wordlist::LIST);
-    println!("ass");
-    assert!(filter.contains_profanity("ass"));
-    assert!(filter.contains_profanity("you are ass"));
-    println!("password");
-    assert!(!filter.contains_profanity("password"));
-}
-
 #[bench]
 fn sentence_contains_v2(b: &mut Bencher) {
-    let list = gen_list();
-    let mut filter = ProfanityFilter2::empty();
-    for item in list {
-        filter.insert_rule(ProfRule::from_str(str))
-    }
+    let filter = ProfanityFilter2::from_str(wordlist::PROFANITY_V2).unwrap();
+    println!("{:?}", filter);
 
     b.iter(|| {
-        for s in PROF_SENTENCES {
+        for s in PROF_SENTENCES.iter().chain(EXT_PROF_SENTENCES.iter()) {
+            let (tokenized, string) = filter.tokenize(s);
             assert!(
-                super::sentence_contains_loop(&list, s),
+                filter.find_matching(tokenized).is_some(),
                 "profanity wrongly marked as clean. {}",
                 s
             )
         }
+        for (s, modify) in MODIFY_PROF_SENTENCES {
+            let (tokenized, string) = filter.tokenize(s);
+            assert_eq!(string, modify, "modification hasn't happened {}", s)
+        }
         for s in CLEAN_SENTENCES {
-            assert!(
-                !super::sentence_contains_loop(&list, s),
-                "clean wrongly marked as profanity. {}",
-                s
-            )
+            let (tokenized, string) = filter.tokenize(s);
+            let result = filter.find_matching(tokenized);
+            assert_eq!(result, None, "clean wrongly marked as profanity. {}", s);
+            assert_eq!(string, s, "string was modified by profanity {}", s);
         }
     })
 }
