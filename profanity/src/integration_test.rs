@@ -3,8 +3,9 @@ use std::collections::HashSet;
 use test::Bencher;
 extern crate test;
 
-const PROF_SENTENCES: [&'static str; 41] = [
+const PROF_SENTENCES: [&'static str; 42] = [
     "i am FUCKING green",
+    "kk marrokanen",
     "hellofuckers",
     "zuig mij please",
     "ik eet jou dick op zo",
@@ -21,6 +22,9 @@ const PROF_SENTENCES: [&'static str; 41] = [
 
     "zwarte mensen mafia",
 
+    "HI TeL ER",
+    "kakker",
+
     "ik lik je tieten af van meisjes met dikke teieten",
 
     "oke iedereen is dom en gay",
@@ -34,12 +38,6 @@ const PROF_SENTENCES: [&'static str; 41] = [
     "Ik zweer op de kop van sinterklaas",
 
     "i am FUCKING green",
-
-    "hellofuckers",
-
-    "zuig mij please",
-
-    "ik eet jou dick op zo",
 
     "nigga man",
 
@@ -69,15 +67,13 @@ const PROF_SENTENCES: [&'static str; 41] = [
 
     "fat ass",
 
+    "niggér",
+
     "kurwa",
 
     "Machine I will cut you down, break you appart, splay the gore of your profane form across the stars. I will grind you down until the very sparks cry for mercy. My hands shall relish ending you here and now.",
 
     "nueken",
-
-    //"lesbîeb",
-
-    //"gây",
 
     "neuk",
 
@@ -85,7 +81,7 @@ const PROF_SENTENCES: [&'static str; 41] = [
     ];
 
 // prof sentences not caught by censor to see performance difference
-const EXT_PROF_SENTENCES: [&'static str; 7] = [
+const EXT_PROF_SENTENCES: [&'static str; 9] = [
     "niger",
     "n!iiiiiiger",
     "niggggggggggger",
@@ -93,6 +89,8 @@ const EXT_PROF_SENTENCES: [&'static str; 7] = [
     "69696293",
     "nigerdigger",
     "nîger",
+    "lesbîeb",
+    "gây",
 ];
 
 const MODIFY_PROF_SENTENCES: [(&'static str, &'static str); 7] = [
@@ -136,22 +134,16 @@ fn gen_list<T: From<String> + std::cmp::Ord>() -> Vec<T> {
     list
 }
 
-#[test]
-fn matches() {
-    assert!(super::matches("ass", "ass "));
-    assert!(!super::matches("password", "ass "));
-}
-
 #[bench]
-fn sentence_contains_v2(b: &mut Bencher) {
-    let filter = ProfanityFilter2::from_str(wordlist::PROFANITY_V2).unwrap();
+fn impl_prof_filter_v2(b: &mut Bencher) {
+    let filter = ProfanityFilter2::parse_from_str(wordlist::PROFANITY_V2).unwrap();
     println!("{:?}", filter);
 
     b.iter(|| {
         for s in PROF_SENTENCES.iter().chain(EXT_PROF_SENTENCES.iter()) {
             let (tokenized, string) = filter.tokenize(s);
             assert!(
-                filter.find_matching(tokenized).is_some(),
+                filter.filter(tokenized).is_some(),
                 "profanity wrongly marked as clean. {}",
                 s
             )
@@ -162,7 +154,7 @@ fn sentence_contains_v2(b: &mut Bencher) {
         }
         for s in CLEAN_SENTENCES {
             let (tokenized, string) = filter.tokenize(s);
-            let result = filter.find_matching(tokenized);
+            let result = filter.filter(tokenized);
             assert_eq!(result, None, "clean wrongly marked as profanity. {}", s);
             assert_eq!(string, s, "string was modified by profanity {}", s);
         }
@@ -170,7 +162,7 @@ fn sentence_contains_v2(b: &mut Bencher) {
 }
 
 #[bench]
-fn sentence_contains_censor(b: &mut Bencher) {
+fn impl_censor(b: &mut Bencher) {
     let mut list = gen_list();
     let censor = censor::Custom(HashSet::from_iter(list.drain(..)));
     b.iter(|| {
@@ -203,20 +195,20 @@ fn sentence_contains_stringtree(b: &mut Bencher) {
 } */
 
 #[bench]
-fn sentence_contains_loop(b: &mut Bencher) {
+fn impl_loop(b: &mut Bencher) {
     let list = gen_list();
 
     b.iter(|| {
         for s in PROF_SENTENCES {
             assert!(
-                super::sentence_contains_loop(&list, s),
+                other_impls::sentence_contains_loop(&list, s),
                 "profanity wrongly marked as clean. {}",
                 s
             )
         }
         for s in CLEAN_SENTENCES {
             assert!(
-                !super::sentence_contains_loop(&list, s),
+                !other_impls::sentence_contains_loop(&list, s),
                 "clean wrongly marked as profanity. {}",
                 s
             )
@@ -225,18 +217,18 @@ fn sentence_contains_loop(b: &mut Bencher) {
 }
 
 #[test]
-fn sentence_contains_loop_test() {
+fn impl_loop_test() {
     let list = gen_list();
-    for s in PROF_SENTENCES.iter().chain(EXT_PROF_SENTENCES.iter()) {
+    for s in PROF_SENTENCES.iter() {
         assert!(
-            super::sentence_contains_loop(&list, s),
+            other_impls::sentence_contains_loop(&list, s),
             "profanity wrongly marked as clean. {}",
             s
         )
     }
-    for s in CLEAN_SENTENCES.iter().chain(EXT_CLEAN_SENTENCES.iter()) {
+    for s in CLEAN_SENTENCES.iter() {
         assert!(
-            !super::sentence_contains_loop(&list, s),
+            !other_impls::sentence_contains_loop(&list, s),
             "clean wrongly marked as profanity. {}",
             s
         )

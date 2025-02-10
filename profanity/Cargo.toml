@@ -5,8 +5,10 @@ authors.workspace = true
 edition.workspace = true
 
 [dependencies]
-string_tree={path="../string_tree", features=["serde"]}
+thiserror={version="2.0.11"}
 serde={version="1.0.213", features=["derive"]}
+bitflags={version="2.8.0"}
 
 [dev-dependencies]
 censor={version="0.3.0"}
+string_tree={path="../string_tree", features=["serde"]}

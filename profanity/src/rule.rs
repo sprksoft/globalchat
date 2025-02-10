@@ -1,60 +1,101 @@
-use crate::{Token, TokenizedMessage};
+use crate::{tokens::TokenParseError, ProfSyntaxErr, Token, TokenizedMessage};
+use bitflags::bitflags;
+use thiserror::Error;
+
+macro_rules! flags {
+    ($vis:vis flags $name:ident : $type:ty{$($flagname:ident:$bits:literal:$char:literal;)*}) => {
+        bitflags! {
+            #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+            pub struct $name: u8 {
+                const NONE = 0b00000000;
+                $(const $flagname = $bits;)*
+            }
+        }
+
+        impl $name {
+            pub fn set_from_char(&mut self, char: char) -> bool {
+                match char {
+                    $($char => {*self |= Self::$flagname; true},)*
+                    _ => {false}
+                }
+            }
+            pub fn append_to_string(&self, str: &mut String) {
+                $(
+                    if self.contains(Self::$flagname) {
+                        str.push($char)
+                    }
+                )*
+            }
+        }
+    };
+}
+
+flags! {
+    flags ProfRuleFlags : u8 {
+        WORDMATCH:0b00000001: 'w';
+        NO_DEDUP: 0b00000010: 'd';
+    }
+}
+
+#[derive(Clone, Debug, Error)]
+pub enum RuleParseError {
+    #[error("Unknown flag '{0}'")]
+    UnknownFlag(char),
+    #[error("{0}")]
+    TokenParseError(#[from] TokenParseError),
+}
+
+#[derive(Debug, Error, PartialEq, Eq)]
+pub enum RuleLint {
+    #[error(
+        "Rule ends in -en. Ex. godverdomen will not match godverdome. (Replace -en suffix with -e)"
+    )]
+    En,
+}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ProfRule {
-    tokens: Vec<crate::Token>,
-    flags: u8,
+    pub(super) tokens: Vec<crate::Token>,
+    pub(super) flags: ProfRuleFlags,
 }
 impl ProfRule {
-    pub fn from_match_str(str: &str) -> Option<Self> {
-        let me = Self {
-            flags: 0,
-            tokens: Self::match_str_to_tokens(str, true)?,
-        };
-        Some(me)
-    }
-    fn match_str_to_tokens(str: &str, dedup: bool) -> Option<Vec<Token>> {
-        let mut tokens = Vec::with_capacity(str.len());
-        let mut chars = str.chars();
-        loop {
-            if let Some(t) = Token::from_iter(&mut chars) {
-                if t.is_whitespace() {
-                    continue;
-                }
-                if tokens.last().cloned() != Some(t) || !dedup {
-                    tokens.push(t);
-                }
-            } else {
-                break;
-            }
+    pub fn lint(&self) -> Vec<RuleLint> {
+        let mut lints = Vec::new();
+        if self.tokens.ends_with(&[
+            Token::from_char('e').unwrap(),
+            Token::from_char('n').unwrap(),
+        ]) {
+            lints.push(RuleLint::En)
         }
-        Some(tokens)
+        lints
+    }
+    pub fn from_match_str(str: &str) -> Result<Self, RuleParseError> {
+        Ok(Self {
+            flags: ProfRuleFlags::NONE,
+            tokens: Token::parse_multiple(str, true)?,
+        })
     }
 
-    pub fn from_str(str: &str) -> Option<Self> {
+    pub fn parse_from_str(str: &str) -> Result<Self, RuleParseError> {
         if let Some(sep_index) = str.find(':') {
             let mut me = Self::from_match_str(&str[sep_index + 1..])?;
             let flag_region = &str[..sep_index];
-            if flag_region.contains('w') {
-                me.set_wordmatch();
+            for char in flag_region.chars() {
+                if !me.flags.set_from_char(char) {
+                    return Err(RuleParseError::UnknownFlag(char));
+                }
             }
-            if flag_region.contains('l') {
-                me.set_exactlen();
-                me.tokens = Self::match_str_to_tokens(&str[sep_index + 1..], false)?;
+            if me.nodedup() {
+                me.tokens = Token::parse_multiple(&str[sep_index + 1..], false)?;
             }
-            Some(me)
+            Ok(me)
         } else {
             Self::from_match_str(&str)
         }
     }
     pub fn to_string(&self) -> String {
         let mut str = String::with_capacity(2 + self.tokens.len());
-        if self.wordmatch() {
-            str.push('w');
-        }
-        if self.exactlen() {
-            str.push('w');
-        }
+        self.flags.append_to_string(&mut str);
         str.push(':');
         for token in self.tokens.iter() {
             str.push_str(&token.to_string())
@@ -62,26 +103,11 @@ impl ProfRule {
 
         str
     }
-    pub fn exactlen(&self) -> bool {
-        self.get_flag(1)
-    }
-    pub fn set_exactlen(&mut self) {
-        self.set_flag(1);
+    pub fn nodedup(&self) -> bool {
+        self.flags.contains(ProfRuleFlags::NO_DEDUP)
     }
     pub fn wordmatch(&self) -> bool {
-        self.get_flag(0)
-    }
-    pub fn set_wordmatch(&mut self) {
-        self.set_flag(0);
-    }
-
-    fn get_flag(&self, index: u8) -> bool {
-        (self.flags << index) & 0x80 == 0x80
-    }
-
-    fn set_flag(&mut self, index: u8) {
-        //0x8000... = 0b10000000...
-        self.flags |= 0x80 >> index;
+        self.flags.contains(ProfRuleFlags::WORDMATCH)
     }
 
     #[inline]
@@ -99,10 +125,11 @@ impl ProfRule {
             if t_other.is_whitespace() && !self.wordmatch() {
                 continue;
             }
-            if prev_char_check == Some(t_other) && !self.exactlen() {
+            if prev_char_check == Some(t_other) && !self.nodedup() {
                 continue;
             }
             prev_char_check = Some(t_other);
+            //println!("{:?} {:?}", t_me, t_other);
             if t_other.contains(t_me) {
                 //println!("rule: {:?} token: {:?}", t_me, t_other);
                 match_index += 1;
@@ -121,42 +148,86 @@ impl ProfRule {
 
 #[cfg(test)]
 mod test {
-    use crate::{rule::ProfRule, tokens};
+    use crate::{
+        rule::{ProfRule, ProfRuleFlags},
+        tokens_ar, ProfanityFilter2,
+    };
 
     #[test]
-    fn from_str() {
-        let rule = ProfRule::from_str("w:abcd");
-        assert_eq!(
-            rule.clone().map(|r| r.wordmatch()),
-            Some(true),
-            "wordmatch flag"
-        );
+    fn parse() {
+        let rule = ProfRule::parse_from_str("w:abcd").unwrap();
         assert_eq!(
             rule,
-            Some(ProfRule {
-                flags: 0x80,
-                tokens: tokens!['a', 'b', 'c', 'd'],
-            })
+            ProfRule {
+                tokens: tokens_ar!['a', 'b', 'c', 'd'],
+                flags: ProfRuleFlags::WORDMATCH
+            },
+            "wordmatch flag"
+        );
+
+        let rule = ProfRule::parse_from_str(":abcd").unwrap();
+        assert_eq!(
+            rule,
+            ProfRule {
+                tokens: tokens_ar!['a', 'b', 'c', 'd'],
+                flags: ProfRuleFlags::NONE
+            },
+            "no wordmatch flag"
         );
     }
 
     #[test]
-    fn optimize_test() {
-        let rule = ProfRule::from_str(":abbbcd");
+    fn wordmatch() {
+        let mut filter = ProfanityFilter2::empty();
+        let rule = ProfRule::parse_from_str("w:abcd").unwrap();
+        filter.insert_rule(rule);
+        assert!(
+            filter
+                .filter(filter.tokenize("Hi word a.b cd end words").0)
+                .is_none(),
+            "expected word flag to not match whitespace delimited"
+        );
+
+        let mut filter = ProfanityFilter2::empty();
+        let rule = ProfRule::parse_from_str("abcd").unwrap();
+        filter.insert_rule(rule);
+        assert!(
+            filter
+                .filter(filter.tokenize("Hi word a.b cd end words").0)
+                .is_some(),
+            "expected non word flag to match whitespace delimited"
+        );
+    }
+
+    #[test]
+    fn dedup_test() {
+        let rule = ProfRule::parse_from_str(":abbbcd").unwrap();
         assert_eq!(
             rule,
-            Some(ProfRule {
-                tokens: tokens!['a', 'b', 'c', 'd'],
-                flags: 0
-            })
+            ProfRule {
+                tokens: tokens_ar!['a', 'b', 'c', 'd'],
+                flags: ProfRuleFlags::NONE
+            }
         );
+    }
+
+    #[test]
+    fn dont_dedup_wordmatch() {
+        let rule = ProfRule::parse_from_str("d:dedddup").unwrap();
+        assert_eq!(
+            rule,
+            ProfRule {
+                tokens: tokens_ar!['d', 'e', 'd', 'd', 'd', 'u', 'p'],
+                flags: ProfRuleFlags::NO_DEDUP
+            }
+        )
     }
 
     #[test]
     fn to_str() {
         let rule = ProfRule {
-            flags: 0,
-            tokens: tokens!['a', 'b', 'c', 'd'],
+            flags: ProfRuleFlags::NONE,
+            tokens: tokens_ar!['a', 'b', 'c', 'd'],
         };
         assert!(!rule.wordmatch(), "wordmatch flag");
         assert_eq!(rule.to_string(), ":abcd".to_string())

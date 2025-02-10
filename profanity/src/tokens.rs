@@ -2,33 +2,65 @@ use std::fmt::Debug;
 use std::fmt::Write;
 use std::num::NonZeroU8;
 
+use thiserror::Error;
+
 #[macro_export]
-macro_rules! tokens {
+macro_rules! tokens_ar {
     [$($c:literal),*] => {
         vec![$(crate::Token::from_char($c).unwrap()),*]
     };
 }
+
+#[derive(Clone, Debug, Error)]
+pub enum TokenParseError {
+    #[error("Expected a character after /")]
+    ExpectedCharAfterEscapeChar,
+    #[error("Invalid escape sequence: '/{0}'")]
+    InvalidEscapedToken(char),
+    #[error("Invalid token: '{0}'")]
+    InvalidToken(char),
+}
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub struct Token(NonZeroU8);
 impl Token {
-    pub fn from_str(str: &str) -> Option<Self> {
-        Self::from_iter(&mut str.chars())
-    }
-    pub fn from_iter<I: Iterator<Item = char>>(iter: &mut I) -> Option<Self> {
-        let first = iter.next()?;
+    fn from_iter<I: Iterator<Item = char>>(iter: &mut I) -> Result<Option<Self>, TokenParseError> {
+        let Some(first) = iter.next() else {
+            return Ok(None);
+        };
         if first == '/' {
-            let next = iter.next()?;
+            let next = iter
+                .next()
+                .ok_or(TokenParseError::ExpectedCharAfterEscapeChar)?;
             if next == '0' {
-                Some(Self::new_number())
+                Ok(Some(Self::new_number()))
             } else if next == 'w' {
-                Some(Self::new_whitespace())
+                Ok(Some(Self::new_whitespace()))
             } else {
-                None
+                Err(TokenParseError::InvalidEscapedToken(next))
             }
         } else {
-            Some(Self::from_char(first)?)
+            Ok(Some(
+                Self::from_char(first).ok_or(TokenParseError::InvalidToken(first))?,
+            ))
         }
     }
+    pub fn parse_one(str: &str) -> Result<Option<Self>, TokenParseError> {
+        Self::from_iter(&mut str.chars())
+    }
+    pub fn parse_multiple(str: &str, dedup: bool) -> Result<Vec<Self>, TokenParseError> {
+        let mut vec = Vec::with_capacity(str.len());
+        let mut iter = str.chars();
+        loop {
+            let Some(t) = Self::from_iter(&mut iter)? else {
+                return Ok(vec);
+            };
+            if vec.last() != Some(&t) || !dedup {
+                vec.push(t);
+            }
+        }
+    }
+
     pub fn from_char(char: char) -> Option<Token> {
         if char.is_whitespace() {
             return Some(Self::new_whitespace());
@@ -82,13 +114,22 @@ pub enum TokenGroup {
     Multiple(Vec<Token>),
 }
 impl TokenGroup {
-    pub fn from_str(str: &str) -> Option<Self> {
+    pub fn parse_from_str(str: &str) -> Result<Option<Self>, TokenParseError> {
         let mut split = str.split(',');
-        let mut me = Self::from_single(Token::from_str(split.next()?)?);
+        let Some(first) = split.next() else {
+            return Ok(None);
+        };
+        let Some(token) = Token::parse_one(first.trim())? else {
+            return Ok(None);
+        };
+        let mut me = Self::from_single(token);
         for element in split {
-            me.push(Token::from_str(element.trim())?);
+            let Some(token) = Token::parse_one(element.trim())? else {
+                break;
+            };
+            me.push(token);
         }
-        Some(me)
+        Ok(Some(me))
     }
     pub fn from_char(char: char) -> Option<Self> {
         if char.is_whitespace() {

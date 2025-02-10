@@ -125,6 +125,10 @@ endingyou
 joueinde
 nueke
 lesbi
+69696293
+hiteler
+kaker
+marokane
 ";
 
 pub const PROFANITY_V2: &'static str = include_str!("profanity_v2.filter");
