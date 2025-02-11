@@ -1,6 +1,11 @@
 use serde::{Deserialize, Serialize};
 use string_tree::StringTree;
 
+#[cfg(test)]
+mod bench;
+#[cfg(test)]
+mod test_data;
+
 #[derive(Serialize, Deserialize)]
 pub struct ProfanityFilter {
     wordlist: Vec<Box<str>>,

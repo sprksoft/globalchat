@@ -1,4 +1,3 @@
-pub const LIST: &'static str = "
 arse
 ass
 bitch
@@ -47,7 +46,7 @@ vagina
 nigger
 nigga
 niga
-\"niger \"
+"niger \"
 neger
 harderdaddy
 dingelydongs
@@ -71,46 +70,46 @@ myshopify.com
 pornhub.com
 hanime.tv
 nhentai.net
-\"sex\"
-\"nigge\"
-\"communisme\"
-\"piemol\"
-\"piemel\"
-\"voginale\"
-\"neeger\"
-\"neegr\"
-\"vagine\"
-\"negeer\"
-\"neeeger\"
-\"neegor\"
-\"pliemol\"
-\"plemol\"
-\"umoeder\"
-\"blowjob\"
-\"dingelidong\"
-\"slaaf\"
-\"kekma.net\"
-\"kankr\"
-\"adlf\"
-\"htler\"
-\"ngga\"
-\"neggers\"
-\"neuke\"
-\"verkrachten\"
-\"negr\"
-\"seks\"
-\"neuk\"
-\"ngger\"
-\"nudes\"
-\"suicide\"
-\"dikzak\"
-\"dildo\"
-\"bek \"
-\"onlyfans\"
-\"zwartmens\"
-\"zwartemens\"
-\"pimol \"
-\"pik\"
+"sex"
+"nigge"
+"communisme"
+"piemol"
+"piemel"
+"voginale"
+"neeger"
+"neegr"
+"vagine"
+"negeer"
+"neeeger"
+"neegor"
+"pliemol"
+"plemol"
+"umoeder"
+"blowjob"
+"dingelidong"
+"slaaf"
+"kekma.net"
+"kankr"
+"adlf"
+"htler"
+"ngga"
+"neggers"
+"neuke"
+"verkrachten"
+"negr"
+"seks"
+"neuk"
+"ngger"
+"nudes"
+"suicide"
+"dikzak"
+"dildo"
+"bek "
+"onlyfans"
+"zwartmens"
+"zwartemens"
+"pimol "
+"pik"
 tiete
 gay
 zweer
@@ -129,6 +128,3 @@ lesbi
 hiteler
 kaker
 marokane
-";
-
-pub const PROFANITY_V2: &'static str = include_str!("profanity_v2.filter");

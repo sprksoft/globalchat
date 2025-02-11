@@ -1,11 +1,7 @@
 #![cfg_attr(test, feature(test))]
 
 #[cfg(test)]
-mod integration_test;
-#[cfg(test)]
 mod other_impls;
-#[cfg(test)]
-mod wordlist;
 
 mod rule;
 mod tokens;

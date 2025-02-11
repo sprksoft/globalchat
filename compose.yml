@@ -3,13 +3,18 @@ services:
     build:
       dockerfile: Dockerfile
       args:
-        DEBUG: true
+        DEBUG: false
     networks:
       - ldeveuorg_backend_net
       - gc
+    volumes:
+      - proffilter:/var/proffilter
 
     expose:
       - 8080
+
+volumes:
+  proffilter:
 
 networks:
   gc:
