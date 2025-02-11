@@ -1,72 +1,39 @@
 use std::path::{Path, PathBuf};
 
 use log::*;
-use profanity::ProfanityFilter;
+use profanity::{ProfSyntaxErr, ProfanityFilter};
 use rocket::fairing::AdHoc;
 use rocket::serde::Deserialize;
+use thiserror::Error;
 use tokio::fs::OpenOptions;
 use tokio::io::AsyncWriteExt;
 use tokio::sync::RwLock;
 
 use crate::chat::Message;
 
+#[derive(Debug, Error)]
+enum ProfFileLoadErr {
+    IO(#[from] std::io::Error),
+    Syntax(#[from] profanity::ProfSyntaxErr),
+}
+
 pub struct ProfFilter {
-    //cache_file: String,
-    wordlist_file: PathBuf,
+    filter_path: PathBuf,
     filter: RwLock<ProfanityFilter>,
 }
 impl ProfFilter {
-    // async fn load_from_cache(cache_file: &str) -> Result<ProfanityFilter, bincode::Error> {
-    //     let data = tokio::fs::read(cache_file).await?;
-    //     bincode::deserialize(&data)
-    // }
-    pub async fn new(wordlist_file: PathBuf) -> Result<Self, bincode::Error> {
-        // let mut cache_file = std::env::var("XDG_CACHE_HOME").unwrap_or_else(|_| {
-        //     let mut str = std::env::var("HOME").expect("home env var not set");
-        //     str.push_str("/.cache");
-        //     str
-        // });
-        // cache_file.push_str("/smppgc");
-        // cache_file.push_str("/profanity_tree");
-        // tokio::fs::create_dir_all(&cache_file).await?;
-
-        // let filter = match Self::load_from_cache(&cache_file).await {
-        //     Ok(f) => f,
-        //     Err(e) => {
-        //         error!("Failed to load profanity tree from cache path. Generating a new one from wordlist ('{:?}'): {}", &wordlist_file, e);
-        //         let wordlist = std::fs::read_to_string(&wordlist_file)?;
-        //         let filter = ProfanityFilter::from_wordlist(&wordlist);
-        //         tokio::fs::write(&cache_file, bincode::serialize(&filter)?).await?;
-        //         filter
-        //     }
-        // };
-
-        let wordlist = std::fs::read_to_string(&wordlist_file)?;
-        let filter = ProfanityFilter::from_wordlist(&wordlist);
+    pub async fn new(filter_path: PathBuf) -> Result<Self, ProfFileLoadErr> {
+        let file = tokio::fs::read_to_string(&filter_path).await?;
+        let filter = ProfanityFilter::parse_from_str(&file)?;
         Ok(Self {
+            filter_path,
             filter: filter.into(),
-            wordlist_file,
-            //cache_file,
         })
     }
 
-    pub async fn add_word(&self, word: impl Into<Box<str>>) -> Result<(), bincode::Error> {
-        let word = word.into();
-        {
-            let mut wordlist_file = OpenOptions::new()
-                .write(true)
-                .append(true)
-                .open(&self.wordlist_file)
-                .await?;
-            let string = format!("\"{}\"\n", word.clone());
-            wordlist_file.write_all(string.as_bytes()).await?;
-        }
-
-        {
-            self.filter.write().await.add_word(word)
-        }
-        // let filter = self.filter.read().await;
-        // tokio::fs::write(&self.cache_file, bincode::serialize(&*filter)?).await?;
+    pub async fn load(&self) -> Result<(), ProfFileLoadErr> {
+        let file = tokio::fs::read_to_string(&self.filter_path).await?;
+        &mut self.filter.write().await.add_from_parsed(&file)?;
         Ok(())
     }
 
@@ -120,7 +87,7 @@ impl ProfFilter {
 #[derive(Deserialize)]
 #[serde(crate = "rocket::serde")]
 struct ProfConfig {
-    prof_wordlist: PathBuf,
+    prof_filter_file: PathBuf,
 }
 
 pub fn stage() -> AdHoc {
@@ -129,12 +96,9 @@ pub fn stage() -> AdHoc {
             .figment()
             .extract::<ProfConfig>()
             .expect("No profanity config found");
-        let mut wordlist = config.prof_wordlist;
-        if wordlist.is_relative() {
-            wordlist = Path::new(env!("CARGO_MANIFEST_DIR")).join(wordlist);
-        }
+        let filter_path = config.prof_filter_file;
         r.manage(
-            ProfFilter::new(wordlist)
+            ProfFilter::new(filter_path)
                 .await
                 .expect("Failed to load profanity filter"),
         )

@@ -6,7 +6,7 @@ mod other_impls;
 mod rule;
 mod tokens;
 use rule::{ProfRule, RuleLint};
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt::Display, ops::Range};
 use thiserror::Error;
 use tokens::{Token, TokenGroup};
 
@@ -18,10 +18,17 @@ impl TokenizedMessage {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub struct ProfSyntaxErr {
     linenum: usize,
     message: String,
+}
+impl Display for ProfSyntaxErr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.linenum.fmt(f)?;
+        f.write_str(": ")?;
+        f.write_str(&self.message)
+    }
 }
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum FilterLint {
@@ -31,13 +38,19 @@ pub enum FilterLint {
     PossibleDubbleRule(usize, usize),
 }
 
+#[derive(Debug, Eq, PartialEq)]
+pub struct FilterMatch<'a> {
+    pub rule: &'a ProfRule,
+    pub span: Range<usize>,
+}
+
 #[derive(Debug)]
-pub struct ProfanityFilter2 {
+pub struct ProfanityFilter {
     rules: Vec<ProfRule>,
     char_to_token_map: HashMap<char, TokenGroup>,
 }
 
-impl ProfanityFilter2 {
+impl ProfanityFilter {
     pub fn empty() -> Self {
         Self {
             rules: vec![],
@@ -45,8 +58,13 @@ impl ProfanityFilter2 {
         }
     }
     pub fn parse_from_str(str: &str) -> Result<Self, ProfSyntaxErr> {
-        let mut char_replacements = true;
         let mut me = Self::empty();
+        me.add_from_parsed(str)?;
+        Ok(me)
+    }
+
+    pub fn add_from_parsed(&mut self, str: &str) -> Result<(), ProfSyntaxErr> {
+        let mut char_replacements = true;
         for (i, line) in str.lines().enumerate() {
             if line.is_empty() || line.starts_with('#') {
                 continue;
@@ -56,21 +74,21 @@ impl ProfanityFilter2 {
                 continue;
             }
             if char_replacements {
-                me.parse_insert_char_replace_rule(line)
+                self.parse_insert_char_replace_rule(line)
                     .map_err(|e| ProfSyntaxErr {
                         linenum: i + 1,
                         message: e,
                     })?;
             } else {
-                me.insert_rule(ProfRule::parse_from_str(line).map_err(|e| ProfSyntaxErr {
+                self.insert_rule(ProfRule::parse_from_str(line).map_err(|e| ProfSyntaxErr {
                     linenum: i + 1,
                     message: format!("Error parsing rule: {}", e),
                 })?);
             }
         }
-
-        Ok(me)
+        Ok(())
     }
+
     fn parse_insert_char_replace_rule(&mut self, str: &str) -> Result<(), String> {
         let mut chars = str.char_indices();
         let (_, char) = chars.next().ok_or(format!("Expected char replace rule"))?;
@@ -112,7 +130,7 @@ impl ProfanityFilter2 {
             }
             let tm = self.tokenize_rule(rule);
             for (ii, rule2) in self.rules.iter().enumerate() {
-                if ii != i && rule2.matches(&tm) {
+                if ii != i && rule2.matches(&tm).is_some() {
                     lints.push(FilterLint::PossibleDubbleRule(i, ii));
                 }
             }
@@ -124,10 +142,10 @@ impl ProfanityFilter2 {
         &self.rules[i]
     }
 
-    pub fn filter(&self, msg: TokenizedMessage) -> Option<&ProfRule> {
+    pub fn matches(&self, msg: TokenizedMessage) -> Option<FilterMatch> {
         for rule in self.rules.iter() {
-            if rule.matches(&msg) {
-                return Some(rule);
+            if let Some(span) = rule.matches(&msg) {
+                return Some(FilterMatch { rule: rule, span });
             }
         }
         None
@@ -148,6 +166,8 @@ impl ProfanityFilter2 {
             if let Some(t) = self.char_to_token(char) {
                 new_str.push(char);
                 tokens.push(t);
+            } else {
+                tokens.push(TokenGroup::from_single(Token::new_unknown()));
             }
         }
         (TokenizedMessage(tokens), new_str)
@@ -167,12 +187,12 @@ mod test {
     use crate::{
         rule::{ProfRule, ProfRuleFlags},
         tokens::{self, TokenGroup},
-        tokens_ar, FilterLint, ProfanityFilter2, TokenizedMessage,
+        tokens_ar, FilterLint, ProfanityFilter, TokenizedMessage,
     };
 
     #[test]
     fn char_replace() {
-        let mut filter = ProfanityFilter2::empty();
+        let mut filter = ProfanityFilter::empty();
         filter.parse_insert_char_replace_rule("i: i, j").unwrap();
         assert_eq!(
             filter.char_to_token_map.get(&'i'),
@@ -181,7 +201,7 @@ mod test {
     }
     #[test]
     fn lints() {
-        let mut filter = ProfanityFilter2::empty();
+        let mut filter = ProfanityFilter::empty();
         filter.insert_rule(ProfRule {
             tokens: tokens_ar!['s', 'e', 'x', 'y'],
             flags: ProfRuleFlags::NONE,
@@ -196,7 +216,7 @@ mod test {
 
     #[test]
     fn tokenize_test() {
-        let filter = ProfanityFilter2::empty();
+        let filter = ProfanityFilter::empty();
 
         assert_eq!(
             filter.tokenize("ik"),

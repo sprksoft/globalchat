@@ -1,27 +1,32 @@
 <!-- vim: set ft=html: -->
 
+{{set }}
+
+<dialog id="login">
+    {{> svg/gclogo class="logo" }}
+    <h3 class="warning">⚠️ Disclaimer ⚠️</h3>
+    <ul>
+      <li>Iedereen kan een <b class="text-accent">WILLEKEURIGE NAAM</b> kiezen.</li>
+      <li>Deze chat wordt <b class="text-accent">NIET GEMODEREERD</b>.</li>
+      <li>Deel <b class="text-accent">GEEN GEVOELIGE GEGEVENS</b> met anderen!</li>
+    </ul>
+
+    <span id="err-mesg" class="err"></span>
+    <div class="container">
+      <input maxlength="{{max_username_len}}" id="name-input" type="text" placeholder="({{placeholder}})" data-default_username="{{placeholder}}">
+      <button id="connectbtn" class="button">
+        {{> svg/arrow }}
+      </button>
+    </div>
+</dialog>
+
 <dialog id="connection-status">
   <span>connecting</span>
 </dialog>
 
 <header id="topbar">
   <button id="leavebtn" class="button">
-    <svg
-        width="20"
-        height="20"
-        viewBox="0 0 26.45833 26.45833"
-        version="1.1"
-        transform="scale(-1,1)">
-      <path
-          style="stroke:currentColor;stroke-width:3.96875;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none"
-          d="M 2.6458333,13.229167 H 23.8125"/>
-      <path
-          style="stroke:currentColor;stroke-width:3.96875;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none"
-          d="M 13.229167,2.6458333 23.8125,13.229167"/>
-      <path
-          style="stroke:currentColor;stroke-width:3.96875;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none"
-          d="M 13.229167,23.8125 23.8125,13.229167"/>
-    </svg>
+    {{> svg/arrow transform="scale(-1,1)" }}
   </button>
 
   <h2 class="chat-name">Global chat</h2>

@@ -10,6 +10,8 @@ use rocket_dyn_templates::{context, Template};
 
 use crate::{csp::CSPFrameAncestors, names::UserConfig, MessageConfig, RootUrl};
 
+mod admin;
+
 macro_rules! css_var {
     ($name:ident, $($alpha:literal),*) => {
         concat!($(
@@ -125,11 +127,9 @@ fn v1(
 pub fn stage() -> AdHoc {
     AdHoc::on_ignite("templates", |r| async {
         r.mount("/", routes![v1])
+            .attach(admin::stage())
             .attach(Template::custom(|engines| {
-                let hdb = &mut engines.handlebars;
-                hdb.set_strict_mode(true);
-                #[cfg(debug_assertions)]
-                hdb.set_dev_mode(true);
+                //let tera = &mut engines.tera;
             }))
     })
 }

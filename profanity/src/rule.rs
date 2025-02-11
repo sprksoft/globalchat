@@ -1,3 +1,5 @@
+use std::ops::Range;
+
 use crate::{tokens::TokenParseError, ProfSyntaxErr, Token, TokenizedMessage};
 use bitflags::bitflags;
 use thiserror::Error;
@@ -111,17 +113,16 @@ impl ProfRule {
     }
 
     #[inline]
-    pub fn matches(&self, other: &TokenizedMessage) -> bool {
-        //println!("{:?}", self);
-        let mut iter_other = other.tokens();
+    pub fn matches(&self, other: &TokenizedMessage) -> Option<Range<usize>> {
+        println!("{:?}", self);
         let mut prev_char_check = None;
-
         let mut match_index = 0;
         let mut t_me = self.tokens[match_index];
-        loop {
-            let Some(t_other) = iter_other.next() else {
-                return false;
-            };
+        let mut start_index = 0;
+        for (index, t_other) in other.tokens().enumerate() {
+            if t_other.is_unknown() {
+                continue;
+            }
             if t_other.is_whitespace() && !self.wordmatch() {
                 continue;
             }
@@ -129,20 +130,30 @@ impl ProfRule {
                 continue;
             }
             prev_char_check = Some(t_other);
-            //println!("{:?} {:?}", t_me, t_other);
+            println!("{:?} {:?}", t_me, t_other);
             if t_other.contains(t_me) {
-                //println!("rule: {:?} token: {:?}", t_me, t_other);
+                println!("rule: {:?} token: {:?}", t_me, t_other);
                 match_index += 1;
                 if match_index == self.tokens.len() {
-                    return true;
+                    return Some(start_index..index + 1);
                 }
                 t_me = self.tokens[match_index];
             } else {
+                start_index = index;
                 match_index = 0;
                 t_me = self.tokens[match_index];
-                //println!("reset");
+                if t_other.contains(t_me) {
+                    match_index += 1;
+                    if match_index == self.tokens.len() {
+                        return Some(start_index..index + 1);
+                    }
+                    t_me = self.tokens[match_index];
+                }
+
+                println!("reset");
             }
         }
+        None
     }
 }
 
@@ -150,7 +161,7 @@ impl ProfRule {
 mod test {
     use crate::{
         rule::{ProfRule, ProfRuleFlags},
-        tokens_ar, ProfanityFilter2,
+        tokens_ar, ProfanityFilter,
     };
 
     #[test]
@@ -177,26 +188,57 @@ mod test {
     }
 
     #[test]
+    fn match_after_half_match() {
+        let mut filter = ProfanityFilter::empty();
+        let rule = ProfRule::parse_from_str("abcd").unwrap();
+        filter.insert_rule(rule);
+
+        assert!(
+            filter.matches(filter.tokenize("ab abcd qa").0).is_some(),
+            "match after half match failed"
+        );
+    }
+
+    #[test]
     fn wordmatch() {
-        let mut filter = ProfanityFilter2::empty();
+        let mut filter = ProfanityFilter::empty();
         let rule = ProfRule::parse_from_str("w:abcd").unwrap();
         filter.insert_rule(rule);
         assert!(
             filter
-                .filter(filter.tokenize("Hi word a.b cd end words").0)
+                .matches(filter.tokenize("Hi word a.b cd end words").0)
                 .is_none(),
             "expected word flag to not match whitespace delimited"
         );
 
-        let mut filter = ProfanityFilter2::empty();
+        let mut filter = ProfanityFilter::empty();
         let rule = ProfRule::parse_from_str("abcd").unwrap();
         filter.insert_rule(rule);
         assert!(
             filter
-                .filter(filter.tokenize("Hi word a.b cd end words").0)
+                .matches(filter.tokenize("Hi word a.b cd end words").0)
                 .is_some(),
             "expected non word flag to match whitespace delimited"
         );
+    }
+
+    #[test]
+    fn span() {
+        let mut filter = ProfanityFilter::empty();
+        let rule = ProfRule::parse_from_str("abcd").unwrap();
+        filter.insert_rule(rule);
+
+        let result = filter.matches(filter.tokenize("abcd dq").0);
+        assert_eq!(result.unwrap().span, 0..4, "Span is wrong");
+
+        let result = filter.matches(filter.tokenize("ab a.a_bc d").0);
+        assert_eq!(result.unwrap().span, 3..11, "End span is wrong");
+
+        let result = filter.matches(filter.tokenize(".a_bc d aaaaa").0);
+        assert_eq!(result.unwrap().span, 0..7, "Start span is wrong");
+
+        let result = filter.matches(filter.tokenize("Hi word a.b cd end words").0);
+        assert_eq!(result.unwrap().span, 6..14, "Center span is wrong");
     }
 
     #[test]

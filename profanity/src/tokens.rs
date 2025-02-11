@@ -78,8 +78,14 @@ impl Token {
     pub fn new_number() -> Token {
         Token(unsafe { NonZeroU8::new_unchecked(1) })
     }
+    pub fn new_unknown() -> Token {
+        Token(unsafe { NonZeroU8::new_unchecked(2) })
+    }
     pub fn is_whitespace(&self) -> bool {
         self.0.get() == ' ' as u8
+    }
+    pub fn is_unknown(&self) -> bool {
+        self.0.get() == 2
     }
     pub fn to_string(self) -> String {
         match self.0.get() {
@@ -159,6 +165,12 @@ impl TokenGroup {
         match self {
             Self::Single(t) => t.is_whitespace(),
             Self::Multiple(t) => t.contains(&Token::new_whitespace()),
+        }
+    }
+    pub fn is_unknown(&self) -> bool {
+        match self {
+            Self::Single(t) => t.is_unknown(),
+            _ => false,
         }
     }
     pub fn push(&mut self, new: Token) {

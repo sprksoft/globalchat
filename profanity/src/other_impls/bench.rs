@@ -20,7 +20,7 @@ fn gen_list<T: From<String> + std::cmp::Ord>() -> Vec<T> {
 
 #[bench]
 fn v2_full(b: &mut Bencher) {
-    let filter = crate::ProfanityFilter2::parse_from_str(PROFANITY_V2).unwrap();
+    let filter = crate::ProfanityFilter::parse_from_str(PROFANITY_V2).unwrap();
     println!("{:?}", filter);
 
     b.iter(|| {
@@ -30,7 +30,7 @@ fn v2_full(b: &mut Bencher) {
         {
             let (tokenized, string) = filter.tokenize(s);
             assert!(
-                filter.filter(tokenized).is_some(),
+                filter.matches(tokenized).is_some(),
                 "profanity wrongly marked as clean. {}",
                 s
             )
@@ -41,7 +41,7 @@ fn v2_full(b: &mut Bencher) {
         }
         for s in test_data::CLEAN_SENTENCES {
             let (tokenized, string) = filter.tokenize(s);
-            let result = filter.filter(tokenized);
+            let result = filter.matches(tokenized);
             assert_eq!(result, None, "clean wrongly marked as profanity. {}", s);
             assert_eq!(string, s, "string was modified by profanity {}", s);
         }
@@ -50,14 +50,14 @@ fn v2_full(b: &mut Bencher) {
 
 #[bench]
 fn v2_basic(b: &mut Bencher) {
-    let filter = crate::ProfanityFilter2::parse_from_str(PROFANITY_V2).unwrap();
+    let filter = crate::ProfanityFilter::parse_from_str(PROFANITY_V2).unwrap();
     println!("{:?}", filter);
 
     b.iter(|| {
         for s in test_data::PROF_SENTENCES {
             let tm = filter.tokenize(s).0;
             assert!(
-                filter.filter(tm).is_some(),
+                filter.matches(tm).is_some(),
                 "profanity wrongly marked as clean. {}",
                 s
             )
@@ -65,7 +65,7 @@ fn v2_basic(b: &mut Bencher) {
         for s in test_data::CLEAN_SENTENCES {
             let tm = filter.tokenize(s).0;
             assert!(
-                filter.filter(tm).is_none(),
+                filter.matches(tm).is_none(),
                 "profanity wrongly marked as profanity. {}",
                 s
             )

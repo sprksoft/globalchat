@@ -17,10 +17,10 @@ mod csp;
 mod debug;
 mod mesg_filter;
 pub mod names;
+mod pages;
 pub mod profanity;
 pub mod ratelimit;
 pub mod socket;
-mod template;
 mod userinfo;
 mod utils;
 mod wsprotocol;
@@ -106,7 +106,7 @@ fn rocket() -> _ {
         .attach(AdHoc::config::<MessageConfig>())
         .attach(ratelimit::stage())
         .attach(static_routing::stage())
-        .attach(template::stage())
+        .attach(pages::stage())
         .attach(names::stage())
         .attach(AdHoc::config::<RootUrl>())
         .attach(AdHoc::on_ignite("chat", |r| async {
