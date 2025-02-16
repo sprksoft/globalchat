@@ -1,19 +1,19 @@
 use std::sync::Arc;
 
+use crate::{users::UserInfo, Timestamp};
+
 #[derive(Clone, Debug)]
 pub struct Message {
-    pub sender: Arc<str>,
     pub content: Arc<str>,
-    pub timestamp: u32,
-    pub sender_id: u16,
+    pub sender: UserInfo,
+    pub timestamp: Timestamp,
 }
 impl Message {
-    pub fn new_response(message: &Message, content: Arc<str>) -> Self {
+    pub fn new(sender: UserInfo, timestamp: Timestamp, content: Arc<str>) -> Self {
         Self {
-            sender: "system".into(),
-            content: content,
-            timestamp: message.timestamp,
-            sender_id: message.sender_id,
+            content,
+            sender,
+            timestamp,
         }
     }
 

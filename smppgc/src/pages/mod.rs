@@ -8,7 +8,7 @@ use rocket::{
 };
 use rocket_dyn_templates::{context, Template};
 
-use crate::{csp::CSPFrameAncestors, names::UserConfig, MessageConfig, RootUrl};
+use crate::{csp::CSPFrameAncestors, users::UserConfig, MessageConfig, RootUrl};
 
 mod admin;
 

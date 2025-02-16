@@ -2,40 +2,29 @@ use std::fmt::Display;
 
 use uuid::Uuid;
 
-#[derive(Eq, PartialEq, Hash, Clone)]
+#[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct UserSid {
     uuid: Uuid,
-    anon: bool,
 }
 impl UserSid {
+    pub const SYSTEM: UserSid = UserSid {
+        uuid: Uuid::from_u128(0),
+    };
     pub fn new() -> UserSid {
         Self {
             uuid: Uuid::new_v4(),
-            anon: true,
         }
     }
     pub fn parse_str(string: &str) -> Option<Self> {
         if string.len() != 33 {
             return None;
         }
-        let anon = if string.starts_with('l') {
-            false
-        } else if string.starts_with('a') {
-            true
-        } else {
-            return None;
-        };
         let uuid = Uuid::parse_str(&string[1..]).ok()?;
-        Some(Self { uuid, anon })
+        Some(Self { uuid })
     }
     pub fn to_bytes_le(&self) -> [u8; 17] {
-        let mut out = [0; 17];
+        let mut out = [0x61; 17]; //a
         out.clone_from_slice(&self.uuid.to_bytes_le());
-        if self.anon {
-            out[16] = 0x61; //a
-        } else {
-            out[16] = 0x6C; //l
-        }
         out
     }
     pub fn uuid(&self) -> Uuid {
@@ -44,11 +33,7 @@ impl UserSid {
 }
 impl Display for UserSid {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if self.anon {
-            f.write_str("a")?;
-        } else {
-            f.write_str("l")?;
-        }
+        f.write_str("a")?;
         self.uuid.as_simple().fmt(f)
     }
 }

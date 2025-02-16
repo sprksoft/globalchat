@@ -1,11 +1,10 @@
+use super::UserSid;
 use dashmap::DashMap;
 use log::*;
+use profanity::TokenizedMessage;
 use rocket::{fairing::AdHoc, serde::Deserialize};
 use std::{collections::VecDeque, ops::Deref, sync::Arc};
 use thiserror::Error;
-
-mod userid;
-pub use userid::*;
 
 use crate::{profanity::ProfFilter, wsprotocol::KickReason};
 
@@ -33,13 +32,10 @@ struct NameSlot {
     owner: Option<UserSid>,
 }
 
-#[derive(Eq, PartialEq, PartialOrd, Ord, Hash, Clone)]
-struct NormName(String);
-
 pub struct UsernameManager {
     max_reserved: u16,
-    names: DashMap<NormName, NameSlot>,
-    claims: DashMap<UserSid, VecDeque<NormName>>,
+    names: DashMap<TokenizedMessage, NameSlot>,
+    claims: DashMap<UserSid, VecDeque<TokenizedMessage>>,
 }
 impl UsernameManager {
     pub fn new(max_reserved: u16) -> Self {
@@ -57,16 +53,19 @@ impl UsernameManager {
         max_name_len: usize,
         prof_filter: &ProfFilter,
     ) -> Result<ClaimedName, NameClaimError> {
-        if prof_filter.contains_profanity(name).await {
-            return Err(NameClaimError::Profanity);
+        if name.len() > max_name_len {
+            return Err(NameClaimError::Invalid);
         }
+        let (r, tokenized_name) = prof_filter.filter_string(name).await;
+        let Ok(name) = r else {
+            return Err(NameClaimError::Profanity);
+        };
         let name: Arc<str> = name.into();
-        let norm_name = Self::normalize_name(&name, max_name_len).ok_or(NameClaimError::Invalid)?;
 
         {
             let mut slot = self
                 .names
-                .entry(norm_name.clone())
+                .entry(tokenized_name.clone())
                 .or_insert_with(|| NameSlot {
                     owner: Some(user_id.clone()),
                     name: name.clone(),
@@ -85,44 +84,14 @@ impl UsernameManager {
 
         if claimed_names.len() == self.max_reserved as usize {
             if let Some(name) = claimed_names.pop_back() {
-                if name != norm_name {
+                if name != tokenized_name {
                     self.names.remove(&name);
                 }
             }
         }
-        claimed_names.push_front(norm_name);
+        claimed_names.push_front(tokenized_name);
 
         Ok(ClaimedName(name))
-    }
-
-    fn is_valid_name_char(char: char) -> bool {
-        if char.is_ascii() && !char.is_control() && char != '@' {
-            true
-        } else {
-            false
-        }
-    }
-
-    fn normalize_name<'a>(name: &'a str, max_len: usize) -> Option<NormName> {
-        let name: &str = name.trim();
-        if name.len() > max_len || name.len() < 2 {
-            return None;
-        }
-
-        let mut new_name = String::with_capacity(name.len());
-        for char in name.chars() {
-            if !Self::is_valid_name_char(char) {
-                return None;
-            }
-            if char == 'I' {
-                new_name.push('l');
-            } else {
-                for char in char.to_lowercase() {
-                    new_name.push(char);
-                }
-            }
-        }
-        Some(NormName(new_name))
     }
 }
 
@@ -146,7 +115,7 @@ pub struct UserConfig {
     pub max_username_len: usize,
 }
 
-pub fn stage() -> AdHoc {
+pub(super) fn stage() -> AdHoc {
     AdHoc::on_ignite("username manager", |r| async {
         let config = r
             .figment()

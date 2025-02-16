@@ -1,4 +1,4 @@
-use crate::names::UserSid;
+use crate::users::UserSid;
 use std::{net::IpAddr, time::Instant};
 
 use dashmap::DashMap;

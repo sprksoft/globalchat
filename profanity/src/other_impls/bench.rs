@@ -28,20 +28,20 @@ fn v2_full(b: &mut Bencher) {
             .iter()
             .chain(test_data::EXT_PROF_SENTENCES.iter())
         {
-            let (tokenized, string) = filter.tokenize(s);
+            let (tokenized, _string) = filter.tokenize(s);
             assert!(
-                filter.matches(tokenized).is_some(),
+                filter.check(&tokenized).is_some(),
                 "profanity wrongly marked as clean. {}",
                 s
             )
         }
         for (s, modify) in test_data::MODIFY_PROF_SENTENCES {
-            let (tokenized, string) = filter.tokenize(s);
+            let (_tokenized, string) = filter.tokenize(s);
             assert_eq!(string, modify, "modification hasn't happened {}", s)
         }
         for s in test_data::CLEAN_SENTENCES {
             let (tokenized, string) = filter.tokenize(s);
-            let result = filter.matches(tokenized);
+            let result = filter.check(&tokenized);
             assert_eq!(result, None, "clean wrongly marked as profanity. {}", s);
             assert_eq!(string, s, "string was modified by profanity {}", s);
         }
@@ -57,7 +57,7 @@ fn v2_basic(b: &mut Bencher) {
         for s in test_data::PROF_SENTENCES {
             let tm = filter.tokenize(s).0;
             assert!(
-                filter.matches(tm).is_some(),
+                filter.check(&tm).is_some(),
                 "profanity wrongly marked as clean. {}",
                 s
             )
@@ -65,7 +65,7 @@ fn v2_basic(b: &mut Bencher) {
         for s in test_data::CLEAN_SENTENCES {
             let tm = filter.tokenize(s).0;
             assert!(
-                filter.matches(tm).is_none(),
+                filter.check(&tm).is_none(),
                 "profanity wrongly marked as profanity. {}",
                 s
             )

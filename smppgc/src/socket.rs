@@ -12,13 +12,12 @@ use tokio::sync::broadcast::error::RecvError;
 
 use crate::{
     chat::{Chat, Message, NewClientError},
-    mesg_filter::{self, Cmd, FilterResult},
-    names::{UserConfig, UserSid, UsernameManager},
     profanity::ProfFilter,
     ratelimit::RateLimitIpPenalty,
     ratelimit::{MesgIpRateLimiters, MesgRateLimiters, NewUserIpRateLimiters},
+    users::{UserConfig, UserSid, UsernameManager},
     wsprotocol::{KickReason, WsClient},
-    MessageConfig,
+    MessageConfig, Timestamp,
 };
 
 #[derive(Responder)]
@@ -94,7 +93,7 @@ impl<'r> FromRequest<'r> for IpCountry {
 pub async fn socket_v1<'a>(
     username: &str,
     key: Option<&str>,
-    start_time: Option<u32>,
+    start_time: Option<Timestamp>,
     ws: WebSocket,
     mesg_limits: &State<MessageConfig>,
     user_config: &State<UserConfig>,
@@ -119,7 +118,7 @@ pub async fn socket_v1<'a>(
     } else {
         ip_limits.not_be_penalty
     };
-    let start_time = start_time.unwrap_or(0);
+    let start_time = start_time.unwrap_or(Timestamp::ZERO);
     let (new_user, sid) = key
         .map(|sid| UserSid::parse_str(sid))
         .flatten()
@@ -148,7 +147,7 @@ pub async fn socket_v1<'a>(
         }
     };
 
-    let mut chat_client = match chat.new_client(name_lease).await {
+    let mut chat_client = match chat.new_client(sid.clone(), name_lease).await {
         Ok(c) => c,
         Err(e) => {
             info!("Closing connection: {:?}", e);
@@ -165,7 +164,6 @@ pub async fn socket_v1<'a>(
             let chat_hist = chat.history(start_time).await;
             let mut wsclient = WsClient::new(
                 stream,
-                sid.clone(),
                 chat_client.user_info(),
                 chat.clients().await,
                 chat_hist,
@@ -207,17 +205,23 @@ pub async fn socket_v1<'a>(
                             continue;
                         }
 
-                        match on_message(mesg, &chat, &mut wsclient, &prof_filter).await?{
-                            Some(mesg) => {
+                        let (r, _) = prof_filter.filter_string(&mesg.content).await;
+                        match r{
+                            Ok(content) =>{
+                                let mesg = Message::new(chat_client.user_info(), mesg.timestamp, content.into());
+                                wsclient.forward(&mesg).await?;
                                 chat_client.send(mesg);
-                            },
-                            None=>{}
+                            } ,
+                            Err(span) =>{
+                                //TODO: send profanity warning
+                            }
+
                         }
                     }
                     mesg = chat_client.message_receiver.recv() => {
                         match mesg{
                             Ok(mesg) => {
-                                if mesg.sender_id != chat_client.user_info().id(){
+                                if mesg.sender.id() != chat_client.user_info().id(){
                                     wsclient.forward(&mesg).await?;
                                 }
                             }
@@ -246,79 +250,4 @@ pub async fn socket_v1<'a>(
             }
         })
     }))
-}
-
-async fn on_message(
-    message: Message,
-    chat: &Chat,
-    wsclient: &mut WsClient,
-    prof_filter: &ProfFilter,
-) -> Result<Option<Message>, tokio_tungstenite::tungstenite::Error> {
-    messages_total::inc();
-    match mesg_filter::filter(message) {
-        FilterResult::Cmd(message, Cmd::Invalid) => {
-            wsclient.forward(&message).await?;
-            wsclient
-                .forward(&Message::new_response(&message, "invalid command".into()))
-                .await?;
-            return Ok(None);
-        }
-        FilterResult::Cmd(_, Cmd::KickMe { hard }) => {
-            if hard {
-                wsclient.kick(KickReason::Hard).await?;
-            } else {
-                wsclient.kick(KickReason::Cmd).await?;
-            }
-        }
-
-        FilterResult::Cmd(message, Cmd::BanWord(word)) => {
-            wsclient.forward(&message).await?;
-            if prof_filter.contains_profanity(&word).await {
-                wsclient
-                    .forward(&Message::new_response(
-                        &message,
-                        "profanity filter already catches that one".into(),
-                    ))
-                    .await?;
-                return Ok(None);
-            }
-            match prof_filter.add_word(word).await {
-                Ok(()) => {
-                    chat.filter_history_async(prof_filter).await;
-                    wsclient
-                        .forward(&Message::new_response(
-                            &message,
-                            "word added to bad word list".into(),
-                        ))
-                        .await?;
-                }
-                Err(e) => {
-                    error!("failed to add to profanity list: {}", e);
-                    wsclient
-                        .forward(&Message::new_response(
-                            &message,
-                            "failed to add to bad word list".into(),
-                        ))
-                        .await?;
-                }
-            }
-            return Ok(None);
-        }
-        FilterResult::Invalid => {
-            messages_blocked::inc("invalid");
-        }
-        FilterResult::Message(mut filtered_mesg) => {
-            if prof_filter.filter(&mut filtered_mesg).await {
-                profanity_messages_total::inc();
-            }
-            trace!(
-                "got message from {}: {}",
-                filtered_mesg.sender,
-                filtered_mesg.content
-            );
-            wsclient.forward(&filtered_mesg).await?;
-            return Ok(Some(filtered_mesg));
-        }
-    }
-    Ok(None)
 }

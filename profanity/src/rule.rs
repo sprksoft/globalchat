@@ -113,7 +113,7 @@ impl ProfRule {
     }
 
     #[inline]
-    pub fn matches(&self, other: &TokenizedMessage) -> Option<Range<usize>> {
+    pub fn filter(&self, other: &TokenizedMessage) -> Option<Range<usize>> {
         println!("{:?}", self);
         let mut prev_char_check = None;
         let mut match_index = 0;
@@ -194,7 +194,7 @@ mod test {
         filter.insert_rule(rule);
 
         assert!(
-            filter.matches(filter.tokenize("ab abcd qa").0).is_some(),
+            filter.check(&filter.tokenize("ab abcd qa").0).is_some(),
             "match after half match failed"
         );
     }
@@ -206,7 +206,7 @@ mod test {
         filter.insert_rule(rule);
         assert!(
             filter
-                .matches(filter.tokenize("Hi word a.b cd end words").0)
+                .check(&filter.tokenize("Hi word a.b cd end words").0)
                 .is_none(),
             "expected word flag to not match whitespace delimited"
         );
@@ -216,7 +216,7 @@ mod test {
         filter.insert_rule(rule);
         assert!(
             filter
-                .matches(filter.tokenize("Hi word a.b cd end words").0)
+                .check(&filter.tokenize("Hi word a.b cd end words").0)
                 .is_some(),
             "expected non word flag to match whitespace delimited"
         );
@@ -228,16 +228,16 @@ mod test {
         let rule = ProfRule::parse_from_str("abcd").unwrap();
         filter.insert_rule(rule);
 
-        let result = filter.matches(filter.tokenize("abcd dq").0);
+        let result = filter.check(&filter.tokenize("abcd dq").0);
         assert_eq!(result.unwrap().span, 0..4, "Span is wrong");
 
-        let result = filter.matches(filter.tokenize("ab a.a_bc d").0);
+        let result = filter.check(&filter.tokenize("ab a.a_bc d").0);
         assert_eq!(result.unwrap().span, 3..11, "End span is wrong");
 
-        let result = filter.matches(filter.tokenize(".a_bc d aaaaa").0);
+        let result = filter.check(&filter.tokenize(".a_bc d aaaaa").0);
         assert_eq!(result.unwrap().span, 0..7, "Start span is wrong");
 
-        let result = filter.matches(filter.tokenize("Hi word a.b cd end words").0);
+        let result = filter.check(&filter.tokenize("Hi word a.b cd end words").0);
         assert_eq!(result.unwrap().span, 6..14, "Center span is wrong");
     }
 

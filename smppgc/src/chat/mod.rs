@@ -11,7 +11,9 @@ mod message;
 pub use message::*;
 
 use crate::{
-    names::ClaimedName, profanity::ProfFilter, userinfo::UserInfo, utils::IdCounter, ChatConfig,
+    users::{ClaimedName, UserInfo, UserSid},
+    utils::IdCounter,
+    ChatConfig, Timestamp,
 };
 use lmetrics::metrics;
 use thiserror::Error;
@@ -114,7 +116,11 @@ impl Chat {
         });
     }
 
-    pub async fn new_client(&self, leased_name: ClaimedName) -> Result<ChatClient, NewClientError> {
+    pub async fn new_client(
+        &self,
+        static_id: UserSid,
+        leased_name: ClaimedName,
+    ) -> Result<ChatClient, NewClientError> {
         if self.config.max_users != 0
             && self.config.max_users <= self.clients.lock().await.len() as u16
         {
@@ -124,6 +130,7 @@ impl Chat {
         let id = self.client_ids.new_id();
         let user_info = UserInfo {
             username: leased_name.into(),
+            static_id,
             id,
         };
         let client = ChatClient {
@@ -141,7 +148,7 @@ impl Chat {
         Ok(client)
     }
 
-    pub async fn history<'a>(&'a self, starting_time: u32) -> Vec<Message> {
+    pub async fn history<'a>(&'a self, starting_time: Timestamp) -> Vec<Message> {
         self.history
             .lock()
             .await
@@ -149,10 +156,6 @@ impl Chat {
             .filter(|m| m.timestamp > starting_time)
             .cloned()
             .collect()
-    }
-    pub async fn filter_history_async(&self, filter: &ProfFilter) {
-        let mut hist = self.history.lock().await;
-        filter.filter_all(hist.asc_iter_mut()).await;
     }
     pub async fn clients<'a>(&'a self) -> Vec<UserInfo> {
         self.clients.lock().await.iter().cloned().collect()

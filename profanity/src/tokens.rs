@@ -20,7 +20,7 @@ pub enum TokenParseError {
     InvalidToken(char),
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Token(NonZeroU8);
 impl Token {
     fn from_iter<I: Iterator<Item = char>>(iter: &mut I) -> Result<Option<Self>, TokenParseError> {
@@ -113,7 +113,7 @@ impl Debug for Token {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum TokenGroup {
     Single(Token),
     Multiple(Vec<Token>),

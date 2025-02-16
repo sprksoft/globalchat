@@ -10,7 +10,7 @@ use std::{collections::HashMap, fmt::Display, ops::Range};
 use thiserror::Error;
 use tokens::{Token, TokenGroup};
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Hash, Eq, PartialEq, Clone)]
 pub struct TokenizedMessage(Vec<TokenGroup>);
 impl TokenizedMessage {
     pub fn tokens(&self) -> std::slice::Iter<'_, TokenGroup> {
@@ -130,7 +130,7 @@ impl ProfanityFilter {
             }
             let tm = self.tokenize_rule(rule);
             for (ii, rule2) in self.rules.iter().enumerate() {
-                if ii != i && rule2.matches(&tm).is_some() {
+                if ii != i && rule2.filter(&tm).is_some() {
                     lints.push(FilterLint::PossibleDubbleRule(i, ii));
                 }
             }
@@ -142,9 +142,9 @@ impl ProfanityFilter {
         &self.rules[i]
     }
 
-    pub fn matches(&self, msg: TokenizedMessage) -> Option<FilterMatch> {
+    pub fn check(&self, msg: &TokenizedMessage) -> Option<FilterMatch> {
         for rule in self.rules.iter() {
-            if let Some(span) = rule.matches(&msg) {
+            if let Some(span) = rule.filter(&msg) {
                 return Some(FilterMatch { rule: rule, span });
             }
         }

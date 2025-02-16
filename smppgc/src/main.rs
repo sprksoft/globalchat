@@ -15,15 +15,16 @@ mod test;
 pub mod chat;
 mod csp;
 mod debug;
-mod mesg_filter;
-pub mod names;
 mod pages;
-pub mod profanity;
-pub mod ratelimit;
-pub mod socket;
-mod userinfo;
+mod profanity;
+mod ratelimit;
+mod socket;
+mod timestamp;
+mod users;
 mod utils;
 mod wsprotocol;
+
+pub use timestamp::*;
 
 #[derive(Deserialize, Debug)]
 #[serde(crate = "rocket::serde")]
@@ -107,7 +108,7 @@ fn rocket() -> _ {
         .attach(ratelimit::stage())
         .attach(static_routing::stage())
         .attach(pages::stage())
-        .attach(names::stage())
+        .attach(users::stage())
         .attach(AdHoc::config::<RootUrl>())
         .attach(AdHoc::on_ignite("chat", |r| async {
             let config = r
