@@ -8,4 +8,3 @@ $DOCKER compose -f compose.yml up || exit 1
 else
 $DOCKER compose -f compose.yml -f debugenv.compose.yml up || exit 1
 fi
-
