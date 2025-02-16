@@ -31,8 +31,7 @@ async function add_message(message, sender, timestamp, scroll=false){
   user_content_el.appendChild(top_el);
   user_content_el.appendChild(content_el);
   let msg_el = document.createElement("div");
-  msg_el.innerHTML=`
-<svg class="driehoek_bubble" viewBox="0 0 8 13" height="13" width="8" preserveAspectRatio="xMidYMid meet" class="" version="1.1" x="0px" y="0px" enable-background="new 0 0 8 13"><path fill="currentColor" d="M1.5,2.5L8,11.2V0L2.8,0C1,0,0.5,1.2,1.5,2.6z"></path></svg>`
+  msg_el.innerHTML=`<svg class="driehoek_bubble" viewBox="0 0 8 13" height="13" width="8" preserveAspectRatio="xMidYMid meet" class="" version="1.1" x="0px" y="0px" enable-background="new 0 0 8 13"><path fill="currentColor" d="M1.5,2.5L8,11.2V0L2.8,0C1,0,0.5,1.2,1.5,2.6z"></path></svg>`
   msg_el.appendChild(user_content_el);
   msg_el.classList.add("message");
   msg_el.dataset.username=sender;
@@ -128,7 +127,7 @@ socketmgr.on_keychange = (key) => {
 
 async function send_message() {
   let message = sendinput.innerText.trim();
-  if (message.length == 0 || message.length > MAX_MESSAGE_LEN){
+  if (message.length < MIN_MESSAGE_LEN || message.length > MAX_MESSAGE_LEN){
     return false;
   }
 

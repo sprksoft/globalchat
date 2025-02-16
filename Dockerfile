@@ -29,7 +29,6 @@ EOF
 
 COPY smppgc/Rocket.toml /app/Rocket.toml
 COPY smppgc/templates /app/templates
-COPY smppgc/profanity.txt /app/profanity.txt
 COPY smppgc/www /app/www
 
 RUN esbuild smppgc/client/index.js --bundle --minify --sourcemap --outfile=/app/www/v1.js

@@ -208,6 +208,9 @@ pub async fn socket_v1<'a>(
                         let (r, _) = prof_filter.filter_string(&mesg.content).await;
                         match r{
                             Ok(content) =>{
+                                if content.len() < mesg_limits.min_message_len{
+                                    continue;
+                                }
                                 let mesg = Message::new(chat_client.user_info(), mesg.timestamp, content.into());
                                 wsclient.forward(&mesg).await?;
                                 chat_client.send(mesg);

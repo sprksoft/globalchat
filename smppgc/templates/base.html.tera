@@ -1,0 +1,25 @@
+<!-- vim: set ft=html: -->
+<!DOCTYPE html>
+<html>
+  <head>
+
+    <title>{% block title%}Global Chat{% endblock title %}{% if debug %} (debug){% endif %}</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1,interactive-widget=resizes-content">
+    <link rel="icon" href="{{ url(path="/static/logo.webp") }}">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300..800;1,300..800&display=swap" rel="stylesheet">
+
+    {% block head %}
+    {% endblock head%}
+  </head>
+  <body>
+    {% block content %}
+    {% endblock content %}
+
+    {% block scripts %}
+    {% endblock scripts %}
+  </body>
+</html>

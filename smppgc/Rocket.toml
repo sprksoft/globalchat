@@ -4,7 +4,7 @@ port = 8080
 ip_header="CF-Connecting-IP"
 
 root_url=""
-prof_wordlist="/app/profanity.txt"
+prof_filter_file="/var/proffilter/rules.txt"
 static_dir="/app/www"
 template_dir="/app/templates"
 
@@ -20,6 +20,7 @@ same_message_penalty=6
 
 small_message_len=150
 max_message_len=300
+min_message_len=2
 large_message_penalty=2
 
 mesg_rate={timeframe=5,amount=3}

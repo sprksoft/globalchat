@@ -1,4 +1,3 @@
-use lazy_static::lazy_static;
 use tokio_tungstenite::tungstenite;
 
 use crate::{
@@ -9,30 +8,6 @@ use crate::{
 pub const USERID_SPECIAL: u16 = 0;
 pub const SUBID_SETUP: u8 = 0;
 pub const SUBID_USERJOIN: u8 = 1;
-
-lazy_static! {
-    static ref VERSION: u16 = {
-        let year: usize = env!("CARGO_PKG_VERSION_MAJOR")
-            .parse()
-            .expect("Major version number can't be parsed into a usize");
-        let month: usize = env!("CARGO_PKG_VERSION_MINOR")
-            .parse()
-            .expect("Minor version number can't be parsed into a u8");
-
-        let serial: usize = env!("CARGO_PKG_VERSION_PATCH")
-            .parse()
-            .expect("Patch version number can't be parsed into a u8");
-
-        // max sure to also modify the js if you change this
-        const MAX_SERIALS_PER_MONTH: usize = 20;
-        #[cfg(debug_assertions)]
-        if serial > MAX_SERIALS_PER_MONTH {
-            panic!("Version overflow");
-        }
-        ((year - 2024) * (12 * MAX_SERIALS_PER_MONTH) + month * MAX_SERIALS_PER_MONTH + serial)
-            as u16
-    };
-}
 
 pub fn new_setup<'a, 'b>(
     sid: UserSid,
@@ -64,7 +39,7 @@ pub fn new_setup<'a, 'b>(
     let mut data = Vec::with_capacity(size_of::<u16>() + 2 + 1 + 2 + key_str_bytes.len());
     data.extend_from_slice(&USERID_SPECIAL.to_be_bytes());
     data.push(SUBID_SETUP);
-    data.extend_from_slice(&VERSION.to_be_bytes());
+    data.extend_from_slice(&crate::VERSION_INT.to_be_bytes());
     data.extend_from_slice(&id.to_be_bytes());
     data.extend_from_slice(key_str_bytes);
 

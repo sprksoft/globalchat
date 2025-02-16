@@ -84,6 +84,7 @@ function handle_version_check(protocol_ver, ver){
       console.log("NEW PROTOCOL VERSION. RELOADING PAGE TO UPDATE CLIENT");
       location.reload();
     }else{
+      console.log("protocol_ver: "+protocol_ver+" page_ver: "+ver);
       console.error("Infinite reload loop detected");
       alert("Alles is kapot aaaaaaaaaaaaa.");
     }

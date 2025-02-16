@@ -114,7 +114,7 @@ impl ProfRule {
 
     #[inline]
     pub fn filter(&self, other: &TokenizedMessage) -> Option<Range<usize>> {
-        println!("{:?}", self);
+        //println!("{:?}", self);
         let mut prev_char_check = None;
         let mut match_index = 0;
         let mut t_me = self.tokens[match_index];
@@ -130,9 +130,9 @@ impl ProfRule {
                 continue;
             }
             prev_char_check = Some(t_other);
-            println!("{:?} {:?}", t_me, t_other);
+            //println!("{:?} {:?}", t_me, t_other);
             if t_other.contains(t_me) {
-                println!("rule: {:?} token: {:?}", t_me, t_other);
+                //println!("rule: {:?} token: {:?}", t_me, t_other);
                 match_index += 1;
                 if match_index == self.tokens.len() {
                     return Some(start_index..index + 1);
@@ -150,7 +150,7 @@ impl ProfRule {
                     t_me = self.tokens[match_index];
                 }
 
-                println!("reset");
+                //println!("reset");
             }
         }
         None

@@ -22,9 +22,11 @@ mod socket;
 mod timestamp;
 mod users;
 mod utils;
+mod version_int;
 mod wsprotocol;
 
 pub use timestamp::*;
+pub use version_int::*;
 
 #[derive(Deserialize, Debug)]
 #[serde(crate = "rocket::serde")]
@@ -38,30 +40,11 @@ pub struct ChatConfig {
 pub struct MessageConfig {
     pub small_message_len: usize,
     pub max_message_len: usize,
+    pub min_message_len: usize,
     pub large_message_penalty: u32,
 
     pub max_same_message_streak: u32,
     pub same_message_penalty: u32,
-}
-
-#[derive(Deserialize, Debug)]
-#[serde(crate = "rocket::serde")]
-pub struct RootUrl {
-    pub root_url: String,
-}
-
-impl Default for RootUrl {
-    fn default() -> Self {
-        Self {
-            root_url: String::new(),
-        }
-    }
-}
-impl Deref for RootUrl {
-    type Target = String;
-    fn deref(&self) -> &Self::Target {
-        &self.root_url
-    }
 }
 
 #[get("/version")]
@@ -109,7 +92,6 @@ fn rocket() -> _ {
         .attach(static_routing::stage())
         .attach(pages::stage())
         .attach(users::stage())
-        .attach(AdHoc::config::<RootUrl>())
         .attach(AdHoc::on_ignite("chat", |r| async {
             let config = r
                 .figment()
