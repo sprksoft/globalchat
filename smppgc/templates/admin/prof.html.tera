@@ -1,0 +1,33 @@
+{% extends "base" %}
+
+<!-- vim: set ft=html: -->
+{% block title %}
+Global Chat Admin
+{% endblock title %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url(path="/static/admin.css") }}" />
+{% endblock head %}
+
+{% block content %}
+
+<template id="rule_template">
+
+</template>
+
+<header>
+  <h1>Profanity filter</h1>
+</header>
+<main>
+  <h1>Rules</h1>
+  <div class="rules_list">
+
+  </div>
+
+</main>
+
+{% endblock content %}
+
+{% block scripts %}
+<script defer type="text/javascript" src="{{ url(path="/static/admin.js") }}"></script>
+{% endblock scripts %}

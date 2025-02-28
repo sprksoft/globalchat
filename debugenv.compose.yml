@@ -5,3 +5,7 @@ services:
         DEBUG: true
     ports:
       - 80:8080
+    develop:
+      watch:
+        - action: rebuild
+          path: smppgc/

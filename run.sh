@@ -1,10 +1,18 @@
 DOCKER="sudo docker"
+DOCKER_COMPOSE="sudo docker compose"
 
-if [[ $* != *--restart* ]] ; then
-  $DOCKER image rm --force smppserver-smppgc
+if ! $DOCKER version >> /dev/null ; then
+  echo "docker possibly not installed or sudo canceled"
+  exit 0
 fi
+
+if ! $DOCKER_COMPOSE version ; then
+  echo "docker compose possibly not installed or sudo canceled"
+  exit 0
+fi
+
 if [[ $* == *--nodbgenv* ]] ; then
-$DOCKER compose -f compose.yml up || exit 1
+$DOCKER_COMPOSE -f compose.yml up || exit 1
 else
-$DOCKER compose -f compose.yml -f debugenv.compose.yml up || exit 1
+$DOCKER_COMPOSE -f compose.yml -f debugenv.compose.yml watch || exit 1
 fi

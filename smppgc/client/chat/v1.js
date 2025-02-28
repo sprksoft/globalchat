@@ -1,9 +1,10 @@
 import * as proto from './protocol.js';
-import * as utils from './utils.js';
+import * as utils from './../utils.js';
 import * as mk from './mkels.js'
 
-import './index.css'
-import './login.css'
+import './../general.css'
+import './v1.css'
+import './login_popup.css'
 
 const mesgs = document.getElementById("mesgs");
 const sendinput = document.getElementById("send-input");

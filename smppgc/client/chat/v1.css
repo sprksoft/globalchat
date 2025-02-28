@@ -1,68 +1,19 @@
-html{
-  height:100%;
-}
-body{
-  --color-shadow: var(--color_base00);
-  --color_error: #c03010;
-  --border-radius: 15px;
-  color: var(--color_text);
-  background: var(--color_base01);
-  font-family: "Open Sans", "Helvetica Neue", helvetica, sans-serif;
-  font-size:15px;
-  margin:0px;
-  height:100%;
-  display: flex;
-  flex-direction:column;
-}
-main{
+main {
   flex-grow:100;
   display:flex;
   flex-direction:column;
 }
 
-dialog[open]::backdrop{
-  opacity:0.3;
-}
-dialog::backdrop {
-  opacity:0;
-  background: #000000;
-  transition: all 0.4s allow-discrete;
-}
-dialog[open] {
-  transform: scale(1);
-  opacity:1;
-}
-dialog {
-  transition:
-    transform 0.4s ease-in-out,
-    opacity 0.5s ease-in-out,
-    display 0.5s allow-discrete,
-    overlay 0.5s allow-discrete;
-
-  opacity: 0;
-  transform: scale(0);
-}
-@starting-style{
-  dialog[open]{
-    transform: scale(0);
-    opacity: 0;
-  }
-}
-
-*:focus-visible{
-  outline: 2px solid var(--color_accent) !important;
-}
-::selection{
-  background: var(--color_text) !important;
-  color: var(--color_base00) !important;
-}
 #topbar,#botbar{
-  background: transparent;
+  background: var(--color_base01);
   display: flex;
   flex-direction: row;
 }
+#botbar{
+  border-top: solid var(--color_base02) var(--border-size);
+}
 #topbar{
-  background: var(--color_base02);
+  border-bottom: solid var(--color_base02) var(--border-size);
 }
 #topbar > *{
   padding-right: 2em;
@@ -108,6 +59,7 @@ dialog {
   resize: none;
   border: none;
   border-radius: var(--border-radius);
+  border: solid var(--color_base03) var(--border-size);
   margin: 3px;
   font-size: 1em;
   font-family: inherit;
@@ -122,10 +74,10 @@ dialog {
   flex-grow: 10;
 }
 
-.button{
+.button {
   border-radius:var(--border-radius);
   margin:3px;
-  background-color: var(--color_base02);
+  background-color: var(--color_base01);
   border: none;
   color: var(--color_accent);
 
@@ -134,62 +86,62 @@ dialog {
   padding-right:2em;
   cursor: unset;
 }
-.button:hover{
-  background-color:var(--color_base03);
+.button:hover {
+  background-color:var(--color_base02) ;
   cursor: unset;
 }
-.button[disabled]:hover{
+.button[disabled]:hover {
   cursor:unset;
   background-color:inherit;
 }
-.button[disabled]{
+.button[disabled] {
   cursor: unset;
   color: var(--color_base03);
 }
 
 
-.warning{
+.warning {
   font-weight: bold;
   color: var(--color_accent);
   margin: 0px 1rem 0px 1rem;
 }
-.text-accent{
+.text-accent {
   color: var(--color_accent);
 }
 
 
-#connectbtn{
+#connectbtn {
   border-radius: 1000px;
 }
 
 
-a{
+a {
   color: var(--color_accent);
   text-decoration: none;
 }
-a:hover{
+a:hover {
   text-decoration: underline;
 }
 
 
-#err-mesg{
+#err-mesg {
   margin-top: 1rem;
   font-weight: bold;
   text-align: center;
 }
-.err{
+.err {
   color: var(--color_error);
 }
-.info{
+.info {
   color: var(--color_accent);
 }
-.info:not(:empty)::after{
+.info:not(:empty)::after {
   content: " /";
   animation: mesg-loading 0.4s ease infinite;
   color: var(--color_accent);
 }
 
-#chat{
+#chat {
   position:absolute;
   display:flex;
   flex-direction: column;
@@ -201,7 +153,7 @@ a:hover{
   padding: 0px;
   overflow:hidden;
 }
-#mesgs{
+#mesgs {
   scroll-behavior: smooth;
   flex-grow: 1000;
   margin: 10px;
@@ -209,16 +161,16 @@ a:hover{
   flex-direction: column;
   overflow:auto;
 }
-#pending-mesgs{
+#pending-mesgs {
   color: var(--color_text);
   margin: 10px;
 }
-#pending-mesgs div:after{
+#pending-mesgs div:after {
   content: " ";
   animation: spinner 3s ease infinite;
   color: var(--color_accent);
 }
-@keyframes message_slide{
+@keyframes message_slide {
   0%{
     transform: translateX(-100%) scale(0.4);
   }
@@ -226,7 +178,7 @@ a:hover{
     transform: translateX(0%) scale(1);
   }
 }
-.message{
+.message {
   animation: message_slide 0.3s ease-in-out;
   padding: 10px;
   padding-top: 0px;
