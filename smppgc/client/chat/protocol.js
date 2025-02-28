@@ -1,4 +1,4 @@
-import * as utils from './utils.js';
+import * as utils from './../utils.js';
 
 const CLOSED=3;
 const SUBID_SETUP=0;

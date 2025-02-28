@@ -31,7 +31,8 @@ COPY smppgc/Rocket.toml /app/Rocket.toml
 COPY smppgc/templates /app/templates
 COPY smppgc/www /app/www
 
-RUN esbuild smppgc/client/index.js --bundle --minify --sourcemap --outfile=/app/www/v1.js
+RUN esbuild smppgc/client/chat/v1.js --bundle --minify --sourcemap --outfile=/app/www/v1.js
+RUN esbuild smppgc/client/admin.js --bundle --minify --sourcemap --outfile=/app/www/admin.js
 
 FROM debian:bookworm-slim
 RUN apt-get update && apt-get install -y

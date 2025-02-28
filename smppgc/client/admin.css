@@ -1,0 +1,22 @@
+html{
+  --color-bg: #191817;
+  --color-text: #c2bab2;
+  --color-header: #313131;
+}
+
+body{
+  background-color: var(--color_base00);
+  color: var(--color-text);
+}
+
+header{
+  background: var(--color-header);
+  display: flex;
+  flex-direction: row;
+}
+
+header > h1{
+  margin: 0.5rem;
+  margin-left: 1rem;
+  font-size: 1.5rem;
+}

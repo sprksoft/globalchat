@@ -1,0 +1,59 @@
+html{
+  --color-shadow: var(--color_base00);
+  --color_error: #c03010;
+  --border-radius: 15px;
+  --border-size: 3px;
+  --dialog-border-radius: 30px;
+  height:100%;
+}
+body{
+  color: var(--color_text);
+  background: var(--color_base00);
+  font-family: "Open Sans", "Helvetica Neue", helvetica, sans-serif;
+  font-size:15px;
+  margin:0px;
+  height:100%;
+  display: flex;
+  flex-direction:column;
+}
+
+::selection{
+  background-color: #ffffff40 !important;
+}
+
+*:focus-visible{
+  outline: 2px solid var(--color_accent) !important;
+}
+
+dialog[open]::backdrop{
+  opacity:0.3;
+}
+dialog::backdrop {
+  opacity:0;
+  background: #000000;
+  transition: opacity 0.4s allow-discrete;
+}
+dialog[open] {
+  transform: scale(1);
+  opacity:1;
+}
+dialog {
+  transition:
+    transform 0.4s ease-in-out,
+    opacity 0.5s ease-in-out,
+    display 0.5s allow-discrete,
+    overlay 0.5s allow-discrete;
+
+  opacity: 0;
+  transform: scale(0);
+
+  border: solid var(--color_base01) var(--border-size);
+  border-radius: var(--dialog-border-radius);
+  background-color: var(--color_base00);
+}
+@starting-style {
+  dialog[open]{
+    transform: scale(0);
+    opacity: 0;
+  }
+}
