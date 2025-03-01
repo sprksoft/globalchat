@@ -2,8 +2,6 @@ services:
   smppgc:
     build:
       dockerfile: Dockerfile
-      args:
-        DEBUG: false
     networks:
       - ldeveuorg_backend_net
       - gc

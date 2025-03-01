@@ -52,7 +52,7 @@ main {
   }
 }
 
-#send-input{
+#send-input {
   flex-grow:1;
   overflow:auto;
   flex-grow: 80;
@@ -65,13 +65,15 @@ main {
   font-family: inherit;
   background-color: var(--color_base02);
   color: var(--color_text);
-  padding: 1em 2em 1em 2em;
+  padding: 0.7em 1em 0.7em 1em;
   max-height:300px;
 }
 
 
-.chat-name{
+.chat-name {
   flex-grow: 10;
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
 }
 
 .button {
@@ -81,9 +83,7 @@ main {
   border: none;
   color: var(--color_accent);
 
-  padding: 1em;
-  padding-left:2em;
-  padding-right:2em;
+  padding: 0.7em 2em 0.7em 2em;
   cursor: unset;
 }
 .button:hover {
@@ -103,7 +103,7 @@ main {
 .warning {
   font-weight: bold;
   color: var(--color_accent);
-  margin: 0px 1rem 0px 1rem;
+  margin: 0px 0px 0px 0px;
 }
 .text-accent {
   color: var(--color_accent);

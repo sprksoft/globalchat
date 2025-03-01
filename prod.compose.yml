@@ -1,7 +1,5 @@
 services:
   smppgc:
     build:
-      args:
-        DEBUG: false
+      target: prod
     restart: always
-

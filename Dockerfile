@@ -1,7 +1,5 @@
-FROM rust:latest AS builder
-RUN apt-get update && apt-get install -y esbuild
-ARG DEBUG
-
+FROM rust:alpine AS dev
+RUN apk update && apk add esbuild musl-dev
 
 ENV SQLX_OFFLINE=true
 ENV RUSTUP_TOOLCHAIN=stable
@@ -14,45 +12,41 @@ RUN --mount=type=cache,target=target/ \
     --mount=type=cache,target=/usr/local/rustup/ \
     <<EOF
 set -e
-extra_args="--release"
-out_dir="target/release"
-if $DEBUG ; then
-  extra_args=""
-  out_dir="target/debug"
-fi
-cargo build --locked $extra_args --bin smppgc
+cargo build --locked --release --bin smppgc
 mkdir /app
 
-cp $out_dir/smppgc /app/app
+cp target/release/smppgc /app/app
 EOF
-
 
 COPY smppgc/Rocket.toml /app/Rocket.toml
 COPY smppgc/templates /app/templates
 COPY smppgc/www /app/www
 
-RUN esbuild smppgc/client/chat/v1.js --bundle --minify --sourcemap --outfile=/app/www/v1.js
-RUN esbuild smppgc/client/admin.js --bundle --minify --sourcemap --outfile=/app/www/admin.js
+ENV ESBUILD_CMD="esbuild --bundle --minify --sourcemap --outdir=/app/www/ smppgc/client/v1.js smppgc/client/admin.js"
+RUN $ESBUILD_CMD
 
-FROM debian:bookworm-slim
-RUN apt-get update && apt-get install -y
-
-RUN adduser \
-    --disabled-password \
-    --gecos "" \
-    --home "/nonexistent" \
-    --shell "/sbin/nologin" \
-    --no-create-home \
-    --uid 10001 \
-    appuser
-
-COPY --from=builder --chown=appuser:appuser /app /app
-
-USER appuser
 WORKDIR /app
-
 EXPOSE 8080
 
 ENV ROCKET_CONFIG=/app/Rocket.toml
-CMD [ "/app/app" ]
+ENV ROCKET_PROFILE=debug
 
+COPY --chmod=777 <<EOF /entry.sh
+#!/bin/sh
+cd /build
+nohup $ESBUILD_CMD --watch=forever &
+cd /app
+/app/app
+EOF
+
+CMD [ "/entry.sh" ]
+
+
+FROM scratch AS prod
+
+COPY --from=dev /app /app
+
+EXPOSE 8080
+WORKDIR /app
+ENV ROCKET_CONFIG=/app/Rocket.toml
+CMD [ "/app/app" ]

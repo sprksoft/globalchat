@@ -12,6 +12,11 @@
   display:flex;
 }
 
+.agreement{
+  margin: 1em;
+  overflow: scroll;
+}
+
 
 #login > .container {
   transition: transform 0.6s;
@@ -33,7 +38,7 @@
   font-family: inherit;
   font-size: inherit;
   border:none;
-  background: var(--color_base02);
+  background: var(--color_base01);
   color: var(--color_text);
   display: block;
   padding: 14px 20px;
@@ -49,10 +54,12 @@
 }
 
 #login .logo {
-  margin: 2rem;
+  margin: 1rem;
   margin-left:auto;
   margin-right:auto;
   color: var(--color_accent);
+  display: flex;
+  justify-content: center;
   max-width: 50vw;
   transition: transform 0.5s;
 

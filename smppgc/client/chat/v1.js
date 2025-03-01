@@ -217,6 +217,7 @@ login_popup.addEventListener("cancel", (e)=>{
 
 connectbtn.addEventListener("click", ()=>{
   login_popup.close();
+  sendinput.focus();
 });
 
 
