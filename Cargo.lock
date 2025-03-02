@@ -1755,6 +1755,7 @@ dependencies = [
  "rocket",
  "rocket_dyn_templates",
  "rocket_ws",
+ "serde_json",
  "thiserror 2.0.11",
  "tokio",
  "tokio-tungstenite",

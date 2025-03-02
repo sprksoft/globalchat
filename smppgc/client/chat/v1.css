@@ -5,15 +5,15 @@ main {
 }
 
 #topbar,#botbar{
-  background: var(--color_base01);
+  background: var(--color-base01);
   display: flex;
   flex-direction: row;
 }
 #botbar{
-  border-top: solid var(--color_base02) var(--border-size);
+  border-top: solid var(--color-base02) var(--border-size);
 }
 #topbar{
-  border-bottom: solid var(--color_base02) var(--border-size);
+  border-bottom: solid var(--color-base02) var(--border-size);
 }
 #topbar > *{
   padding-right: 2em;
@@ -22,14 +22,14 @@ main {
 #connection-status{
   border: none;
   border-radius: 100px;
-  background-color: var(--color_base01-b0);
+  background-color: var(--color-base01-b0);
   padding:1rem;
   animation: spinner 3s ease infinite;
 }
 
 #connection-status span{
   font-weight: bold;
-  color: var(--color_accent);
+  color: var(--color-accent);
   margin-top: auto;
   margin-bottom: auto;
   display:block;
@@ -59,12 +59,12 @@ main {
   resize: none;
   border: none;
   border-radius: var(--border-radius);
-  border: solid var(--color_base03) var(--border-size);
+  border: solid var(--color-base03) var(--border-size);
   margin: 3px;
   font-size: 1em;
   font-family: inherit;
-  background-color: var(--color_base02);
-  color: var(--color_text);
+  background-color: var(--color-base02);
+  color: var(--color-text);
   padding: 0.7em 1em 0.7em 1em;
   max-height:300px;
 }
@@ -79,16 +79,15 @@ main {
 .button {
   border-radius:var(--border-radius);
   margin:3px;
-  background-color: var(--color_base01);
+  background-color: var(--color-base01);
   border: none;
-  color: var(--color_accent);
+  color: var(--color-accent);
 
   padding: 0.7em 2em 0.7em 2em;
-  cursor: unset;
+  cursor: pointer;
 }
 .button:hover {
-  background-color:var(--color_base02) ;
-  cursor: unset;
+  background-color:var(--color-base02) ;
 }
 .button[disabled]:hover {
   cursor:unset;
@@ -96,17 +95,17 @@ main {
 }
 .button[disabled] {
   cursor: unset;
-  color: var(--color_base03);
+  color: var(--color-base03);
 }
 
 
 .warning {
   font-weight: bold;
-  color: var(--color_accent);
+  color: var(--color-accent);
   margin: 0px 0px 0px 0px;
 }
 .text-accent {
-  color: var(--color_accent);
+  color: var(--color-accent);
 }
 
 
@@ -116,7 +115,7 @@ main {
 
 
 a {
-  color: var(--color_accent);
+  color: var(--color-accent);
   text-decoration: none;
 }
 a:hover {
@@ -130,15 +129,15 @@ a:hover {
   text-align: center;
 }
 .err {
-  color: var(--color_error);
+  color: var(--color-error);
 }
 .info {
-  color: var(--color_accent);
+  color: var(--color-accent);
 }
 .info:not(:empty)::after {
   content: " /";
   animation: mesg-loading 0.4s ease infinite;
-  color: var(--color_accent);
+  color: var(--color-accent);
 }
 
 #chat {
@@ -162,13 +161,13 @@ a:hover {
   overflow:auto;
 }
 #pending-mesgs {
-  color: var(--color_text);
+  color: var(--color-text);
   margin: 10px;
 }
 #pending-mesgs div:after {
   content: " ";
   animation: spinner 3s ease infinite;
-  color: var(--color_accent);
+  color: var(--color-accent);
 }
 @keyframes message_slide {
   0%{
@@ -182,7 +181,7 @@ a:hover {
   animation: message_slide 0.3s ease-in-out;
   padding: 10px;
   padding-top: 0px;
-  background-color: var(--color_base03);
+  background-color: var(--color-base03);
   border-radius: 10px;
   border-top-left-radius: 0px;
   margin: 10px;
@@ -205,13 +204,13 @@ a:hover {
   font-weight: bold;
   font-size: 0.6em;
   opacity: 0.6;
-  color: var(--color_text);
+  color: var(--color-text);
 }
 .driehoek_bubble{
   position: relative;
   left: -18px;
   top: 0px;
-  color: var(--color_base03);
+  color: var(--color-base03);
 }
 .user{
   font-weight: bold;

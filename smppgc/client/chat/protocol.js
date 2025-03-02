@@ -5,7 +5,7 @@ const SUBID_SETUP=0;
 const SUBID_USERJOIN=1;
 const KEY_LENGTH=33;
 
-const ERRORS={
+const ERRORS = {
   "err_cmd": "Je bent gekicked door een admin.",
   "err_ratelimit":"Te veel berichten. Typ langzamer.\nJe kunt terug joinen binnen een paar seconden",
   "err_ipratelimit":"Er zijn spammers met het zelfde ip als jou.",
@@ -30,7 +30,7 @@ export function human_err(protoerr) {
   return herr;
 }
 
-class Reader{
+class Reader {
   #dv;
   #index;
   constructor(dv){
@@ -71,11 +71,11 @@ class Reader{
   }
 }
 
-function into_gcdate(date){
+function into_gcdate(date) {
   return (date.getTime()/1000)/60
 }
 
-function handle_version_check(protocol_ver, ver){
+function handle_version_check(protocol_ver, ver) {
   if (protocol_ver !== ver){
     let last_reload_time = localStorage.getItem("last_client_outdated_reload");
     let now = new Date().getTime();
@@ -91,7 +91,7 @@ function handle_version_check(protocol_ver, ver){
   }
 }
 
-export class SocketMgr{
+export class SocketMgr {
   on_message;
   on_leave;
   on_join;

@@ -1,6 +1,7 @@
 import * as proto from './protocol.js';
 import * as utils from './../utils.js';
-import * as mk from './mkels.js'
+import * as mk from './mkels.js';
+import * as disclaimer from './disclaimer.js';
 
 import './../general.css'
 import './v1.css'
@@ -16,7 +17,12 @@ const constatus = document.getElementById("connection-status");
 const err_mesg = document.getElementById("err-mesg");
 const login_popup=document.getElementById("login");
 
-async function add_message(message, sender, timestamp, scroll=false){
+disclaimer.checkbox.addEventListener("change", (e) => {
+  connectbtn.disabled = !e.target.checked;
+});
+connectbtn.disabled=!disclaimer.checkbox.checked;
+
+async function add_message(message, sender, timestamp, scroll=false) {
   let top_el = document.createElement("div");
   top_el.classList.add("message_top");
   mk.mksender(sender, top_el);
@@ -74,9 +80,10 @@ function cool_down(time){
   }
   in_cooldown=true;
 
+  let oldVal = connectbtn.disabled;
   connectbtn.disabled=true;
   setTimeout(() => {
-  connectbtn.disabled=false;
+  connectbtn.disabled=oldVal;
     in_cooldown=false;
   }, time);
 }
@@ -223,7 +230,4 @@ connectbtn.addEventListener("click", ()=>{
 
 username_field.value = localStorage.getItem("username");
 login_popup.showModal();
-if (SKIP_LOGIN){
-  connectbtn.click();
-}
 

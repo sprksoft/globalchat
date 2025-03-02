@@ -1,14 +1,15 @@
 #![cfg_attr(test, feature(test))]
+use std::{collections::HashMap, fmt::Display, ops::Range};
+use thiserror::Error;
+use tokens::{Token, TokenGroup};
 
 #[cfg(test)]
 mod other_impls;
 
 mod rule;
 mod tokens;
-use rule::{ProfRule, RuleLint};
-use std::{collections::HashMap, fmt::Display, ops::Range};
-use thiserror::Error;
-use tokens::{Token, TokenGroup};
+
+pub use rule::{Rule, RuleFlags, RuleLint};
 
 #[derive(Debug, Hash, Eq, PartialEq, Clone)]
 pub struct TokenizedMessage(Vec<TokenGroup>);
@@ -40,13 +41,13 @@ pub enum FilterLint {
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct FilterMatch<'a> {
-    pub rule: &'a ProfRule,
+    pub rule: &'a Rule,
     pub span: Range<usize>,
 }
 
 #[derive(Debug)]
 pub struct ProfanityFilter {
-    rules: Vec<ProfRule>,
+    rules: Vec<Rule>,
     char_to_token_map: HashMap<char, TokenGroup>,
 }
 
@@ -80,7 +81,7 @@ impl ProfanityFilter {
                         message: e,
                     })?;
             } else {
-                self.insert_rule(ProfRule::parse_from_str(line).map_err(|e| ProfSyntaxErr {
+                self.insert_rule(Rule::parse_from_str(line).map_err(|e| ProfSyntaxErr {
                     linenum: i + 1,
                     message: format!("Error parsing rule: {}", e),
                 })?);
@@ -119,7 +120,7 @@ impl ProfanityFilter {
         self.char_to_token_map.insert(char, tg);
     }
 
-    pub fn insert_rule(&mut self, new_rule: ProfRule) {
+    pub fn insert_rule(&mut self, new_rule: Rule) {
         self.rules.push(new_rule);
     }
     pub fn lint(&self) -> Vec<FilterLint> {
@@ -138,8 +139,11 @@ impl ProfanityFilter {
 
         lints
     }
-    pub fn rule(&self, i: usize) -> &ProfRule {
+    pub fn rule(&self, i: usize) -> &Rule {
         &self.rules[i]
+    }
+    pub fn rules(&self) -> &[Rule] {
+        &self.rules
     }
 
     pub fn check(&self, msg: &TokenizedMessage) -> Option<FilterMatch> {
@@ -151,7 +155,7 @@ impl ProfanityFilter {
         None
     }
 
-    fn tokenize_rule(&self, rule: &ProfRule) -> TokenizedMessage {
+    fn tokenize_rule(&self, rule: &Rule) -> TokenizedMessage {
         TokenizedMessage(
             rule.tokens
                 .iter()
@@ -185,7 +189,7 @@ impl ProfanityFilter {
 #[cfg(test)]
 mod test {
     use crate::{
-        rule::{ProfRule, ProfRuleFlags},
+        rule::{Rule, RuleFlags},
         tokens::{self, TokenGroup},
         tokens_ar, FilterLint, ProfanityFilter, TokenizedMessage,
     };
@@ -202,13 +206,13 @@ mod test {
     #[test]
     fn lints() {
         let mut filter = ProfanityFilter::empty();
-        filter.insert_rule(ProfRule {
+        filter.insert_rule(Rule {
             tokens: tokens_ar!['s', 'e', 'x', 'y'],
-            flags: ProfRuleFlags::NONE,
+            flags: RuleFlags::NONE,
         });
-        filter.insert_rule(ProfRule {
+        filter.insert_rule(Rule {
             tokens: tokens_ar!['s', 'e', 'x'],
-            flags: ProfRuleFlags::NONE,
+            flags: RuleFlags::NONE,
         });
 
         assert_eq!(filter.lint(), vec![FilterLint::PossibleDubbleRule(0, 1)]);
