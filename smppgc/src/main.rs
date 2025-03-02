@@ -12,13 +12,14 @@ use utils::static_routing;
 #[cfg(test)]
 mod test;
 
-pub mod chat;
+mod chat;
 mod csp;
 mod debug;
 mod pages;
 mod profanity;
 mod ratelimit;
 mod socket;
+mod themes;
 mod timestamp;
 mod users;
 mod utils;

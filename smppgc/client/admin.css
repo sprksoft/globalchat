@@ -1,22 +1,104 @@
-html{
-  --color-bg: #191817;
-  --color-text: #c2bab2;
-  --color-header: #313131;
-}
 
 body{
-  background-color: var(--color_base00);
+  background-color: var(--color-base00);
   color: var(--color-text);
 }
 
 header{
-  background: var(--color-header);
+  background: var(--color-base01);
   display: flex;
   flex-direction: row;
+
+  border-bottom: solid var(--color-base02) var(--border-size);
 }
 
 header > h1{
-  margin: 0.5rem;
-  margin-left: 1rem;
-  font-size: 1.5rem;
+  flex-grow: 10;
+  margin: 0.5em 1em 0.5em 1em
+}
+
+main{
+  margin-left: auto;
+  margin-right: auto;
+  padding: 3em;
+  min-width: 100em;
+}
+
+.rules-list{
+  display:flex;
+  flex-direction:column;
+}
+
+@keyframes ruleSlide{
+  0% {
+    transform: translateX(-100vw);
+  }
+  100%{
+    transform: translateX(0vw);
+  }
+}
+
+.rule {
+  animation: ruleSlide 0.3s ease-in-out;
+  background: var(--color-base01);
+  border: solid var(--color-base02) var(--border-size);
+  border-radius: var(--border-radius);
+  margin: 2em;
+  padding: 1em;
+
+  display:flex;
+  flex-direction: column;
+}
+.rule .top-row,
+.rule .bot-row {
+  display:flex;
+  flex-direction: row;
+}
+
+.pillbtn {
+  background: var(--color-base02);
+  border: solid var(--color-base03) var(--border-size);
+  border-radius: 10000px;
+  margin-left:auto;
+  padding: 4px 10px 5px 10px;
+
+  cursor:pointer;
+  color: var(--color-accent);
+}
+.rule-del {
+  color: var(--color-error);
+}
+
+.rule-input {
+  flex-grow: 10;
+  font-size: 15px;
+  font-family: "JetBrains Mono", monospace;
+  background: var(--color-base02);
+  border: solid var(--color-base03) var(--border-size);
+  border-radius: 100px;
+  color: var(--color-text);
+  padding: 5px 20px;
+  margin: 0em 0em 1em 0em;
+}
+
+.rule-options {
+  display:flex;
+  flex-direction: row;
+}
+
+.rule-option {
+  border: solid var(--color-base03) var(--border-size);
+  border-radius: 10000px;
+  padding: 0px 0.5em 0px 0.5em;
+  margin: 3px 2px 3px 2px;
+
+  font-family: "JetBrains Mono", monospace;
+  cursor: pointer;
+  color: var(--color-text);
+  background-color: var(--color-base02);
+  transition: background-color 0.5s, border-color 0.5s, color 0.5s;
+}
+.checked {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
 }

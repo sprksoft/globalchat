@@ -1,15 +1,15 @@
 html{
-  --color-shadow: var(--color_base00);
-  --color_error: #c03010;
+  --color-shadow: var(--color-base00);
+  --color-error: #c03010;
   --border-radius: 15px;
   --border-size: 3px;
   --dialog-border-radius: 30px;
   height:100%;
 }
 body{
-  color: var(--color_text);
-  background: var(--color_base00);
-  font-family: "Open Sans", "Helvetica Neue", helvetica, sans-serif;
+  color: var(--color-text);
+  background: var(--color-base00);
+  font-family: "Montserrat", "Open Sans", helvetica, sans-serif;
   font-size:15px;
   margin:0px;
   height:100%;
@@ -23,13 +23,13 @@ input[type=checkbox] {
   height: 1.5em;
   vertical-align: middle;
 
-  background: var(--color_base02);
-  border: solid var(--color_base03) 2px;
+  background: var(--color-base02);
+  border: solid var(--color-base03) 2px;
   border-radius: 2px;
 }
 input[type=checkbox]:focus,
 input[type=checkbox]:focus-visible {
-  border: solid var(--color_accent) 2px;
+  border: solid var(--color-accent) 2px;
   outline: none !important;
 }
 input[type=checkbox]:hover {
@@ -41,7 +41,7 @@ input[type=checkbox]::after {
   display:block;
   font-size: 13px; /* I know this is a monstrosity */
   font-family: inherit;
-  background: var(--color_accent);
+  background: var(--color-accent);
   position: relative;
 
   left: 0px;
@@ -52,12 +52,39 @@ input[type=checkbox]::after {
   transform: scale(0);
   transition: transform 0.1s;
 }
-ul{
+input[type=checkbox]:disabled{
+  cursor: default;
+}
+input[type=checkbox]:disabled::after {
+  transform: scale(0) !important;
+}
+ul {
   padding-left: 1.5em;
+}
+ul li {
+  margin-top: 1em;
+}
+b {
+  color: var(--color-accent);
 }
 
 input[type=checkbox]:checked::after {
   transform: scale(0.7);
+}
+button {
+  font-weight: bold;
+  font-family: inherit;
+
+  border-radius:var(--border-radius);
+  margin:3px;
+  background-color: var(--color-base02);
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  transition: background-color 0.5s;
+}
+button:hover {
+  background-color: var(--color-base03);
 }
 
 ::selection{
@@ -65,7 +92,7 @@ input[type=checkbox]:checked::after {
 }
 
 *:focus-visible{
-  outline: 2px solid var(--color_accent) !important;
+  outline: 2px solid var(--color-accent) !important;
 }
 
 dialog[open]::backdrop{
@@ -74,7 +101,10 @@ dialog[open]::backdrop{
 dialog::backdrop {
   opacity:0;
   background: #000000;
-  transition: opacity 0.4s allow-discrete;
+  transition: opacity 0.4s ease-in-out;
+}
+dialog[open]::backgrop{
+  opacity: 1;
 }
 dialog[open] {
   transform: scale(1);
@@ -90,13 +120,21 @@ dialog {
   opacity: 0;
   transform: scale(0);
 
-  border: solid var(--color_base01) var(--border-size);
+  border: solid var(--color-base01) var(--border-size);
   border-radius: var(--dialog-border-radius);
-  background-color: var(--color_base00);
+  background-color: var(--color-base00);
 }
 @starting-style {
   dialog[open]{
     transform: scale(0);
     opacity: 0;
   }
+}
+
+.layered-section {
+  margin-top: 3em;
+  padding: 2em;
+  background: var(--color-base01);
+  border: solid var(--color-base02) var(--border-size);
+  border-radius: var(--border-radius);
 }

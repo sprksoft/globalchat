@@ -13,20 +13,23 @@
 {% block content %}
 
 <dialog id="login">
-  <div class="agreement">
+  <div id="disclaimer" data-disclaimer-ver="0">
     <div class="logo">
       {% include "svg/gclogo" %}
     </div>
 
     {% include "disclaimer" %}
-  <label for="agreecheck">Ik heb alles gelezen en ga er mee akoort</label>
-  <input id="agreecheck" type="checkbox" disabled>
-  <p>Je kunt accepteren binnen 10 seconden</p>
+    <div class="layered-section">
+      <label for="disclaimer-check">
+        <input id="disclaimer-check" type="checkbox" disabled>
+        Ik heb alles gelezen en ga er mee akkoord</label>
+      <p id="disclaimer-countdown-text">Je kunt accepteren binnen <time id="disclaimer-countdown"></time> seconde(n)</p>
+    </div>
   </div>
 
   <span id="err-mesg" class="err"></span>
   <div class="container">
-    <input maxlength="{{max_username_len}}" id="name-input" type="text" placeholder="({{placeholder}})" data-default_username="{{placeholder}}">
+    <input autofocus maxlength="{{max_username_len}}" id="name-input" type="text" placeholder="({{placeholder}})" data-default_username="{{placeholder}}">
     <button id="connectbtn" class="button">
       {% include "svg/arrow_r" %}
     </button>
@@ -42,7 +45,7 @@
     {% include "svg/arrow_l" %}
   </button>
 
-  <h2 class="chat-name">Global chat</h2>
+  <h1 class="chat-name">Global chat</h1>
 </header>
 <div id="mesgs"></div>
 <div class="bottom">
@@ -67,7 +70,6 @@
 {% block scripts %}
 <script type="text/javascript">
   var local_commands = [];
-  const SKIP_LOGIN = {% if skip_login %}true{% else %}false{% endif %};
 
   {% if debug %}
   function reload_js() {

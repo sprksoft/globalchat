@@ -14,7 +14,7 @@ j: i, j
 ): /w, a, e, i, o, u
 
 [RULES]
-d:/0/0/0/0
+/0/0/0/0:no_dedup
 arse
 ass
 bitch

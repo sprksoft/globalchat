@@ -6,13 +6,32 @@ Global Chat Admin
 {% endblock title %}
 
 {% block head %}
+
+<style type="text/css">
+{{theme_css}}
+</style>
+
 <link rel="stylesheet" href="{{ url(path="/static/admin.css") }}" />
 {% endblock head %}
 
 {% block content %}
 
-<template id="rule_template">
-
+<template id="rule-template">
+    <div class="rule">
+      <div class="top-row">
+        <div contenteditable class="rule-input" type="text"></div>
+      </div>
+      <div class="bot-row">
+        <div class="rule-options">
+          {% for flag in flagsinfo %}
+          <div class="rule-option" title="{{ flag.2 }}" onclick="if (this.classList.contains('checked')){ this.classList.remove('checked'); }else{ this.classList.add('checked'); }">{{ flag.0 }}</div>
+          {% endfor %}
+        </div>
+        <button class="pillbtn rule-del">Delete rule</button>
+      </div>
+      <div class="errors">
+      </div>
+    </div>
 </template>
 
 <header>
@@ -20,9 +39,10 @@ Global Chat Admin
 </header>
 <main>
   <h1>Rules</h1>
-  <div class="rules_list">
+  <div id="rules-list">
 
   </div>
+  <button class="pillbtn" id="rule-add">Add rule</button>
 
 </main>
 

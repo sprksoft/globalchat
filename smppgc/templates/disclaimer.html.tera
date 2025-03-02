@@ -1,7 +1,12 @@
 <!-- vim: set ft=html: -->
-<h3 class="warning">⚠️ Disclaimer ⚠️</h3>
-<ul>
-  <li>Iedereen kan een <b class="text-accent">WILLEKEURIGE NAAM</b> kiezen.</li>
-  <li>Deze chat wordt <b class="text-accent">NIET GEMODEREERD</b>.</li>
-  <li>Deel <b class="text-accent">GEEN GEVOELIGE GEGEVENS</b> met anderen!</li>
-</ul>
+<section>
+  <h3 class="warning">⚠️ Belangrijke regels ⚠️</h3>
+  <ul>
+    <li><b>Hou het proper</b>, geen racisme, seksisme of andere foute ismes.</li>
+    <li>Dit is <b>geen</b> plaats om <b>politieke discussies</b> te houden.</li>
+    <li>Er is een <b>automatische filter</b>, het zou kunnen dat die onterecht je bericht blokkeert. <b>Heb daar begrip voor</b> en probeer een andere formulering.</li>
+    <li>Deel <b>geen persoonlijke gegevens</b>. (telefoonnummers, thuisadressen, wachtwoorden, ...)</li>
+    <li>Het is mogelijk om een willekeurige naam te kiezen. <b>Vertrouw dus niemand</b> op basis van hun naam.</li>
+    <li>Als de regels overtreden worden, kan dat resulteren in een <b>(tijdelijke) ban</b></li>
+  </ul>
+</section>

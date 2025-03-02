@@ -20,6 +20,7 @@ lmetrics={path="../lmetrics", features=["rocket"]}
 profanity={path="../profanity"}
 bincode={version="1.3.3"}
 lazy_static={version="1.5.0"}
+serde_json={version="1.0.128"}
 
 rocket={version="0.5.1"}
 rocket_ws={version="0.1.1"}

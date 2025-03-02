@@ -1,7 +1,7 @@
 use rocket::{
     fairing::AdHoc,
     get,
-    http::{hyper::Uri, Header, Status},
+    http::{hyper::Uri, Cookie, CookieJar, Header, Status},
     request::{self, FromRequest},
     response::Responder,
     routes,
@@ -10,77 +10,9 @@ use rocket::{
 };
 use rocket_dyn_templates::{context, tera, Template};
 
-use crate::{csp::CSPFrameAncestors, users::UserConfig, MessageConfig};
+use crate::{csp::CSPFrameAncestors, themes::Theme, users::UserConfig, MessageConfig};
 
 mod admin;
-
-macro_rules! css_var {
-    ($name:ident, $($alpha:literal),*) => {
-        concat!($(
-                "--", stringify!($name), "-", $alpha, ": #{}", $alpha, ";"
-        ),*)
-    };
-    ($name:ident) => {
-        concat!("--", stringify!($name), ": #{};")
-    }
-}
-
-fn string_void<'a>(string: &'a str, _void: &'static str) -> &'a str {
-    string
-}
-macro_rules! theme {
-    ($vis:vis $name:ident{$($param:ident:$default_value:literal:[$($alpha:literal),*]),*}) => {
-        $vis struct $name {
-            pub $($param:String),*
-        }
-        impl $name {
-            pub fn css(&self) -> String {
-                format!(concat!("body{{", $(css_var!($param), css_var!($param, $($alpha),*)),*, "}}"), $(self.$param, $(string_void(&self.$param, $alpha),)* )*)
-            }
-        }
-
-        #[rocket::async_trait]
-        impl<'r> FromRequest<'r> for $name {
-            type Error = ();
-
-            async fn from_request(req: &'r Request<'_>) -> request::Outcome<Self, Self::Error> {
-                $(
-                    let $param = match req .query_value::<String>(stringify!($param)) .unwrap_or(Ok($default_value.to_string()))
-                    {
-                        Ok(value) => {
-                            if value.len() > 8{
-                                return request::Outcome::Error((Status::BadRequest, ()));
-                            }
-                            for character in value.chars(){
-                                if !character.is_alphanumeric(){
-                                    return request::Outcome::Error((Status::BadRequest, ()));
-                                }
-                            }
-                            value
-                        },
-                        Err(_) => return request::Outcome::Error((Status::BadRequest, ())),
-                    };
-                )*
-                request::Outcome::Success($name {
-                    $($param),*
-                })
-            }
-        }
-    };
-}
-
-theme! {
-    SmppTheme{
-        color_text:"c2bab2":[],
-        color_base00:"191817":[],
-        color_base01:"232020":["b0"],
-        color_base02:"2b2828":[],
-        color_base03:"353232":[],
-        color_base04:"3f3c3c":[],
-        color_base05:"4a4747":[],
-        color_accent:"ffd5a0":[]
-    }
-}
 
 #[derive(Responder)]
 enum GcPageResponder {
@@ -91,16 +23,18 @@ enum GcPageResponder {
     },
 }
 
-#[get("/v1?<skip_login>&<placeholder>")]
+#[get("/v1?<placeholder>")]
 fn v1(
-    theme: SmppTheme,
+    theme: Theme,
     placeholder: Option<&str>,
-    skip_login: Option<bool>,
     message_config: &State<MessageConfig>,
     user_config: &State<UserConfig>,
     debug: &State<crate::debug::Debug>,
+    cookiejar: &CookieJar<'_>,
 ) -> GcPageResponder {
     let placeholder = placeholder.unwrap_or("");
+    let theme_string = serde_json::to_string(&theme).expect("Failed to convert theme to json");
+    cookiejar.add(Cookie::build(("smpptheme", theme_string)));
 
     GcPageResponder::Ok {
         inner: Template::render(
@@ -108,7 +42,6 @@ fn v1(
             context! (theme_css:theme.css(),
             placeholder:placeholder,
             debug: debug.debug,
-            skip_login: skip_login.unwrap_or(false),
             max_username_len: user_config.max_username_len,
             max_message_len: message_config.max_message_len,
             min_message_len: message_config.min_message_len),
