@@ -37,14 +37,22 @@ function parse(input) {
     input.previousElementSibling.innerHTML = parse_tokengroup_syntax(input.innerText);
   } else if (lang == "none") {
     input.previousElementSibling.innerHTML = input.innerText.replace("\n", "");
+  }else{
+    return;
+  }
+  if (input.innerText.includes("\n")) {
+    input.innerText = input.innerText.replace("\n", "");
   }
 }
 
 document.addEventListener("input", (e) => {
-  if (e.target.innerText.includes("\n")) {
-    e.target.innerText = e.target.innerText.replace("\n", "");
-  }
   parse(e.target);
+});
+document.addEventListener("click", (e) => {
+  if (e.target.classList.contains("editor_highlight")) {
+    e.target.nextElementSibling.click();
+  }
+
 });
 
 export function setTokenInfo(tokenInfo) {
