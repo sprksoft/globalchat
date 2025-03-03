@@ -39,9 +39,10 @@ function tokensToString(jsonTg) {
   return string;
 }
 
-function createHTMLMatchRule(jsonRule) {
+function createHTMLMatchRule(jsonRule, anDelay=0) {
   let ruleFrag = ruleTemplate.content.cloneNode(true);
   let rule = ruleFrag.querySelector(".rule");
+  rule.style=`animation-delay:${anDelay}s`
 
   let ruleInput = rule.querySelector(".rule-input");
   syntaxhi.createEditor(ruleInput);
@@ -58,9 +59,10 @@ function createHTMLMatchRule(jsonRule) {
   rulesListEl.appendChild(rule);
 }
 
-function createHTMLRepRule(jsonRule) {
+function createHTMLRepRule(jsonRule, anDelay=0) {
   let ruleFrag = repRuleTemplate.content.cloneNode(true);
   let rule = ruleFrag.querySelector(".rule");
+  rule.style=`animation-delay:${anDelay}s`
 
   let matchInput = rule.querySelector(".match-input");
   syntaxhi.createEditor(matchInput);
@@ -79,11 +81,11 @@ function createHTMLRepRule(jsonRule) {
 
 
 ruleAddBtn.addEventListener("click", (e)=> {
-  createHTMLMatchRule();
+  createHTMLMatchRule({enabled:true, tokens:[], flags:[]});
 });
 
 repRuleAddBtn.addEventListener("click", (e)=> {
-  createHTMLRepRule();
+  createHTMLRepRule({match_chars: "", replace_tg:[]});
 })
 
 
@@ -91,11 +93,14 @@ saveBtn.addEventListener("click", (e) => {
 
 });
 
-
-for (let rule of RULES) {
+for (let i=0; i < RULES.length; i++) {
+  let rule = RULES[i];
+  let delay = 0;
+  if (i < 10) {
+    delay = i*0.05
+  }
   if (rule["Replace"])
-    createHTMLRepRule(rule["Replace"]);
-
-  if (rule["Match"])
-    createHTMLMatchRule(rule["Match"]);
+    createHTMLRepRule(rule["Replace"], delay);
+  else if (rule["Match"])
+    createHTMLMatchRule(rule["Match"], delay);
 }

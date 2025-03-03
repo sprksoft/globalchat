@@ -31,7 +31,7 @@ Global Chat Admin
           <div class="rule-option" data-flagname="{{ flag.0 }}" title="{{ flag.2 }}" onclick="if (this.classList.contains('checked')){ this.classList.remove('checked'); }else{ this.classList.add('checked'); }">{{ flag.0 }}</div>
           {% endfor %}
         </div>
-        <button class="pillbtn rule-del">Delete rule</button>
+        <button class="pillbtn dangerbtn rule-del">Delete rule</button>
       </div>
       <div class="errors">
       </div>
@@ -46,7 +46,7 @@ Global Chat Admin
         <div data-lang="tokengroup" class="replace-input rule-input" type="text"></div>
     </div>
     <div class="bot-row">
-      <button class="pillbtn rule-del">Delete rule</button>
+      <button class="pillbtn dangerbtn rule-del">Delete rule</button>
     </div>
     <div class="errors">
     </div>
@@ -55,6 +55,10 @@ Global Chat Admin
 
 <header>
   <h1>Profanity filter</h1>
+  <div class="header-btns">
+    <button class="dangerbtn pillbtn" id="save-btn">Revert all</button>
+    <button class="pillbtn" id="save-btn">Save all</button>
+  </div>
 </header>
 <main>
   <h2>Replace Rules</h2>
@@ -66,7 +70,6 @@ Global Chat Admin
   <div id="rules-list">
   </div>
   <button class="pillbtn" id="rule-add-btn">Add rule</button>
-  <button class="pillbtn" id="save-btn">Save</button>
 
 </main>
 
