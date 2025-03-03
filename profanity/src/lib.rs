@@ -1,15 +1,18 @@
 #![cfg_attr(test, feature(test))]
-use std::{collections::HashMap, fmt::Display, ops::Range};
+use std::{collections::HashMap, ops::Range};
 use thiserror::Error;
-use tokens::{Token, TokenGroup};
 
 #[cfg(test)]
 mod other_impls;
 
-mod rule;
+mod rules;
 mod tokens;
 
-pub use rule::{Rule, RuleFlags, RuleLint};
+pub use rules::*;
+pub use tokens::*;
+
+#[cfg(feature = "serde")]
+mod json;
 
 #[derive(Debug, Hash, Eq, PartialEq, Clone)]
 pub struct TokenizedMessage(Vec<TokenGroup>);
@@ -19,18 +22,6 @@ impl TokenizedMessage {
     }
 }
 
-#[derive(Debug, Error)]
-pub struct ProfSyntaxErr {
-    linenum: usize,
-    message: String,
-}
-impl Display for ProfSyntaxErr {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.linenum.fmt(f)?;
-        f.write_str(": ")?;
-        f.write_str(&self.message)
-    }
-}
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum FilterLint {
     #[error("rule: {0} {1}")]
@@ -41,13 +32,13 @@ pub enum FilterLint {
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct FilterMatch<'a> {
-    pub rule: &'a Rule,
+    pub rule: &'a MatchRule,
     pub span: Range<usize>,
 }
 
 #[derive(Debug)]
 pub struct ProfanityFilter {
-    rules: Vec<Rule>,
+    rules: Vec<MatchRule>,
     char_to_token_map: HashMap<char, TokenGroup>,
 }
 
@@ -58,69 +49,34 @@ impl ProfanityFilter {
             char_to_token_map: HashMap::new(),
         }
     }
-    pub fn parse_from_str(str: &str) -> Result<Self, ProfSyntaxErr> {
+
+    pub fn parse_from_str(str: &str) -> Result<Self, ParseRuleError> {
         let mut me = Self::empty();
-        me.add_from_parsed(str)?;
+        for line in str.lines() {
+            let line = &line[..line.find('#').unwrap_or(line.len())];
+            if line.is_empty() {
+                continue;
+            }
+            me.insert_rule(Rule::parse_from_str(&line)?);
+        }
         Ok(me)
     }
 
-    pub fn add_from_parsed(&mut self, str: &str) -> Result<(), ProfSyntaxErr> {
-        let mut char_replacements = true;
-        for (i, line) in str.lines().enumerate() {
-            if line.is_empty() || line.starts_with('#') {
-                continue;
-            }
-            if line == "[RULES]" {
-                char_replacements = false;
-                continue;
-            }
-            if char_replacements {
-                self.parse_insert_char_replace_rule(line)
-                    .map_err(|e| ProfSyntaxErr {
-                        linenum: i + 1,
-                        message: e,
-                    })?;
-            } else {
-                self.insert_rule(Rule::parse_from_str(line).map_err(|e| ProfSyntaxErr {
-                    linenum: i + 1,
-                    message: format!("Error parsing rule: {}", e),
-                })?);
-            }
+    pub fn insert_rule(&mut self, rule: Rule) {
+        match rule {
+            Rule::Replace(r) => self.insert_rep_rule(r),
+            Rule::Match(m) => self.insert_match_rule(m),
         }
-        Ok(())
     }
 
-    fn parse_insert_char_replace_rule(&mut self, str: &str) -> Result<(), String> {
-        let mut chars = str.char_indices();
-        let (_, char) = chars.next().ok_or(format!("Expected char replace rule"))?;
-        let (char_index, colon_char) = chars.next().ok_or(format!(
-            "Expected a : after the target character in a char replace rule"
-        ))?;
-        if colon_char != ':' {
-            return Err(format!(
-                "Expected a : at the start of the char replace statement got '{}'",
-                colon_char
-            ));
+    pub fn insert_rep_rule(&mut self, new_rule: RepRule) {
+        for token in new_rule.match_chars.chars() {
+            self.char_to_token_map
+                .insert(token, new_rule.replace_tg.clone());
         }
-
-        let Some(tg) = TokenGroup::parse_from_str(&str[char_index + 1..]).map_err(|e| {
-            format!(
-                "Error parsing token group '{}': {}",
-                &str[char_index + 1..],
-                e
-            )
-        })?
-        else {
-            return Ok(());
-        };
-        self.char_to_token_map.insert(char, tg);
-        Ok(())
-    }
-    pub fn insert_char_replace_rule(&mut self, char: char, tg: TokenGroup) {
-        self.char_to_token_map.insert(char, tg);
     }
 
-    pub fn insert_rule(&mut self, new_rule: Rule) {
+    pub fn insert_match_rule(&mut self, new_rule: MatchRule) {
         self.rules.push(new_rule);
     }
     pub fn lint(&self) -> Vec<FilterLint> {
@@ -139,10 +95,10 @@ impl ProfanityFilter {
 
         lints
     }
-    pub fn rule(&self, i: usize) -> &Rule {
+    pub fn rule(&self, i: usize) -> &MatchRule {
         &self.rules[i]
     }
-    pub fn rules(&self) -> &[Rule] {
+    pub fn rules(&self) -> &[MatchRule] {
         &self.rules
     }
 
@@ -155,7 +111,7 @@ impl ProfanityFilter {
         None
     }
 
-    fn tokenize_rule(&self, rule: &Rule) -> TokenizedMessage {
+    fn tokenize_rule(&self, rule: &MatchRule) -> TokenizedMessage {
         TokenizedMessage(
             rule.tokens
                 .iter()
@@ -189,28 +145,28 @@ impl ProfanityFilter {
 #[cfg(test)]
 mod test {
     use crate::{
-        rule::{Rule, RuleFlags},
-        tokens::{self, TokenGroup},
+        rules::{MatchRule, RepRule, RuleFlags},
+        tokens::TokenGroup,
         tokens_ar, FilterLint, ProfanityFilter, TokenizedMessage,
     };
 
     #[test]
     fn char_replace() {
         let mut filter = ProfanityFilter::empty();
-        filter.parse_insert_char_replace_rule("i: i, j").unwrap();
+        filter.insert_rep_rule(RepRule::parse_from_str("i => ij").unwrap());
         assert_eq!(
             filter.char_to_token_map.get(&'i'),
-            Some(TokenGroup::parse_from_str("i, j").unwrap().unwrap()).as_ref()
+            Some(TokenGroup::parse_from_str("ij").unwrap()).as_ref()
         )
     }
     #[test]
     fn lints() {
         let mut filter = ProfanityFilter::empty();
-        filter.insert_rule(Rule {
+        filter.insert_match_rule(MatchRule {
             tokens: tokens_ar!['s', 'e', 'x', 'y'],
             flags: RuleFlags::NONE,
         });
-        filter.insert_rule(Rule {
+        filter.insert_match_rule(MatchRule {
             tokens: tokens_ar!['s', 'e', 'x'],
             flags: RuleFlags::NONE,
         });
@@ -226,8 +182,8 @@ mod test {
             filter.tokenize("ik"),
             (
                 TokenizedMessage(vec![
-                    TokenGroup::parse_from_str("i").unwrap().unwrap(),
-                    TokenGroup::parse_from_str("k").unwrap().unwrap()
+                    TokenGroup::parse_from_str("i/k").unwrap(),
+                    TokenGroup::parse_from_str("k").unwrap()
                 ]),
                 "ik".to_string()
             )

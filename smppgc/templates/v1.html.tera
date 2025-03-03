@@ -50,7 +50,7 @@
 <div id="mesgs"></div>
 <div class="bottom">
   <div id="botbar">
-    <div id="send-input" contenteditable enterkeyhint="send" placeholder="Enter a message"></div> <!--Er is denk ik geen goede manier om textareas niet raar te laten zijn dus we moeten hier wel een div gebruiken :(-->
+    <div id="send-input" contenteditable data-plaintext="true" enterkeyhint="send" placeholder="Enter a message"></div> <!--Er is denk ik geen goede manier om textareas niet raar te laten zijn dus we moeten hier wel een div gebruiken :(-->
     <button id="sendbtn" class="button">
       <svg
           width="20"

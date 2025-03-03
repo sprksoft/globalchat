@@ -1,10 +1,11 @@
 use lmetrics::metrics;
+use profanity::ProfanityFilter;
 use rocket::{
     get,
     request::{FromRequest, Outcome},
     Request, Responder, Shutdown, State,
 };
-use std::{convert::Infallible, net::IpAddr};
+use std::{convert::Infallible, net::IpAddr, sync::RwLock};
 
 use log::*;
 use rocket_ws::{Channel, WebSocket};
@@ -12,7 +13,7 @@ use tokio::sync::broadcast::error::RecvError;
 
 use crate::{
     chat::{Chat, Message, NewClientError},
-    profanity::ProfFilter,
+    profanity::ProfRuleset,
     ratelimit::RateLimitIpPenalty,
     ratelimit::{MesgIpRateLimiters, MesgRateLimiters, NewUserIpRateLimiters},
     users::{UserConfig, UserSid, UsernameManager},
@@ -101,7 +102,7 @@ pub async fn socket_v1<'a>(
     mesg_ratelimiters: &'a State<MesgRateLimiters>,
     ip_ratelimiters: &'a State<MesgIpRateLimiters>,
     user_ratelimiting: &State<NewUserIpRateLimiters>,
-    prof_filter: &'a State<ProfFilter>,
+    prof_filter: &'a State<RwLock<ProfanityFilter>>,
     chat: &'a State<Chat>,
     usrnamemgr: &State<UsernameManager>,
     mut shutdown: Shutdown,
@@ -205,21 +206,24 @@ pub async fn socket_v1<'a>(
                             continue;
                         }
 
-                        let (r, _) = prof_filter.filter_string(&mesg.content).await;
-                        match r{
-                            Ok(content) =>{
-                                if content.len() < mesg_limits.min_message_len{
-                                    continue;
-                                }
-                                let mesg = Message::new(chat_client.user_info(), mesg.timestamp, content.into());
-                                wsclient.forward(&mesg).await?;
-                                chat_client.send(mesg);
-                            } ,
-                            Err(span) =>{
-                                //TODO: send profanity warning
-                            }
 
+                        let (profanity, content) = {
+                            let lock = prof_filter.read().expect("Profanity filter lock poisoned");
+                            let (tokenized_mesg, content) = lock.tokenize(&mesg.content);
+
+                            (lock.check(&tokenized_mesg).is_some(), content)
+                        };
+                        if profanity {
+                            //TODO: send profanity warning
+                        }else{
+                            if content.len() < mesg_limits.min_message_len{
+                                continue;
+                            }
+                            let mesg = Message::new(chat_client.user_info(), mesg.timestamp, content.into());
+                            wsclient.forward(&mesg).await?;
+                            chat_client.send(mesg);
                         }
+
                     }
                     mesg = chat_client.message_receiver.recv() => {
                         match mesg{

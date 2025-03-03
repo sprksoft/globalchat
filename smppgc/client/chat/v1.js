@@ -2,6 +2,7 @@ import * as proto from './protocol.js';
 import * as utils from './../utils.js';
 import * as mk from './mkels.js';
 import * as disclaimer from './disclaimer.js';
+import * as general from './../general.js';
 
 import './../general.css'
 import './v1.css'
@@ -174,28 +175,9 @@ function connect(background, start_time) {
   constatus.showModal();
 }
 
-// Er is geen betere manier om dit te doen denk ik.
-function has_virtkb(){
-  return /Mobi|Android|iPad|iPhone|Tablet|Touch/i.test(navigator.userAgent);
-}
-
-sendinput.addEventListener("input", (e) =>{
-  if (e.dataTransfer !== null){
-    console.log(sendinput);
-    for (let i =0; i < sendinput.childNodes.length; i++){
-      let child = sendinput.childNodes[i];
-      if (child.nodeName !== "#text"){
-        let text_node = document.createTextNode(child.innerText);
-        sendinput.insertBefore(text_node, child);
-        child.remove();
-        i--;
-      }
-    }
-  }
-});
 
 sendinput.addEventListener("keypress", (e)=>{
-  if (e.key == "Enter" && !e.shiftKey && !has_virtkb()){
+  if (e.key == "Enter" && !e.shiftKey && !utils.has_virtkb()){
     e.preventDefault();
     send_message();
   }

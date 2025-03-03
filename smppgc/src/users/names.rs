@@ -1,12 +1,16 @@
 use super::UserSid;
 use dashmap::DashMap;
 use log::*;
-use profanity::TokenizedMessage;
+use profanity::{ProfanityFilter, TokenizedMessage};
 use rocket::{fairing::AdHoc, serde::Deserialize};
-use std::{collections::VecDeque, ops::Deref, sync::Arc};
+use std::{
+    collections::VecDeque,
+    ops::Deref,
+    sync::{Arc, RwLock},
+};
 use thiserror::Error;
 
-use crate::{profanity::ProfFilter, wsprotocol::KickReason};
+use crate::wsprotocol::KickReason;
 
 #[derive(Error, Debug)]
 pub enum NameClaimError {
@@ -51,16 +55,22 @@ impl UsernameManager {
         name: &str,
         user_id: UserSid,
         max_name_len: usize,
-        prof_filter: &ProfFilter,
+        prof_filter: &RwLock<ProfanityFilter>,
     ) -> Result<ClaimedName, NameClaimError> {
         if name.len() > max_name_len {
             return Err(NameClaimError::Invalid);
         }
-        let (r, tokenized_name) = prof_filter.filter_string(name).await;
-        let Ok(name) = r else {
-            return Err(NameClaimError::Profanity);
+        let (name, tokenized_name) = {
+            let lock = prof_filter
+                .read()
+                .expect("Profanity filter lock has been poisoned");
+
+            let (tokenized_name, name) = lock.tokenize(name);
+            if lock.check(&tokenized_name).is_some() {
+                return Err(NameClaimError::Profanity);
+            }
+            (Arc::<str>::from(name), tokenized_name)
         };
-        let name: Arc<str> = name.into();
 
         {
             let mut slot = self

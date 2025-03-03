@@ -21,7 +21,7 @@ fn gen_list<T: From<String> + std::cmp::Ord>() -> Vec<T> {
 #[bench]
 fn v2_full(b: &mut Bencher) {
     let filter = crate::ProfanityFilter::parse_from_str(PROFANITY_V2).unwrap();
-    println!("{:?}", filter);
+    dbg!("{:?}", &filter);
 
     b.iter(|| {
         for s in test_data::PROF_SENTENCES
@@ -29,11 +29,11 @@ fn v2_full(b: &mut Bencher) {
             .chain(test_data::EXT_PROF_SENTENCES.iter())
         {
             let (tokenized, _string) = filter.tokenize(s);
-            assert!(
-                filter.check(&tokenized).is_some(),
-                "profanity wrongly marked as clean. {}",
-                s
-            )
+            dbg!(&tokenized);
+            dbg!(_string);
+            let check = filter.check(&tokenized);
+            dbg!(&check);
+            assert!(check.is_some(), "profanity wrongly marked as clean. {}", s)
         }
         for (s, modify) in test_data::MODIFY_PROF_SENTENCES {
             let (_tokenized, string) = filter.tokenize(s);
@@ -51,7 +51,7 @@ fn v2_full(b: &mut Bencher) {
 #[bench]
 fn v2_basic(b: &mut Bencher) {
     let filter = crate::ProfanityFilter::parse_from_str(PROFANITY_V2).unwrap();
-    println!("{:?}", filter);
+    dbg!("{:?}", &filter);
 
     b.iter(|| {
         for s in test_data::PROF_SENTENCES {

@@ -6,9 +6,13 @@ edition.workspace = true
 
 [dependencies]
 thiserror={version="2.0.11"}
-serde={version="1.0.213", features=["derive"]}
+serde={version="1.0.213", features=["derive"], optional=true}
 bitflags={version="2.8.0"}
 
 [dev-dependencies]
 censor={version="0.3.0"}
 string_tree={path="../string_tree", features=["serde"]}
+
+[features]
+default=[]
+serde=["dep:serde", "bitflags/serde"]
