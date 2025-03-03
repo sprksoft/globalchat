@@ -13,7 +13,7 @@
 .editor_highlight {
   position: absolute;
   padding: 5px 20px;
-  z-index: 1000;
+  z-index: 10;
   pointer-events: none;
 }
 .editor_input {
@@ -28,6 +28,7 @@
   color: var(--color-accent);
   font-weight: bold;
   border: solid transparent 2px;
+  margin: -2px; /* This is to offset the space the border takes */
   border-radius:5px;
   transition: border-color 0.5s;
   pointer-events: all;

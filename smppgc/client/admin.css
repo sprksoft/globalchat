@@ -4,11 +4,15 @@ body {
 }
 
 header {
+  align-items: center;
   background: var(--color-base01);
   display: flex;
   flex-direction: row;
 
   border-bottom: solid var(--color-base02) var(--border-size);
+}
+.header-btns {
+  margin-right: 1em;
 }
 
 header > h1 {
@@ -21,6 +25,7 @@ main {
   margin-right: auto;
   padding: 3em;
   min-width: 100em;
+  overflow:auto;
 }
 
 @media (max-width: 100em) {
@@ -40,17 +45,23 @@ main {
   flex-direction:column;
 }
 
-@keyframes ruleSlide {
+@keyframes ruleSpawn {
   0% {
-    transform: translateX(-100vw);
+    transform: translateY(200px);
+    opacity: 0;
+  }
+  80%{
+    transform: translateY(-10px);
   }
   100%{
-    transform: translateX(0vw);
+    transform: translateY(0);
+    opacity: 1;
   }
 }
 
 .rule {
-  animation: ruleSlide 0.3s ease-in-out;
+  animation: ruleSpawn 0.3s ease-in-out;
+  animation-fill-mode: both;
   background: var(--color-base01);
   border: solid var(--color-base02) var(--border-size);
   border-radius: var(--border-radius);
@@ -76,7 +87,7 @@ main {
   cursor:pointer;
   color: var(--color-accent);
 }
-.rule-del {
+.dangerbtn {
   color: var(--color-error);
 }
 
@@ -121,3 +132,4 @@ main {
   border-color: var(--color-accent);
   color: var(--color-accent);
 }
+

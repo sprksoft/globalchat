@@ -89,7 +89,7 @@ macro_rules! flags {
 flags! {
     pub flags RuleFlags {
         WORD:"word":0b00000001:"Only match words that are separated by whitespace. 'ass' will not match 'password' when this is on";
-        NO_DEDUP:"no_dedup":0b00000010:"Don't dedup characters in the match string. 'potato' will not match 'pottttttato' when this is on";
+        NO_DEDUP:"no_dedup":0b00000010:"Don't deduplicate characters. 'potato' will not match 'pottttttato' when this is on";
     }
 }
 
