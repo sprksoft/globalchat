@@ -1,5 +1,6 @@
 use std::ops::Range;
 use std::path::PathBuf;
+use std::sync::Mutex;
 
 use log::*;
 use profanity::{ProfanityFilter, TokenizedMessage};
@@ -8,46 +9,60 @@ use rocket::serde::Deserialize;
 use thiserror::Error;
 use tokio::sync::RwLock;
 
+mod rules;
+
 #[derive(Debug, Error)]
 pub enum ProfFileLoadErr {
     #[error("{0}")]
     IO(#[from] std::io::Error),
     #[error("{0}")]
-    Syntax(#[from] profanity::ProfSyntaxErr),
+    ParseError(#[from] rules::ParseError),
 }
 
-pub struct ProfFilter {
+pub struct ProfRuleset {
     filter_path: PathBuf,
-    filter: RwLock<ProfanityFilter>,
+    rules: Vec<rules::Rule>,
 }
-impl ProfFilter {
+impl ProfRuleset {
     pub fn new(filter_path: PathBuf) -> Result<Self, ProfFileLoadErr> {
         let file = std::fs::read_to_string(&filter_path)?;
-        let filter = ProfanityFilter::parse_from_str(&file)?;
-        Ok(Self {
-            filter_path,
-            filter: filter.into(),
-        })
+
+        let rules = rules::parse_from_str(&file)?;
+
+        Ok(Self { filter_path, rules })
+    }
+    pub fn rules(&self) -> &[rules::Rule] {
+        &self.rules
     }
 
-    pub async fn load(&self) -> Result<(), ProfFileLoadErr> {
-        let file = std::fs::read_to_string(&self.filter_path)?;
-        self.filter.write().await.add_from_parsed(&file)?;
-        Ok(())
-    }
-
-    pub async fn filter_string(
-        &self,
-        string: &str,
-    ) -> (Result<String, Range<usize>>, TokenizedMessage) {
-        let filter = self.filter.read().await;
-        let (tokenized, string) = filter.tokenize(string);
-        if let Some(r) = filter.check(&tokenized) {
-            (Err(r.span), tokenized)
-        } else {
-            (Ok(string), tokenized)
+    pub fn build_filter(&self) -> ProfanityFilter {
+        let mut filter = ProfanityFilter::empty();
+        for rule in self.rules.iter() {
+            if rule.enabled {
+                filter.insert_rule(rule.inner.clone())
+            }
         }
+        filter
     }
+
+    // pub async fn load(&self) -> Result<(), ProfFileLoadErr> {
+    //     let file = std::fs::read_to_string(&self.filter_path)?;
+    //     self.filter.write().await.add_from_parsed(&file)?;
+    //     Ok(())
+    // }
+
+    // pub async fn filter_string(
+    //     &self,
+    //     string: &str,
+    // ) -> (Result<String, Range<usize>>, TokenizedMessage) {
+    //     let filter = self.filter.read().await;
+    //     let (tokenized, string) = filter.tokenize(string);
+    //     if let Some(r) = filter.check(&tokenized) {
+    //         (Err(r.span), tokenized)
+    //     } else {
+    //         (Ok(string), tokenized)
+    //     }
+    // }
     // pub async fn contains_profanity_any(&self, strings: impl Iterator<Item = &str>) -> bool {
     //     let filter = self.filter.read().await;
     //     for str in strings {
@@ -101,7 +116,10 @@ pub fn stage() -> AdHoc {
             .figment()
             .extract::<ProfConfig>()
             .expect("No profanity config found");
-        let filter_path = config.prof_filter_file;
-        r.manage(ProfFilter::new(filter_path).expect("Failed to load profanity filter"))
+
+        let ruleset = ProfRuleset::new(config.prof_filter_file)
+            .expect("Failed to load profanity filter rules");
+        r.manage(std::sync::RwLock::new(ruleset.build_filter()))
+            .manage(Mutex::new(ruleset))
     })
 }

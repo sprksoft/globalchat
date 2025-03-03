@@ -17,7 +17,7 @@ base64={version="0.22.1"}
 dashmap={version="6.1.0"}
 circular-queue={version="0.2.6"}
 lmetrics={path="../lmetrics", features=["rocket"]}
-profanity={path="../profanity"}
+profanity={path="../profanity", features=["serde"]}
 bincode={version="1.3.3"}
 lazy_static={version="1.5.0"}
 serde_json={version="1.0.128"}

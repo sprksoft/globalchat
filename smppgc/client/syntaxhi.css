@@ -1,0 +1,32 @@
+.editor {
+  position: relative;
+}
+
+.editor_highlight,
+.editor_input {
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+.editor_highlight {
+  position: absolute;
+  user-select: none;
+  padding: 5px 20px;
+}
+.editor_input {
+  position: relative;
+  color: transparent; /* Make text invisible */
+  caret-color: hsl( 50, 75%, 70%); /* But keep caret visible */
+  padding: 5px 20px;
+  border-radius: 100px;
+}
+
+.special-token {
+  color: var(--color-accent);
+  font-weight: bold;
+}
+.special-token-invalid {
+  color: var(--color-error);
+}

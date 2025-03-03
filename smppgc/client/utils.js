@@ -5,3 +5,8 @@ export function log(v){
     console.log(v)
   }
 }
+
+// Er is geen betere manier om dit te doen denk ik.
+export function has_virtkb(){
+  return /Mobi|Android|iPad|iPhone|Tablet|Touch/i.test(navigator.userAgent);
+}

@@ -1,20 +1,10 @@
-1: a, e, i, o, u, l
-i: i, j
-î: i, j
-j: i, j
-é: e
-è: e
-à: a
-â: a
-:: /w, a, e, i, o, u
-': /w, a, e, i, o, u
-.: /w, a, e, i, o, u
-?: /w, a, e, i, o, u
-(: /w, a, e, i, o, u
-): /w, a, e, i, o, u
+1              => /k j i l
+i î j l        => i j l
+é è            => e
+à â            => a
+: ' . ? ( ) ,  => /w /k
 
-[RULES]
-/0/0/0/0:no_dedup
+/0/0/0/0:no_dedup # comment test
 arse
 ass
 bitch

@@ -1,10 +1,9 @@
-
-body{
+body {
   background-color: var(--color-base00);
   color: var(--color-text);
 }
 
-header{
+header {
   background: var(--color-base01);
   display: flex;
   flex-direction: row;
@@ -12,24 +11,36 @@ header{
   border-bottom: solid var(--color-base02) var(--border-size);
 }
 
-header > h1{
+header > h1 {
   flex-grow: 10;
   margin: 0.5em 1em 0.5em 1em
 }
 
-main{
+main {
   margin-left: auto;
   margin-right: auto;
   padding: 3em;
   min-width: 100em;
 }
 
-.rules-list{
+@media (max-width: 100em) {
+  main {
+    min-width:none;
+  }
+}
+@media screen and (max-width: 100em) {
+  main {
+    min-width: auto;
+    margin: 0px;
+  }
+}
+
+.rules-list {
   display:flex;
   flex-direction:column;
 }
 
-@keyframes ruleSlide{
+@keyframes ruleSlide {
   0% {
     transform: translateX(-100vw);
   }
@@ -69,6 +80,12 @@ main{
   color: var(--color-error);
 }
 
+.replace-arrow {
+  margin: calc(5px + var(--border-size)) 1em 1em 1em;
+  font-family: "JetBrains Mono", monospace;
+  font-weight: bold;
+  color: var(--color-accent);
+}
 .rule-input {
   flex-grow: 10;
   font-size: 15px;
@@ -77,8 +94,10 @@ main{
   border: solid var(--color-base03) var(--border-size);
   border-radius: 100px;
   color: var(--color-text);
-  padding: 5px 20px;
   margin: 0em 0em 1em 0em;
+}
+.char-rule-input {
+  flex-grow: 0;
 }
 
 .rule-options {

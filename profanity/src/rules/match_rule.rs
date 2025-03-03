@@ -4,6 +4,13 @@ use crate::{tokens::TokenParseError, Token, TokenizedMessage};
 use bitflags::bitflags;
 use thiserror::Error;
 
+pub trait Flags {
+    fn none() -> Self;
+    fn set_from_str(&mut self, str: &str) -> bool;
+    fn append_to_string(&self, string: &mut String);
+    fn flags_info() -> &'static [(&'static str, u8, &'static str)];
+}
+
 macro_rules! flags {
     ($vis:vis flags $name:ident{$($flagname:ident:$flagstring:literal:$flagbits:literal:$flagdesc:literal;)*}) => {
         bitflags! {
@@ -15,15 +22,18 @@ macro_rules! flags {
                 )*
             }
         }
-        impl $name {
-            pub fn flags_info() -> &'static [(&'static str, u8, &'static str)]{
+        impl Flags for $name {
+            fn none() -> Self {
+                Self::NONE
+            }
+            fn flags_info() -> &'static [(&'static str, u8, &'static str)]{
                 &[
                     $(
                         ($flagstring, $flagbits, $flagdesc)
                     ),*
                 ]
             }
-            pub fn set_from_str(&mut self, str: &str) -> bool {
+            fn set_from_str(&mut self, str: &str) -> bool {
                 match str {
                     $(
                     $flagstring => {
@@ -35,7 +45,7 @@ macro_rules! flags {
                 }
             }
             #[allow(unused_assignments)]
-            pub fn append_to_string(&self, string: &mut String) {
+            fn append_to_string(&self, string: &mut String) {
                 let mut first = true;
                 $(
                     if self.contains(Self::$flagname) {
@@ -46,6 +56,31 @@ macro_rules! flags {
                         first = false;
                     }
                 )*
+            }
+        }
+        #[cfg(feature="serde")]
+        impl serde::Serialize for $name {
+            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+            where
+                S: serde::Serializer,
+            {
+                use serde::ser::SerializeSeq;
+                let mut seq_ser = serializer.serialize_seq(None)?;
+                $(
+                    if (self.contains(Self::$flagname)){
+                        seq_ser.serialize_element($flagstring)?;
+                    }
+                )*
+                seq_ser.end()
+            }
+        }
+        #[cfg(feature = "serde")]
+        impl<'de> serde::Deserialize<'de> for $name {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                deserializer.deserialize_seq(crate::json::FlagsVisitor(std::marker::PhantomData::<Self>::default()))
             }
         }
     };
@@ -59,9 +94,9 @@ flags! {
 }
 
 #[derive(Clone, Debug, Error)]
-pub enum RuleParseError<'a> {
+pub enum MatchRuleParseError {
     #[error("Unknown flag '{0}'")]
-    UnknownFlag(&'a str),
+    UnknownFlag(Box<str>),
     #[error("{0}")]
     TokenParseError(#[from] TokenParseError),
 }
@@ -75,11 +110,12 @@ pub enum RuleLint {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Rule {
-    pub(super) tokens: Vec<crate::Token>,
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct MatchRule {
+    pub tokens: Vec<crate::Token>,
     pub flags: RuleFlags,
 }
-impl Rule {
+impl MatchRule {
     pub fn lint(&self) -> Vec<RuleLint> {
         let mut lints = Vec::new();
         if self.tokens.ends_with(&[
@@ -90,25 +126,26 @@ impl Rule {
         }
         lints
     }
-    pub fn from_match_str(str: &str) -> Result<Self, RuleParseError> {
+    pub fn from_match_str(str: &str) -> Result<Self, MatchRuleParseError> {
         Ok(Self {
             flags: RuleFlags::NONE,
             tokens: Token::parse_multiple(str, true)?,
         })
     }
 
-    pub fn parse_from_str<'a>(str: &'a str) -> Result<Self, RuleParseError<'a>> {
+    pub fn parse_from_str<'a>(str: &'a str) -> Result<Self, MatchRuleParseError> {
         if let Some(sep_index) = str.find(':') {
             let mut me = Self::from_match_str(&str[..sep_index])?;
-            dbg!(str);
+            //dbg!(str);
             let flag_region = &str[sep_index + 1..];
-            dbg!(flag_region);
+            //dbg!(flag_region);
             for flag in flag_region.split(',') {
+                let flag = flag.trim();
                 if flag.len() == 0 {
                     continue;
                 }
                 if !me.flags.set_from_str(flag) {
-                    return Err(RuleParseError::UnknownFlag(flag));
+                    return Err(MatchRuleParseError::UnknownFlag(flag.into()));
                 }
             }
             if me.flags.contains(RuleFlags::NO_DEDUP) {
@@ -178,26 +215,26 @@ impl Rule {
 #[cfg(test)]
 mod test {
     use crate::{
-        rule::{Rule, RuleFlags},
+        rules::{MatchRule, RuleFlags},
         tokens_ar, ProfanityFilter,
     };
 
     #[test]
     fn parse() {
-        let rule = Rule::parse_from_str("abcd:word").unwrap();
+        let rule = MatchRule::parse_from_str("abcd:word").unwrap();
         assert_eq!(
             rule,
-            Rule {
+            MatchRule {
                 tokens: tokens_ar!['a', 'b', 'c', 'd'],
                 flags: RuleFlags::WORD
             },
             "wordmatch flag"
         );
 
-        let rule = Rule::parse_from_str("abcd:").unwrap();
+        let rule = MatchRule::parse_from_str("abcd:").unwrap();
         assert_eq!(
             rule,
-            Rule {
+            MatchRule {
                 tokens: tokens_ar!['a', 'b', 'c', 'd'],
                 flags: RuleFlags::NONE
             },
@@ -208,8 +245,8 @@ mod test {
     #[test]
     fn match_after_half_match() {
         let mut filter = ProfanityFilter::empty();
-        let rule = Rule::parse_from_str("abcd").unwrap();
-        filter.insert_rule(rule);
+        let rule = MatchRule::parse_from_str("abcd").unwrap();
+        filter.insert_match_rule(rule);
 
         assert!(
             filter.check(&filter.tokenize("ab abcd qa").0).is_some(),
@@ -220,8 +257,8 @@ mod test {
     #[test]
     fn wordmatch() {
         let mut filter = ProfanityFilter::empty();
-        let rule = Rule::parse_from_str("abcd:word").unwrap();
-        filter.insert_rule(rule);
+        let rule = MatchRule::parse_from_str("abcd:word").unwrap();
+        filter.insert_match_rule(rule);
         assert!(
             filter
                 .check(&filter.tokenize("Hi word a.b cd end words").0)
@@ -230,8 +267,8 @@ mod test {
         );
 
         let mut filter = ProfanityFilter::empty();
-        let rule = Rule::parse_from_str("abcd").unwrap();
-        filter.insert_rule(rule);
+        let rule = MatchRule::parse_from_str("abcd").unwrap();
+        filter.insert_match_rule(rule);
         assert!(
             filter
                 .check(&filter.tokenize("Hi word a.b cd end words").0)
@@ -243,8 +280,8 @@ mod test {
     #[test]
     fn span() {
         let mut filter = ProfanityFilter::empty();
-        let rule = Rule::parse_from_str("abcd").unwrap();
-        filter.insert_rule(rule);
+        let rule = MatchRule::parse_from_str("abcd").unwrap();
+        filter.insert_match_rule(rule);
 
         let result = filter.check(&filter.tokenize("abcd dq").0);
         assert_eq!(result.unwrap().span, 0..4, "Span is wrong");
@@ -261,10 +298,10 @@ mod test {
 
     #[test]
     fn dedup_test() {
-        let rule = Rule::parse_from_str("abbbcd").unwrap();
+        let rule = MatchRule::parse_from_str("abbbcd").unwrap();
         assert_eq!(
             rule,
-            Rule {
+            MatchRule {
                 tokens: tokens_ar!['a', 'b', 'c', 'd'],
                 flags: RuleFlags::NONE
             }
@@ -273,10 +310,10 @@ mod test {
 
     #[test]
     fn dont_dedup_wordmatch() {
-        let rule = Rule::parse_from_str("dedddup:no_dedup").unwrap();
+        let rule = MatchRule::parse_from_str("dedddup:no_dedup").unwrap();
         assert_eq!(
             rule,
-            Rule {
+            MatchRule {
                 tokens: tokens_ar!['d', 'e', 'd', 'd', 'd', 'u', 'p'],
                 flags: RuleFlags::NO_DEDUP
             }
@@ -285,7 +322,7 @@ mod test {
 
     #[test]
     fn to_str() {
-        let mut rule = Rule {
+        let mut rule = MatchRule {
             flags: RuleFlags::NONE,
             tokens: tokens_ar!['a', 'b', 'c', 'd'],
         };
