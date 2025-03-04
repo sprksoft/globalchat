@@ -66,6 +66,10 @@ export function setContent(editorEl, content) {
   input.innerText=content;
   parse(input);
 }
+export function getContent(editorEl) {
+  let input = editorEl.querySelector(".editor_input")
+  return input.innerText;
+}
 
 export function createEditor(parent) {
   if (parent.classList.contains("editor")){

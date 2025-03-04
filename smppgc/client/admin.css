@@ -70,25 +70,12 @@ main {
 
   display:flex;
   flex-direction: column;
+  transition: border-color 0.5s;
 }
 .rule .top-row,
 .rule .bot-row {
   display:flex;
   flex-direction: row;
-}
-
-.pillbtn {
-  background: var(--color-base02);
-  border: solid var(--color-base03) var(--border-size);
-  border-radius: 10000px;
-  margin-left:auto;
-  padding: 4px 10px 5px 10px;
-
-  cursor:pointer;
-  color: var(--color-accent);
-}
-.dangerbtn {
-  color: var(--color-error);
 }
 
 .replace-arrow {
@@ -115,6 +102,11 @@ main {
   display:flex;
   flex-direction: row;
 }
+.rule-buttons {
+  display: flex;
+  flex-direction: row;
+  margin-left: auto;
+}
 
 .rule-option {
   border: solid var(--color-base03) var(--border-size);
@@ -131,5 +123,35 @@ main {
 .checked {
   border-color: var(--color-accent);
   color: var(--color-accent);
+}
+
+.top-row,
+.rule-options {
+  transition: opacity 0.5s;
+}
+
+.rule-disabled .top-row,
+.rule-disabled .rule-options {
+  opacity: 0.3;
+}
+@keyframes ruleDelete {
+  0% {
+  }
+  100%{
+    transform: translateY(100px);
+    opacity: 0;
+    display: none;
+    background: var(--color-error);
+  }
+}
+.rule-deleted {
+  animation: ruleDelete 0.5s;
+  animation-fill-mode: both;
+  animation-delay: 0s !important; /* This is important to overide the animation-delay in style that is given for the spawn animation */
+}
+
+#save-dialog {
+  display:flex;
+  flex-direction: column;
 }
 

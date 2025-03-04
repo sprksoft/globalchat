@@ -36,7 +36,7 @@
   </div>
 </dialog>
 
-<dialog id="connection-status">
+<dialog id="connection-status" class="loading-dialog">
   <span>connecting</span>
 </dialog>
 

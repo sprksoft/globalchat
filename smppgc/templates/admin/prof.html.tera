@@ -1,5 +1,23 @@
 {% extends "base" %}
 
+{% macro ruleBase(rule_flags) %}
+<div class="bot-row">
+  {% if rule_flags %}
+  <div class="rule-options">
+    {% for flag in flagsinfo %}
+    <button class="rule-option" data-flagname="{{ flag.0 }}" title="{{ flag.2 }}" onclick="if (this.classList.contains('checked')){ this.classList.remove('checked'); }else{ this.classList.add('checked'); }">{{ flag.0 }}</button>
+    {% endfor %}
+  </div>
+  {% endif %}
+  <div class="rule-buttons">
+    <button class="pillbtn dangerbtn rule-del-btn" disabled>Delete rule</button>
+    <button class="pillbtn rule-disable-toggle">Disable rule</button>
+  </div>
+</div>
+<div class="errors">
+</div>
+{% endmacro ruleBase %}
+
 <!-- vim: set ft=html: -->
 {% block title %}
 Global Chat Admin
@@ -16,26 +34,26 @@ Global Chat Admin
 
 {% block content %}
 
-<dialog id="savedialog">
+<dialog id="loading-dialog" class="loading-dialog">
+  <span>loading</span>
+</dialog>
 
+<dialog id="save-dialog">
+  <h1>Check completed with errors</h1>
+  <div class="errors"></div>
+  <div class="buttons">
+    <button id="publish-btn" class="pillbtn">Ok</button>
+    <button id="publish-btn" class="pillbtn dangerbtn">Publish anyway</button>
+  </div>
 </dialog>
 
 <template id="rule-template">
-    <div class="rule">
-      <div class="top-row">
-        <div data-lang="tokengroup" class="rule-input" type="text"></div>
-      </div>
-      <div class="bot-row">
-        <div class="rule-options">
-          {% for flag in flagsinfo %}
-          <div class="rule-option" data-flagname="{{ flag.0 }}" title="{{ flag.2 }}" onclick="if (this.classList.contains('checked')){ this.classList.remove('checked'); }else{ this.classList.add('checked'); }">{{ flag.0 }}</div>
-          {% endfor %}
-        </div>
-        <button class="pillbtn dangerbtn rule-del">Delete rule</button>
-      </div>
-      <div class="errors">
-      </div>
+  <div class="rule">
+    <div class="top-row">
+      <div data-lang="tokengroup" class="rule-input" type="text"></div>
     </div>
+    {{ self::ruleBase(rule_flags=true) }}
+  </div>
 </template>
 
 <template id="replace-rule-template">
@@ -45,19 +63,15 @@ Global Chat Admin
         <span class="replace-arrow">=&gt;</span>
         <div data-lang="tokengroup" class="replace-input rule-input" type="text"></div>
     </div>
-    <div class="bot-row">
-      <button class="pillbtn dangerbtn rule-del">Delete rule</button>
-    </div>
-    <div class="errors">
-    </div>
+    {{ self::ruleBase(rule_flags=false) }}
   </div>
 </template>
 
 <header>
   <h1>Profanity filter</h1>
   <div class="header-btns">
-    <button class="dangerbtn pillbtn" id="save-btn">Revert all</button>
-    <button class="pillbtn" id="save-btn">Save all</button>
+    <button class="dangerbtn pillbtn" id="revert-btn" disabled>Revert all</button>
+    <button class="pillbtn" id="save-btn" disabled>Check rules</button>
   </div>
 </header>
 <main>
