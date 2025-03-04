@@ -72,6 +72,10 @@ main {
   flex-direction: column;
   transition: border-color 0.5s;
 }
+.rule:target,
+.rule:focus {
+  border-color: var(--color-accent);
+}
 .rule .top-row,
 .rule .bot-row {
   display:flex;
@@ -155,3 +159,53 @@ main {
   flex-direction: column;
 }
 
+.lint-section {
+  padding-top: 0px;
+  margin-bottom: 2em;
+  overflow: scroll;
+}
+
+.lint {
+  font-family: "JetBrains Mono", monospace;
+  margin-bottom: 0.5em;
+  color: var(--color-text);
+  display:flex;
+  padding: 0.3em;
+  border-bottom: solid var(--color-base03) var(--border-size);
+}
+.lint:before {
+  font-family: "JetBrains Mono", monospace;
+  font-weight: bold;
+  margin-right: 1em;
+}
+.lint-links {
+  margin-left: auto;
+}
+.lint-links a {
+  margin: 0em 0.5em 0em 0.5em;
+}
+.lint span {
+  margin-right: 4em;
+}
+
+.lint-notify:before
+{
+  content:"nofity: ";
+  color: var(--color-ok);
+}
+
+.lint-error {
+  color: var(--color-error);
+}
+.lint-error:before {
+  content:"error: ";
+  color: var(--color-error);
+}
+#error-dialog {
+  display:flex;
+  flex-direction: column;
+}
+#error-message {
+  text-align: center;
+  color: var(--color-error);
+}

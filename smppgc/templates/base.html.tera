@@ -19,6 +19,9 @@
     {% block content %}
     {% endblock content %}
 
+    <script>
+      const ROOT_URL="{{ url(root=true) }}";
+    </script>
     {% block scripts %}
     {% endblock scripts %}
   </body>

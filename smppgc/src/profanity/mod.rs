@@ -1,15 +1,30 @@
-use std::ops::Range;
 use std::path::PathBuf;
 use std::sync::Mutex;
 
 use log::*;
-use profanity::{ProfanityFilter, TokenizedMessage};
+use profanity::ProfanityFilter;
 use rocket::fairing::AdHoc;
-use rocket::serde::Deserialize;
+use rocket::serde::{Deserialize, Serialize};
 use thiserror::Error;
-use tokio::sync::RwLock;
 
 mod rules;
+pub use rules::*;
+
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(crate = "rocket::serde")]
+pub enum LintImportance {
+    Error,
+    Notify,
+}
+
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(crate = "rocket::serde")]
+pub struct RulesetLint {
+    pub importance: LintImportance,
+    pub affected_rule: usize,
+    pub second_affected_rule: Option<usize>,
+    pub message: &'static str,
+}
 
 #[derive(Debug, Error)]
 pub enum ProfFileLoadErr {
@@ -20,7 +35,7 @@ pub enum ProfFileLoadErr {
 }
 
 pub struct ProfRuleset {
-    filter_path: PathBuf,
+    filter_path: Option<PathBuf>,
     rules: Vec<rules::Rule>,
 }
 impl ProfRuleset {
@@ -29,10 +44,82 @@ impl ProfRuleset {
 
         let rules = rules::parse_from_str(&file)?;
 
-        Ok(Self { filter_path, rules })
+        Ok(Self {
+            filter_path: Some(filter_path),
+            rules,
+        })
+    }
+    pub fn from_str(string: &str) -> Result<Self, ProfFileLoadErr> {
+        Ok(Self {
+            filter_path: None,
+            rules: rules::parse_from_str(string)?,
+        })
+    }
+    pub fn from_rules(rules: Vec<rules::Rule>) -> Self {
+        Self {
+            filter_path: None,
+            rules,
+        }
     }
     pub fn rules(&self) -> &[rules::Rule] {
         &self.rules
+    }
+
+    pub fn lint(&self, filter: &ProfanityFilter) -> Vec<RulesetLint> {
+        let mut lints = Vec::with_capacity(self.rules.len());
+        for (i, rule) in self.rules.iter().enumerate() {
+            for (importance, message) in rule.lint() {
+                lints.push(RulesetLint {
+                    affected_rule: i,
+                    second_affected_rule: None,
+                    message,
+                    importance,
+                })
+            }
+            if let Some(other_i) = self
+                .rules()
+                .iter()
+                .enumerate()
+                .find(|(ii, r)| *ii != i && r.inner == rule.inner)
+                .map(|(i, _)| i)
+            {
+                lints.push(RulesetLint {
+                    affected_rule: i,
+                    second_affected_rule: Some(other_i),
+                    message: "Duplicated rule found",
+                    importance: LintImportance::Error,
+                });
+                continue;
+            }
+            match &rule.inner {
+                profanity::Rule::Match(rule) => {
+                    let tm = filter.tokenize_match_rule(&rule);
+                    let matches = filter.check_all(&tm);
+                    if let Some(other_match) = matches.iter().find(|m| m.rule != rule) {
+                        let other_index = self
+                            .rules
+                            .iter()
+                            .enumerate()
+                            .find(|(_, r)| match &r.inner {
+                                profanity::Rule::Match(r) => r == other_match.rule,
+                                _ => false,
+                            })
+                            .map(|(i, _)| i)
+                            .unwrap();
+
+                        lints.push(RulesetLint {
+                            affected_rule: i,
+                            second_affected_rule: Some(other_index),
+                            message: "Possible double match between 2 rules",
+                            importance: LintImportance::Notify,
+                        });
+                    }
+                }
+                profanity::Rule::Replace(_rule) => {}
+            }
+        }
+
+        lints
     }
 
     pub fn build_filter(&self) -> ProfanityFilter {
@@ -119,7 +206,51 @@ pub fn stage() -> AdHoc {
 
         let ruleset = ProfRuleset::new(config.prof_filter_file)
             .expect("Failed to load profanity filter rules");
-        r.manage(std::sync::RwLock::new(ruleset.build_filter()))
+        let filter = ruleset.build_filter();
+        r.manage(std::sync::RwLock::new(filter))
             .manage(Mutex::new(ruleset))
     })
+}
+
+#[cfg(test)]
+mod test {
+    use crate::profanity::{LintImportance, ProfRuleset, RulesetLint};
+
+    #[test]
+    fn double_match_lint() {
+        let ruleset = ProfRuleset::from_str("sexy\nsex").unwrap();
+        let filter = ruleset.build_filter();
+        assert_eq!(
+            ruleset.lint(&filter),
+            vec![RulesetLint {
+                affected_rule: 0,
+                second_affected_rule: Some(1),
+                importance: LintImportance::Notify,
+                message: "Possible double match between 2 rules"
+            }]
+        );
+    }
+
+    #[test]
+    fn double_rule_lint() {
+        let ruleset = ProfRuleset::from_str("sex\nsomething\nsex").unwrap();
+        let filter = ruleset.build_filter();
+        assert_eq!(
+            ruleset.lint(&filter),
+            vec![
+                RulesetLint {
+                    affected_rule: 0,
+                    second_affected_rule: Some(2),
+                    importance: LintImportance::Error,
+                    message: "Duplicated rule found"
+                },
+                RulesetLint {
+                    affected_rule: 2,
+                    second_affected_rule: Some(0),
+                    importance: LintImportance::Error,
+                    message: "Duplicated rule found"
+                }
+            ]
+        );
+    }
 }

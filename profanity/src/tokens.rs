@@ -1,6 +1,7 @@
 use std::fmt::Debug;
 use std::num::NonZeroU8;
 
+use serde::Deserialize;
 use thiserror::Error;
 
 #[macro_export]
@@ -39,7 +40,6 @@ macro_rules! special_tokens {
                     _=>None
                 }
             }
-
             pub fn to_string(self) -> String {
                 let mut string = String::with_capacity(2);
                 match self.0.get() {
@@ -49,6 +49,13 @@ macro_rules! special_tokens {
                     c => string.push(c as char),
                 }
                 string
+            }
+            pub fn from_u8(num: NonZeroU8) -> Option<Self> {
+                if (num.get().is_ascii_alphanumeric() && num.get().is_ascii_lowercase()) || [$($number),*].contains(&num.get()) {
+                    Some(Self(num))
+                }else{
+                    None
+                }
             }
         }
 
@@ -65,7 +72,6 @@ special_tokens! {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Token(NonZeroU8);
 impl Token {
     pub fn parse_multiple(str: &str, dedup: bool) -> Result<Vec<Self>, TokenParseError> {
@@ -131,11 +137,26 @@ impl Token {
         self.0.get()
     }
 }
-impl From<NonZeroU8> for Token {
-    fn from(value: NonZeroU8) -> Self {
-        Self(value)
+
+#[cfg(feature = "serde")]
+impl<'de> serde::Deserialize<'de> for Token {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        deserializer.deserialize_u8(crate::json::TokenVisitor)
     }
 }
+#[cfg(feature = "serde")]
+impl serde::Serialize for Token {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_u8(self.to_u8())
+    }
+}
+
 impl Into<u8> for Token {
     fn into(self) -> u8 {
         self.to_u8()
@@ -161,6 +182,7 @@ impl<'a> Iterator for TokenGroupIter<'a> {
     }
 }
 
+/// An unordered set of tokens
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum TokenGroup {
     Single(Token),
@@ -183,7 +205,8 @@ impl TokenGroup {
         if char.is_ascii_alphanumeric() {
             let char_u8 = (char as u8).to_ascii_lowercase();
             //SAFETY: \0 is not ascii alphanumeric so it will not go here
-            let mut tg: TokenGroup = unsafe { NonZeroU8::new_unchecked(char_u8) }.into();
+            let mut tg: TokenGroup =
+                TokenGroup::from_single(Token(unsafe { NonZeroU8::new_unchecked(char_u8) }));
             if char.is_ascii_digit() {
                 tg.push(Token::new_number());
             }
@@ -234,11 +257,6 @@ impl TokenGroup {
 impl From<Vec<Token>> for TokenGroup {
     fn from(value: Vec<Token>) -> Self {
         Self::Multiple(value)
-    }
-}
-impl From<NonZeroU8> for TokenGroup {
-    fn from(value: NonZeroU8) -> Self {
-        Self::from_single(value.into())
     }
 }
 impl From<Token> for TokenGroup {

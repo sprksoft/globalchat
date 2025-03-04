@@ -1,12 +1,13 @@
-html{
+html {
   --color-shadow: var(--color-base00);
   --color-error: #c03010;
+  --color-ok: #6faa50;
   --border-radius: 15px;
   --border-size: 3px;
   --dialog-border-radius: 30px;
   height:100%;
 }
-body{
+body {
   color: var(--color-text);
   background: var(--color-base00);
   font-family: "Montserrat", "Open Sans", helvetica, sans-serif;
@@ -15,6 +16,7 @@ body{
   height:100%;
   display: flex;
   flex-direction:column;
+  scroll-behavior: smooth;
 }
 
 input[type=checkbox] {
@@ -66,6 +68,15 @@ ul li {
 }
 b {
   color: var(--color-accent);
+}
+
+a {
+  color: var(--color-accent);
+  text-decoration: none;
+  cursor: pointer;
+}
+a:hover {
+  text-decoration: underline;
 }
 
 input[type=checkbox]:checked::after {
@@ -131,6 +142,14 @@ dialog {
     opacity: 0;
   }
 }
+.center-title {
+  text-align: center;
+}
+
+.flex-row {
+  display: flex;
+  flex-direction: row;
+}
 
 .layered-section {
   margin-top: 3em;
@@ -188,10 +207,11 @@ dialog {
   animation: spinner 3s ease infinite;
 }
 
-.loading-dialog span{
+.loading-dialog span {
   font-weight: bold;
   color: var(--color-accent);
   margin-top: auto;
   margin-bottom: auto;
   display:block;
 }
+
