@@ -81,7 +81,7 @@ button {
   border: none;
   color: inherit;
   cursor: pointer;
-  transition: background-color 0.5s;
+  transition: color 0.5s, background-color 0.5s;
 }
 button:hover {
   background-color: var(--color-base03);
@@ -96,7 +96,7 @@ button:hover {
 }
 
 dialog[open]::backdrop{
-  opacity:0.3;
+  opacity:0.6;
 }
 dialog::backdrop {
   opacity:0;
@@ -123,6 +123,7 @@ dialog {
   border: solid var(--color-base01) var(--border-size);
   border-radius: var(--dialog-border-radius);
   background-color: var(--color-base00);
+  color: var(--color-text);
 }
 @starting-style {
   dialog[open]{
@@ -137,4 +138,60 @@ dialog {
   background: var(--color-base01);
   border: solid var(--color-base02) var(--border-size);
   border-radius: var(--border-radius);
+}
+
+.pillbtn {
+  background: var(--color-base02);
+  border: solid var(--color-base03) var(--border-size);
+  border-radius: 10000px;
+  padding: 4px 10px 5px 10px;
+
+  cursor:pointer;
+  color: var(--color-accent);
+}
+.pillbtn[disabled] {
+  opacity: 0.5;
+  cursor: auto;
+  color: var(--color-base03);
+}
+.pillbtn[disabled]:hover {
+  background-color:var(--color-base02);
+}
+
+.dangerbtn {
+  color: var(--color-error);
+}
+
+
+@keyframes spinner {
+  0%{
+    transform: rotateX(0deg);
+    letter-spacing:0px;
+  }
+  25%{
+    letter-spacing:10px;
+  }
+  40%{
+    transform: rotateX(0deg);
+    letter-spacing:0px;
+  }
+  100%{
+    transform: rotateX(360deg);
+  }
+}
+
+.loading-dialog {
+  border: none;
+  border-radius: 100px;
+  background-color: var(--color-base01);
+  padding:1rem;
+  animation: spinner 3s ease infinite;
+}
+
+.loading-dialog span{
+  font-weight: bold;
+  color: var(--color-accent);
+  margin-top: auto;
+  margin-bottom: auto;
+  display:block;
 }

@@ -19,38 +19,6 @@ main {
   padding-right: 2em;
 }
 
-#connection-status{
-  border: none;
-  border-radius: 100px;
-  background-color: var(--color-base01-b0);
-  padding:1rem;
-  animation: spinner 3s ease infinite;
-}
-
-#connection-status span{
-  font-weight: bold;
-  color: var(--color-accent);
-  margin-top: auto;
-  margin-bottom: auto;
-  display:block;
-}
-
-@keyframes spinner{
-  0%{
-    transform: rotateX(0deg);
-    letter-spacing:0px;
-  }
-  25%{
-    letter-spacing:10px;
-  }
-  40%{
-    transform: rotateX(0deg);
-    letter-spacing:0px;
-  }
-  100%{
-    transform: rotateX(360deg);
-  }
-}
 
 #send-input {
   flex-grow:1;
@@ -134,11 +102,6 @@ a:hover {
 .info {
   color: var(--color-accent);
 }
-.info:not(:empty)::after {
-  content: " /";
-  animation: mesg-loading 0.4s ease infinite;
-  color: var(--color-accent);
-}
 
 #chat {
   position:absolute;
@@ -159,15 +122,6 @@ a:hover {
   display:flex;
   flex-direction: column;
   overflow:auto;
-}
-#pending-mesgs {
-  color: var(--color-text);
-  margin: 10px;
-}
-#pending-mesgs div:after {
-  content: " ";
-  animation: spinner 3s ease infinite;
-  color: var(--color-accent);
 }
 @keyframes message_slide {
   0%{
