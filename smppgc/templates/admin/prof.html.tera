@@ -1,4 +1,5 @@
 {% extends "base" %}
+<!-- vim: set ft=html: -->
 
 {% macro ruleBase(rule_flags) %}
 <div class="bot-row">
@@ -14,11 +15,10 @@
     <button class="pillbtn rule-disable-toggle">Disable rule</button>
   </div>
 </div>
-<div class="errors">
+<div class="lints">
 </div>
 {% endmacro ruleBase %}
 
-<!-- vim: set ft=html: -->
 {% block title %}
 Global Chat Admin
 {% endblock title %}
@@ -38,12 +38,21 @@ Global Chat Admin
   <span>loading</span>
 </dialog>
 
+<dialog id="error-dialog">
+  <h1 class="center-title">Failed to check rules</h1>
+  <p id="error-message"></p>
+  <button class="pillbtn" onclick="document.getElementById('error-dialog').close()">Ok</button>
+</dialog>
+
 <dialog id="save-dialog">
-  <h1>Check completed with errors</h1>
-  <div class="errors"></div>
-  <div class="buttons">
-    <button id="publish-btn" class="pillbtn">Ok</button>
-    <button id="publish-btn" class="pillbtn dangerbtn">Publish anyway</button>
+  <h1 class="center-title">Check completed</h1>
+  <div class="lint-section layered-section">
+    <h2>Lints</h2>
+    <div id="lints"></div>
+  </div>
+  <div class="flex-row">
+    <button autofocus id="ok-btn" class="pillbtn">Continue editing</button>
+    <button id="publish-btn" style="margin-left:auto" class="pillbtn dangerbtn">Publish changes</button>
   </div>
 </dialog>
 
@@ -70,8 +79,8 @@ Global Chat Admin
 <header>
   <h1>Profanity filter</h1>
   <div class="header-btns">
-    <button class="dangerbtn pillbtn" id="revert-btn" disabled>Revert all</button>
-    <button class="pillbtn" id="save-btn" disabled>Check rules</button>
+    <button class="dangerbtn pillbtn" id="revert-btn">Revert all</button>
+    <button class="pillbtn" id="save-btn">Check rules</button>
   </div>
 </header>
 <main>
@@ -92,6 +101,9 @@ Global Chat Admin
 {% block scripts %}
 <script id="jsonRules" type="application/json">
   {{ rules | json_encode | safe }}
+</script>
+<script id="jsonLints" type="application/json">
+  {{ lints | json_encode | safe }}
 </script>
 <script id="tokenInfo" type="application/json">
   {{ tokeninfo | json_encode | safe }}

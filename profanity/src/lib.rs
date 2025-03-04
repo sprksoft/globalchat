@@ -1,6 +1,5 @@
 #![cfg_attr(test, feature(test))]
 use std::{collections::HashMap, ops::Range};
-use thiserror::Error;
 
 #[cfg(test)]
 mod other_impls;
@@ -20,14 +19,6 @@ impl TokenizedMessage {
     pub fn tokens(&self) -> std::slice::Iter<'_, TokenGroup> {
         self.0.iter()
     }
-}
-
-#[derive(Debug, Error, PartialEq, Eq)]
-pub enum FilterLint {
-    #[error("rule: {0} {1}")]
-    Rule(usize, RuleLint),
-    #[error("Possible dubble match between rule: {0} and {1}")]
-    PossibleDubbleRule(usize, usize),
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -79,26 +70,10 @@ impl ProfanityFilter {
     pub fn insert_match_rule(&mut self, new_rule: MatchRule) {
         self.rules.push(new_rule);
     }
-    pub fn lint(&self) -> Vec<FilterLint> {
-        let mut lints = Vec::with_capacity(self.rules.len());
-        for (i, rule) in self.rules.iter().enumerate() {
-            for rule in rule.lint() {
-                lints.push(FilterLint::Rule(i, rule));
-            }
-            let tm = self.tokenize_rule(rule);
-            for (ii, rule2) in self.rules.iter().enumerate() {
-                if ii != i && rule2.filter(&tm).is_some() {
-                    lints.push(FilterLint::PossibleDubbleRule(i, ii));
-                }
-            }
-        }
-
-        lints
-    }
     pub fn rule(&self, i: usize) -> &MatchRule {
         &self.rules[i]
     }
-    pub fn rules(&self) -> &[MatchRule] {
+    pub fn match_rules(&self) -> &[MatchRule] {
         &self.rules
     }
 
@@ -110,8 +85,17 @@ impl ProfanityFilter {
         }
         None
     }
+    pub fn check_all(&self, msg: &TokenizedMessage) -> Vec<FilterMatch> {
+        let mut matches = vec![];
+        for rule in self.rules.iter() {
+            if let Some(span) = rule.filter(&msg) {
+                matches.push(FilterMatch { rule: rule, span });
+            }
+        }
+        matches
+    }
 
-    fn tokenize_rule(&self, rule: &MatchRule) -> TokenizedMessage {
+    pub fn tokenize_match_rule(&self, rule: &MatchRule) -> TokenizedMessage {
         TokenizedMessage(
             rule.tokens
                 .iter()
@@ -147,7 +131,7 @@ mod test {
     use crate::{
         rules::{MatchRule, RepRule, RuleFlags},
         tokens::TokenGroup,
-        tokens_ar, FilterLint, ProfanityFilter, TokenizedMessage,
+        tokens_ar, ProfanityFilter, TokenizedMessage,
     };
 
     #[test]
@@ -158,20 +142,6 @@ mod test {
             filter.char_to_token_map.get(&'i'),
             Some(TokenGroup::parse_from_str("ij").unwrap()).as_ref()
         )
-    }
-    #[test]
-    fn lints() {
-        let mut filter = ProfanityFilter::empty();
-        filter.insert_match_rule(MatchRule {
-            tokens: tokens_ar!['s', 'e', 'x', 'y'],
-            flags: RuleFlags::NONE,
-        });
-        filter.insert_match_rule(MatchRule {
-            tokens: tokens_ar!['s', 'e', 'x'],
-            flags: RuleFlags::NONE,
-        });
-
-        assert_eq!(filter.lint(), vec![FilterLint::PossibleDubbleRule(0, 1)]);
     }
 
     #[test]

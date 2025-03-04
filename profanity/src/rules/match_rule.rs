@@ -101,14 +101,6 @@ pub enum MatchRuleParseError {
     TokenParseError(#[from] TokenParseError),
 }
 
-#[derive(Debug, Error, PartialEq, Eq)]
-pub enum RuleLint {
-    #[error(
-        "Rule ends in -en. Ex. godverdomen will not match godverdome. (Replace -en suffix with -e)"
-    )]
-    En,
-}
-
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct MatchRule {
@@ -116,16 +108,6 @@ pub struct MatchRule {
     pub flags: RuleFlags,
 }
 impl MatchRule {
-    pub fn lint(&self) -> Vec<RuleLint> {
-        let mut lints = Vec::new();
-        if self.tokens.ends_with(&[
-            Token::from_char('e').unwrap(),
-            Token::from_char('n').unwrap(),
-        ]) {
-            lints.push(RuleLint::En)
-        }
-        lints
-    }
     pub fn from_match_str(str: &str) -> Result<Self, MatchRuleParseError> {
         Ok(Self {
             flags: RuleFlags::NONE,

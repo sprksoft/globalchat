@@ -9,7 +9,7 @@ pub enum RepRuleParseError {
     TokenParseError(#[from] TokenParseError),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct RepRule {
     pub match_chars: String,

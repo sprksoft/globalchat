@@ -1,5 +1,8 @@
+use profanity::Token;
 use rocket::serde::{Deserialize, Serialize};
 use thiserror::Error;
+
+use super::LintImportance;
 
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(crate = "rocket::serde")]
@@ -7,6 +10,28 @@ pub struct Rule {
     pub enabled: bool,
     #[serde(flatten)]
     pub inner: profanity::Rule,
+}
+impl Rule {
+    pub fn lint(&self) -> Vec<(LintImportance, &'static str)> {
+        let mut lints = Vec::new();
+        match &self.inner {
+            profanity::Rule::Match(rule) => {
+                if rule.tokens.ends_with(&[
+                    Token::from_char('e').unwrap(),
+                    Token::from_char('n').unwrap(),
+                ]) {
+                    lints.push((
+                            LintImportance::Error,
+                            "Rule ends in -en. Ex. 'aaien' will not match 'aaie'. (Replace -en suffix with -e)",
+                    ));
+                }
+            }
+            profanity::Rule::Replace(_rule) => {
+                //TODO: check for double match chars
+            }
+        }
+        lints
+    }
 }
 
 #[derive(Debug, Error)]
@@ -39,4 +64,25 @@ pub fn parse_from_str(str: &str) -> Result<Vec<Rule>, ParseError> {
     }
 
     Ok(rules)
+}
+
+#[cfg(test)]
+mod test {
+    use super::{LintImportance, Rule};
+    use profanity::MatchRule;
+
+    #[test]
+    fn lint() {
+        let rule = Rule {
+            inner: profanity::Rule::Match(MatchRule::parse_from_str("aaien").unwrap()),
+            enabled: true,
+        };
+        assert_eq!(
+            rule.lint(),
+            vec![(
+                LintImportance::Error,
+                "Rule ends in -en. Ex. 'aaien' will not match 'aaie'. (Replace -en suffix with -e)"
+            )]
+        )
+    }
 }

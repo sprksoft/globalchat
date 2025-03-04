@@ -66,6 +66,9 @@ impl tera::Function for UrlFunction {
         &self,
         args: &std::collections::HashMap<String, tera::Value>,
     ) -> tera::Result<tera::Value> {
+        if let Some(tera::Value::Bool(true)) = args.get("root") {
+            return Ok(tera::Value::String(self.root_url.clone()));
+        }
         let ver_int: u16 = *crate::VERSION_INT;
         match args.get("path") {
             Some(tera::Value::String(url)) => {

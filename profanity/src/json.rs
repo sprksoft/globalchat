@@ -1,8 +1,25 @@
-use std::marker::PhantomData;
+use std::{marker::PhantomData, num::NonZeroU8};
 
 use serde::de::Visitor;
 
-use crate::TokenGroup;
+use crate::{Token, TokenGroup};
+
+pub(crate) struct TokenVisitor;
+impl<'de> Visitor<'de> for TokenVisitor {
+    type Value = Token;
+    fn expecting(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+        fmt.write_str("A token")
+    }
+    fn visit_u8<E>(self, v: u8) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        NonZeroU8::new(v)
+            .map(|v| Token::from_u8(v))
+            .flatten()
+            .ok_or(E::custom("number is an invalid token"))
+    }
+}
 
 pub(crate) struct TokenGroupVisitor;
 
@@ -16,8 +33,8 @@ impl<'de> Visitor<'de> for TokenGroupVisitor {
         A: serde::de::SeqAccess<'de>,
     {
         let mut tokens = Vec::with_capacity(seq.size_hint().unwrap_or(0));
-        while let Some(el) = seq.next_element()? {
-            tokens.push(el);
+        while let Some(token) = seq.next_element()? {
+            tokens.push(token);
         }
 
         Ok(if tokens.len() == 1 {

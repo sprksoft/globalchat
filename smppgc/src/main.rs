@@ -9,9 +9,6 @@ use rocket::{fairing::AdHoc, launch};
 use rocket::{get, State};
 use utils::static_routing;
 
-#[cfg(test)]
-mod test;
-
 mod chat;
 mod csp;
 mod debug;

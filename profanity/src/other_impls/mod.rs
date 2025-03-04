@@ -1,4 +1,3 @@
-use serde::{Deserialize, Serialize};
 use string_tree::StringTree;
 
 #[cfg(test)]
@@ -6,7 +5,7 @@ mod bench;
 #[cfg(test)]
 mod test_data;
 
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ProfanityFilter {
     wordlist: Vec<Box<str>>,
 }
@@ -130,7 +129,7 @@ pub fn sentence_contains_loop(wordlist: &Vec<Box<str>>, sentence: &str) -> bool 
     false
 }
 
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct STProfanityFilter {
     tree: StringTree,
 }
