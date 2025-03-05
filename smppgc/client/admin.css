@@ -207,5 +207,12 @@ main {
 }
 #error-message {
   text-align: center;
+  font-weight: bold;
   color: var(--color-error);
+  margin-top: 0px;
+}
+
+.hints {
+  margin-left: 0.5em;
+  opacity: 0.8;
 }

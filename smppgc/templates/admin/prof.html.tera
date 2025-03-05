@@ -38,21 +38,18 @@ Global Chat Admin
   <span>loading</span>
 </dialog>
 
-<dialog id="error-dialog">
-  <h1 class="center-title">Failed to check rules</h1>
-  <p id="error-message"></p>
-  <button class="pillbtn" onclick="document.getElementById('error-dialog').close()">Ok</button>
-</dialog>
-
 <dialog id="save-dialog">
-  <h1 class="center-title">Check completed</h1>
+  <h1 id="save-dialog-title" class="center-title"></h1>
+  <p id="error-message"></p>
   <div class="lint-section layered-section">
     <h2>Lints</h2>
     <div id="lints"></div>
   </div>
+  <p class="hints">
+  <b>Hint:</b> Press <kbd>ctrl</kbd> + <kbd>e</kbd> to show this menu again and <kbd>ctrl</kbd> + <kbd>s</kbd> to save.
+  </p>
   <div class="flex-row">
     <button autofocus id="ok-btn" class="pillbtn">Continue editing</button>
-    <button id="publish-btn" style="margin-left:auto" class="pillbtn dangerbtn">Publish changes</button>
   </div>
 </dialog>
 
@@ -79,8 +76,8 @@ Global Chat Admin
 <header>
   <h1>Profanity filter</h1>
   <div class="header-btns">
-    <button class="dangerbtn pillbtn" id="revert-btn">Revert all</button>
-    <button class="pillbtn" id="save-btn">Check rules</button>
+    <button class="pillbtn" id="show-lints-btn">Show lints</button>
+    <button class="pillbtn" id="save-btn">Save rules</button>
   </div>
 </header>
 <main>
@@ -99,8 +96,8 @@ Global Chat Admin
 {% endblock content %}
 
 {% block scripts %}
-<script id="jsonRules" type="application/json">
-  {{ rules | json_encode | safe }}
+<script id="jsonRuleset" type="application/json">
+  {{ ruleset | json_encode | safe }}
 </script>
 <script id="jsonLints" type="application/json">
   {{ lints | json_encode | safe }}

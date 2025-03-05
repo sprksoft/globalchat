@@ -76,7 +76,7 @@ pub const PROF_SENTENCES: [&'static str; 42] = [
     ];
 
 // prof sentences not caught by censor to see performance difference
-pub const EXT_PROF_SENTENCES: [&'static str; 9] = [
+pub const EXT_PROF_SENTENCES: [&'static str; 10] = [
     "niger",
     "n!iiiiiiger",
     "niggggggggggger",
@@ -86,6 +86,7 @@ pub const EXT_PROF_SENTENCES: [&'static str; 9] = [
     "nîger",
     "lesbîeb",
     "gây",
+    "kr",
 ];
 
 pub const MODIFY_PROF_SENTENCES: [(&'static str, &'static str); 7] = [
@@ -116,4 +117,4 @@ pub const CLEAN_SENTENCES: [&'static str; 14] = [
 ];
 
 // clean sentences not caught by censor to see performance difference
-pub const EXT_CLEAN_SENTENCES: [&'static str; 2] = ["nigeria", "password"];
+pub const EXT_CLEAN_SENTENCES: [&'static str; 3] = ["nigeria", "password", "kraan"];

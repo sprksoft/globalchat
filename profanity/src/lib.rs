@@ -19,6 +19,9 @@ impl TokenizedMessage {
     pub fn tokens(&self) -> std::slice::Iter<'_, TokenGroup> {
         self.0.iter()
     }
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
 }
 
 #[derive(Debug, Eq, PartialEq)]

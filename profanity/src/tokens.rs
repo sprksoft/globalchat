@@ -1,7 +1,6 @@
 use std::fmt::Debug;
 use std::num::NonZeroU8;
 
-use serde::Deserialize;
 use thiserror::Error;
 
 #[macro_export]
@@ -64,7 +63,7 @@ macro_rules! special_tokens {
 special_tokens! {
     impl Token {
         '/':b'/':"Match a literal / character";
-        'w':b' ':"Match any whitespace character. (space, tab, enter, ...)";
+        'w':b' ':"Match any whitespace character (space, tab, enter, ...), end or start of message.";
         '0':1:"Match any number (0-9)";
         'k':3:"Match any vowel. (a,e,i,o,u,...)";
         '?':2:"Match any unknown character. (Unknown characters are characters that don't appear in a replace rule and aren't a-z)";
@@ -217,6 +216,12 @@ impl TokenGroup {
         }
         None
     }
+    pub fn len(&self) -> usize {
+        match self {
+            Self::Single(_) => 1,
+            Self::Multiple(v) => v.len(),
+        }
+    }
     pub fn iter(&self) -> TokenGroupIter<'_> {
         match self {
             Self::Single(t) => TokenGroupIter::Single(Some(t)),
@@ -290,5 +295,35 @@ impl serde::Serialize for TokenGroup {
             seq_ser.serialize_element(token)?;
         }
         seq_ser.end()
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use std::num::NonZeroU8;
+
+    use crate::Token;
+
+    #[test]
+    fn from_u8() {
+        let valid_numbers = [120, 97, 1, 2, 3];
+        for valid_num in valid_numbers {
+            let num = NonZeroU8::new(valid_num).unwrap();
+            assert!(
+                Token::from_u8(num).is_some(),
+                "{} should be a valid token",
+                valid_num
+            )
+        }
+
+        let invalid_numbers = [65, 64, 90, 92];
+        for invalid_num in invalid_numbers {
+            let num = NonZeroU8::new(invalid_num).unwrap();
+            assert!(
+                Token::from_u8(num).is_none(),
+                "{} should not be a valid token",
+                invalid_num
+            )
+        }
     }
 }

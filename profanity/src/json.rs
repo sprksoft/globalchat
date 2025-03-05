@@ -8,7 +8,7 @@ pub(crate) struct TokenVisitor;
 impl<'de> Visitor<'de> for TokenVisitor {
     type Value = Token;
     fn expecting(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
-        fmt.write_str("A token")
+        fmt.write_str("a profanity token")
     }
     fn visit_u8<E>(self, v: u8) -> Result<Self::Value, E>
     where
@@ -19,13 +19,54 @@ impl<'de> Visitor<'de> for TokenVisitor {
             .flatten()
             .ok_or(E::custom("number is an invalid token"))
     }
+    fn visit_u32<E>(self, v: u32) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        if v <= u32::from(u8::MAX) {
+            self.visit_u8(v as u8)
+        } else {
+            Err(E::custom("number is an invalid token"))
+        }
+    }
+    fn visit_i32<E>(self, v: i32) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        if v <= i32::from(u8::MAX) && v >= i32::from(u8::MIN) {
+            self.visit_u8(v as u8)
+        } else {
+            Err(E::custom("number is an invalid token"))
+        }
+    }
+
+    fn visit_u64<E>(self, v: u64) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        if v <= u64::from(u8::MAX) {
+            self.visit_u8(v as u8)
+        } else {
+            Err(E::custom("number is an invalid token"))
+        }
+    }
+    fn visit_i64<E>(self, v: i64) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        if v <= i64::from(u8::MAX) && v >= i64::from(u8::MIN) {
+            self.visit_u8(v as u8)
+        } else {
+            Err(E::custom("number is an invalid token"))
+        }
+    }
 }
 
 pub(crate) struct TokenGroupVisitor;
 
 impl<'de> Visitor<'de> for TokenGroupVisitor {
     fn expecting(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
-        fmt.write_str("a TokenGroup")
+        fmt.write_str("a profanity token group")
     }
     type Value = TokenGroup;
     fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>

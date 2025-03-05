@@ -35,4 +35,35 @@ impl RepRule {
             replace_tg,
         })
     }
+
+    pub fn matches(&self, chars: impl Iterator<Item = char>) -> bool {
+        for char in chars {
+            if self.match_chars.contains(char) {
+                return true;
+            }
+        }
+        false
+    }
+
+    pub fn to_string(&self) -> String {
+        let mut string = String::with_capacity(self.match_chars.len() + 2 + self.replace_tg.len());
+        let mut last_equals = false;
+        for char in self.match_chars.chars() {
+            if last_equals && char == '>' {
+                string.push(' '); // Escape a => combination by adding a space inbetween
+            }
+            string.push(char);
+            last_equals = false;
+            if char == '=' {
+                last_equals = true;
+            }
+        }
+        string.push('=');
+        string.push('>');
+        for token in self.replace_tg.iter() {
+            string.push_str(&token.to_string());
+        }
+
+        string
+    }
 }
