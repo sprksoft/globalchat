@@ -45,6 +45,7 @@ macro_rules! flags {
                 }
             }
             #[allow(unused_assignments)]
+            #[inline]
             fn append_to_string(&self, string: &mut String) {
                 let mut first = true;
                 $(
@@ -88,7 +89,6 @@ macro_rules! flags {
 
 flags! {
     pub flags RuleFlags {
-        WORD:"word":0b00000001:"Only match words that are separated by whitespace. 'ass' will not match 'password' when this is on";
         NO_DEDUP:"no_dedup":0b00000010:"Don't deduplicate characters. 'potato' will not match 'pottttttato' when this is on";
     }
 }
@@ -154,13 +154,13 @@ impl MatchRule {
         //println!("{:?}", self);
         let mut prev_char_check = None;
         let mut match_index = 0;
+        if self.tokens[match_index].is_whitespace() {
+            match_index += 1;
+        }
         let mut t_me = self.tokens[match_index];
         let mut start_index = 0;
         for (index, t_other) in other.tokens().enumerate() {
-            if t_other.is_unknown() {
-                continue;
-            }
-            if t_other.is_whitespace() && !self.flags.contains(RuleFlags::WORD) {
+            if !t_me.is_whitespace() && (t_other.is_unknown() || t_other.is_whitespace()) {
                 continue;
             }
             if prev_char_check == Some(t_other) && !self.flags.contains(RuleFlags::NO_DEDUP) {
@@ -190,6 +190,9 @@ impl MatchRule {
                 //println!("reset");
             }
         }
+        if match_index == self.tokens.len() - 1 && self.tokens[match_index].is_whitespace() {
+            return Some(start_index..other.len());
+        }
         None
     }
 }
@@ -203,14 +206,14 @@ mod test {
 
     #[test]
     fn parse() {
-        let rule = MatchRule::parse_from_str("abcd:word").unwrap();
+        let rule = MatchRule::parse_from_str("abcd:no_dedup").unwrap();
         assert_eq!(
             rule,
             MatchRule {
                 tokens: tokens_ar!['a', 'b', 'c', 'd'],
-                flags: RuleFlags::WORD
+                flags: RuleFlags::NO_DEDUP
             },
-            "wordmatch flag"
+            "no_dedup flag"
         );
 
         let rule = MatchRule::parse_from_str("abcd:").unwrap();
@@ -220,7 +223,7 @@ mod test {
                 tokens: tokens_ar!['a', 'b', 'c', 'd'],
                 flags: RuleFlags::NONE
             },
-            "no wordmatch flag"
+            "no no_dedup flag"
         );
     }
 
@@ -237,25 +240,13 @@ mod test {
     }
 
     #[test]
-    fn wordmatch() {
+    fn whitespace_non_character_match_test() {
         let mut filter = ProfanityFilter::empty();
-        let rule = MatchRule::parse_from_str("abcd:word").unwrap();
+        let rule = MatchRule::parse_from_str("/wabcd/w").unwrap();
         filter.insert_match_rule(rule);
         assert!(
-            filter
-                .check(&filter.tokenize("Hi word a.b cd end words").0)
-                .is_none(),
-            "expected word flag to not match whitespace delimited"
-        );
-
-        let mut filter = ProfanityFilter::empty();
-        let rule = MatchRule::parse_from_str("abcd").unwrap();
-        filter.insert_match_rule(rule);
-        assert!(
-            filter
-                .check(&filter.tokenize("Hi word a.b cd end words").0)
-                .is_some(),
-            "expected non word flag to match whitespace delimited"
+            filter.check(&filter.tokenize("abcd").0).is_some(),
+            "expected whitespace to match non characters"
         );
     }
 
@@ -310,13 +301,13 @@ mod test {
         };
         assert_eq!(rule.to_string(), "abcd:".to_string());
 
-        rule.flags.insert(RuleFlags::WORD);
-        assert_eq!(rule.to_string(), "abcd:word".to_string());
-
         rule.flags.insert(RuleFlags::NO_DEDUP);
-        assert_eq!(rule.to_string(), "abcd:word,no_dedup".to_string());
-
-        rule.flags.remove(RuleFlags::WORD);
         assert_eq!(rule.to_string(), "abcd:no_dedup".to_string());
+
+        // rule.flags.insert(RuleFlags::NO_DEDUP);
+        // assert_eq!(rule.to_string(), "abcd:word,no_dedup".to_string());
+        //
+        // rule.flags.remove(RuleFlags::WORD);
+        // assert_eq!(rule.to_string(), "abcd:no_dedup".to_string());
     }
 }

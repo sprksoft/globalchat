@@ -2,6 +2,7 @@ use std::{collections::HashSet, sync::Arc};
 
 use circular_queue::CircularQueue;
 use log::*;
+use profanity::ProfanityFilter;
 use tokio::sync::{
     broadcast::{self, error::RecvError},
     Mutex,
@@ -35,6 +36,7 @@ pub struct Chat {
     messages_sender: broadcast::Sender<Message>,
     join_sender: broadcast::Sender<UserInfo>,
     left_sender: broadcast::Sender<UserInfo>,
+    message_delete_sender: broadcast::Sender<Message>,
 
     clients: Arc<Mutex<HashSet<UserInfo>>>,
     history: Arc<Mutex<CircularQueue<Message>>>,
@@ -47,6 +49,8 @@ impl Chat {
         let (messages_sender, messages_receiver) = broadcast::channel(20);
         let (join_sender, _) = broadcast::channel(20);
         let (left_sender, left_receiver) = broadcast::channel(20);
+
+        let (message_delete_sender, _) = broadcast::channel(20);
 
         let clients = Arc::new(Mutex::new(HashSet::new()));
         let history = Arc::new(Mutex::new(CircularQueue::with_capacity(
@@ -61,6 +65,7 @@ impl Chat {
         );
 
         Self {
+            message_delete_sender,
             messages_sender,
             join_sender,
             left_sender,
@@ -139,6 +144,7 @@ impl Chat {
             message_sender: self.messages_sender.clone(),
             message_receiver: self.messages_sender.subscribe(),
             join_receiver: self.join_sender.subscribe(),
+            message_delete_receiver: self.message_delete_sender.subscribe(),
         };
 
         let _ = self.join_sender.send(client.user_info()); // throws error when no receivers
@@ -157,6 +163,23 @@ impl Chat {
             .cloned()
             .collect()
     }
+
+    pub async fn run_filter(&self, filter: &ProfanityFilter) {
+        let mut lock = self.history.lock().await;
+        let mut new_messages = CircularQueue::with_capacity(lock.capacity());
+        // TODO: When my pullrequest gets released on circular_queue use into Vec<T>
+        for mut mesg in lock.iter().cloned() {
+            let (content_tokenized, new_content) = filter.tokenize(&mesg.content);
+            mesg.content = new_content.into();
+            if filter.check(&content_tokenized).is_none() {
+                new_messages.push(mesg);
+            } else {
+                let _ = self.message_delete_sender.send(mesg);
+            }
+        }
+        *lock = new_messages;
+    }
+
     pub async fn clients<'a>(&'a self) -> Vec<UserInfo> {
         self.clients.lock().await.iter().cloned().collect()
     }
@@ -168,6 +191,7 @@ pub struct ChatClient {
     message_sender: broadcast::Sender<Message>,
     pub message_receiver: broadcast::Receiver<Message>,
     pub join_receiver: broadcast::Receiver<UserInfo>,
+    pub message_delete_receiver: broadcast::Receiver<Message>,
 }
 impl ChatClient {
     #[inline]

@@ -4,77 +4,113 @@ use thiserror::Error;
 
 use super::LintImportance;
 
-#[derive(Clone, Serialize, Deserialize)]
+pub trait Rule {
+    fn lint(&self) -> Vec<(LintImportance, &'static str)>;
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 #[serde(crate = "rocket::serde")]
-pub struct Rule {
+pub struct MatchRule {
     pub enabled: bool,
     #[serde(flatten)]
-    pub inner: profanity::Rule,
+    pub inner: profanity::MatchRule,
 }
-impl Rule {
-    pub fn lint(&self) -> Vec<(LintImportance, &'static str)> {
+
+impl Rule for MatchRule {
+    fn lint(&self) -> Vec<(LintImportance, &'static str)> {
         let mut lints = Vec::new();
-        match &self.inner {
-            profanity::Rule::Match(rule) => {
-                if rule.tokens.ends_with(&[
-                    Token::from_char('e').unwrap(),
-                    Token::from_char('n').unwrap(),
-                ]) {
-                    lints.push((
-                            LintImportance::Error,
-                            "Rule ends in -en. Ex. 'aaien' will not match 'aaie'. (Replace -en suffix with -e)",
-                    ));
-                }
-            }
-            profanity::Rule::Replace(_rule) => {
-                //TODO: check for double match chars
-            }
+        if self.inner.tokens.ends_with(&[
+            Token::from_char('e').unwrap(),
+            Token::from_char('n').unwrap(),
+        ]) {
+            lints.push((
+                LintImportance::Error,
+                "Rule ends in -en. Ex. 'aaien' will not match 'aaie'. (Replace -en suffix with -e)",
+            ));
         }
         lints
     }
 }
 
-#[derive(Debug, Error)]
-#[error("{linenum}: {err}")]
-pub struct ParseError {
-    linenum: usize,
-    err: profanity::ParseRuleError,
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
+#[serde(crate = "rocket::serde")]
+pub struct RepRule {
+    pub enabled: bool,
+    #[serde(flatten)]
+    pub inner: profanity::RepRule,
 }
-
-pub fn parse_from_str(str: &str) -> Result<Vec<Rule>, ParseError> {
-    let mut rules = Vec::new();
-
-    for (i, line) in str.lines().enumerate() {
-        let line = &line[..line.find('#').unwrap_or(line.len())];
-        if line.is_empty() {
-            continue;
+impl Rule for RepRule {
+    fn lint(&self) -> Vec<(LintImportance, &'static str)> {
+        let mut vec = Vec::new();
+        'outer: for (i, char) in self.inner.match_chars.chars().enumerate() {
+            for (ii, char2) in self.inner.match_chars.chars().enumerate() {
+                if char == char2 && i != ii {
+                    vec.push((
+                        LintImportance::Error,
+                        "Character 2 times in match part of the replace rule",
+                    ));
+                    break 'outer;
+                }
+            }
         }
-        let (enabled, rule_str) = if line.starts_with('*') {
-            (false, &line[1..])
-        } else {
-            (true, line)
-        };
-        rules.push(Rule {
-            enabled,
-            inner: profanity::Rule::parse_from_str(rule_str).map_err(|err| ParseError {
-                err,
-                linenum: i + 1,
-            })?,
-        });
-    }
 
-    Ok(rules)
+        'outer: for (i, token) in self.inner.replace_tg.iter().enumerate() {
+            for (ii, token2) in self.inner.replace_tg.iter().enumerate() {
+                if token == token2 && i != ii {
+                    vec.push((
+                        LintImportance::Error,
+                        "Token 2 times in replace part of the replace rule",
+                    ));
+                    break 'outer;
+                }
+            }
+        }
+
+        vec
+    }
 }
 
 #[cfg(test)]
 mod test {
-    use super::{LintImportance, Rule};
-    use profanity::MatchRule;
+    use super::{LintImportance, MatchRule, RepRule, Rule};
 
     #[test]
-    fn lint() {
-        let rule = Rule {
-            inner: profanity::Rule::Match(MatchRule::parse_from_str("aaien").unwrap()),
+    fn rep_rule_lint() {
+        let rule = RepRule {
+            inner: profanity::RepRule::parse_from_str("$'$_é&ö=>s/k").unwrap(),
+            enabled: true,
+        };
+        assert_eq!(
+            rule.lint(),
+            vec![(
+                LintImportance::Error,
+                "Character 2 times in match part of the replace rule"
+            )]
+        );
+
+        let rule = RepRule {
+            inner: profanity::RepRule::parse_from_str("$'_é&ö=>/ks/k").unwrap(),
+            enabled: true,
+        };
+        assert_eq!(
+            rule.lint(),
+            vec![(
+                LintImportance::Error,
+                "Token 2 times in replace part of the replace rule"
+            )]
+        );
+
+        let rule = RepRule {
+            inner: profanity::RepRule::parse_from_str("$'_é&ö=>/ks").unwrap(),
+            enabled: true,
+        };
+        assert_eq!(rule.lint(), vec![])
+    }
+
+    #[test]
+    fn match_rule_lint() {
+        let rule = MatchRule {
+            inner: profanity::MatchRule::parse_from_str("aaien").unwrap(),
             enabled: true,
         };
         assert_eq!(

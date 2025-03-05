@@ -17,59 +17,183 @@ pub enum LintImportance {
     Notify,
 }
 
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Serialize)]
 #[serde(crate = "rocket::serde")]
-pub struct RulesetLint {
+pub struct Lint {
     pub importance: LintImportance,
     pub affected_rule: usize,
     pub second_affected_rule: Option<usize>,
     pub message: &'static str,
 }
 
+#[derive(Debug, PartialEq, Eq, Serialize)]
+#[serde(crate = "rocket::serde")]
+pub struct LintSet {
+    match_lints: Vec<Lint>,
+    rep_lints: Vec<Lint>,
+    #[serde(skip)]
+    has_errors: bool,
+}
+impl LintSet {
+    pub fn has_errors(&self) -> bool {
+        self.has_errors
+    }
+    pub fn rep_lints(&self) -> &[Lint] {
+        &self.rep_lints
+    }
+    pub fn match_lints(&self) -> &[Lint] {
+        &self.match_lints
+    }
+}
+
 #[derive(Debug, Error)]
-pub enum ProfFileLoadErr {
+#[error("{linenum}: {err}")]
+pub struct ParseError {
+    linenum: usize,
+    err: profanity::ParseRuleError,
+}
+
+#[derive(Debug, Error)]
+pub enum RulesetError {
     #[error("{0}")]
     IO(#[from] std::io::Error),
     #[error("{0}")]
-    ParseError(#[from] rules::ParseError),
+    ParseError(#[from] ParseError),
+
+    #[error("No filter path set on this ruleset")]
+    NoFilterPath,
 }
 
+#[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]
+#[serde(crate = "rocket::serde")]
 pub struct ProfRuleset {
+    #[serde(skip)]
     filter_path: Option<PathBuf>,
-    rules: Vec<rules::Rule>,
+    rep_rules: Vec<rules::RepRule>,
+    match_rules: Vec<rules::MatchRule>,
 }
 impl ProfRuleset {
-    pub fn new(filter_path: PathBuf) -> Result<Self, ProfFileLoadErr> {
+    pub fn new(filter_path: PathBuf) -> Result<Self, RulesetError> {
         let file = std::fs::read_to_string(&filter_path)?;
 
-        let rules = rules::parse_from_str(&file)?;
+        let mut me = Self::parse_from_str(&file)?;
+        me.filter_path = Some(filter_path);
+
+        Ok(me)
+    }
+
+    pub fn parse_from_str(str: &str) -> Result<Self, ParseError> {
+        let mut match_rules = Vec::new();
+        let mut rep_rules = Vec::new();
+
+        for (i, line) in str.lines().enumerate() {
+            let line = &line[..line.find('#').unwrap_or(line.len())];
+            if line.is_empty() {
+                continue;
+            }
+            let (enabled, rule_str) = if line.starts_with('*') {
+                (false, &line[1..])
+            } else {
+                (true, line)
+            };
+
+            match profanity::Rule::parse_from_str(rule_str).map_err(|err| ParseError {
+                err,
+                linenum: i + 1,
+            })? {
+                profanity::Rule::Match(m) => match_rules.push(MatchRule { enabled, inner: m }),
+                profanity::Rule::Replace(r) => rep_rules.push(RepRule { enabled, inner: r }),
+            }
+        }
 
         Ok(Self {
-            filter_path: Some(filter_path),
-            rules,
-        })
-    }
-    pub fn from_str(string: &str) -> Result<Self, ProfFileLoadErr> {
-        Ok(Self {
+            rep_rules,
+            match_rules,
             filter_path: None,
-            rules: rules::parse_from_str(string)?,
         })
     }
-    pub fn from_rules(rules: Vec<rules::Rule>) -> Self {
+
+    pub fn from_rules(rep_rules: Vec<rules::RepRule>, match_rules: Vec<rules::MatchRule>) -> Self {
         Self {
             filter_path: None,
-            rules,
+            rep_rules,
+            match_rules,
         }
     }
-    pub fn rules(&self) -> &[rules::Rule] {
-        &self.rules
+    pub fn rep_rules(&self) -> &[rules::RepRule] {
+        &self.rep_rules
+    }
+    pub fn match_rules(&self) -> &[rules::MatchRule] {
+        &self.match_rules
+    }
+    pub fn replace_from(&mut self, other: ProfRuleset) {
+        self.rep_rules = other.rep_rules;
+        self.match_rules = other.match_rules;
     }
 
-    pub fn lint(&self, filter: &ProfanityFilter) -> Vec<RulesetLint> {
-        let mut lints = Vec::with_capacity(self.rules.len());
-        for (i, rule) in self.rules.iter().enumerate() {
+    pub fn to_string(&self) -> String {
+        let mut string = String::new();
+
+        for rule in self.rep_rules() {
+            if !rule.enabled {
+                string.push('*');
+            }
+            string.push_str(&rule.inner.to_string());
+            string.push('\n');
+        }
+        for rule in self.match_rules() {
+            if !rule.enabled {
+                string.push('*');
+            }
+            string.push_str(&rule.inner.to_string());
+            string.push('\n');
+        }
+        string
+    }
+
+    pub fn save(&self) -> Result<(), RulesetError> {
+        let filter_path = self
+            .filter_path
+            .as_ref()
+            .ok_or(RulesetError::NoFilterPath)?;
+
+        std::fs::write(&filter_path, self.to_string())?;
+        Ok(())
+    }
+
+    pub fn lint(&self, filter: &ProfanityFilter) -> LintSet {
+        let mut rep_lints = Vec::new();
+        let mut has_errors = false;
+        for (i, rule) in self.rep_rules.iter().enumerate() {
             for (importance, message) in rule.lint() {
-                lints.push(RulesetLint {
+                rep_lints.push(Lint {
+                    affected_rule: i,
+                    second_affected_rule: None,
+                    message,
+                    importance,
+                })
+            }
+
+            for (ii, other_rule) in self.rep_rules().iter().enumerate() {
+                if ii == i {
+                    continue;
+                }
+                if other_rule.inner.matches(rule.inner.match_chars.chars()) {
+                    rep_lints.push(Lint {
+                        affected_rule: i,
+                        second_affected_rule: Some(ii),
+                        message: "Found 2 replace rules that replace the same character",
+                        importance: LintImportance::Error,
+                    });
+                    has_errors = true;
+                }
+            }
+        }
+
+        let mut match_lints = Vec::new();
+        for (i, rule) in self.match_rules.iter().enumerate() {
+            for (importance, message) in rule.lint() {
+                match_lints.push(Lint {
                     affected_rule: i,
                     second_affected_rule: None,
                     message,
@@ -77,56 +201,58 @@ impl ProfRuleset {
                 })
             }
             if let Some(other_i) = self
-                .rules()
+                .match_rules()
                 .iter()
                 .enumerate()
                 .find(|(ii, r)| *ii != i && r.inner == rule.inner)
                 .map(|(i, _)| i)
             {
-                lints.push(RulesetLint {
+                match_lints.push(Lint {
                     affected_rule: i,
                     second_affected_rule: Some(other_i),
-                    message: "Duplicated rule found",
+                    message: "Duplicated match rule found",
                     importance: LintImportance::Error,
                 });
+                has_errors = true;
                 continue;
             }
-            match &rule.inner {
-                profanity::Rule::Match(rule) => {
-                    let tm = filter.tokenize_match_rule(&rule);
-                    let matches = filter.check_all(&tm);
-                    if let Some(other_match) = matches.iter().find(|m| m.rule != rule) {
-                        let other_index = self
-                            .rules
-                            .iter()
-                            .enumerate()
-                            .find(|(_, r)| match &r.inner {
-                                profanity::Rule::Match(r) => r == other_match.rule,
-                                _ => false,
-                            })
-                            .map(|(i, _)| i)
-                            .unwrap();
+            let tm = filter.tokenize_match_rule(&rule.inner);
+            let matches = filter.check_all(&tm);
+            if let Some(other_match) = matches.iter().find(|m| *m.rule != rule.inner) {
+                let other_index = self
+                    .match_rules()
+                    .iter()
+                    .enumerate()
+                    .find(|(_, r)| r.inner == *other_match.rule)
+                    .map(|(i, _)| i)
+                    .unwrap();
 
-                        lints.push(RulesetLint {
-                            affected_rule: i,
-                            second_affected_rule: Some(other_index),
-                            message: "Possible double match between 2 rules",
-                            importance: LintImportance::Notify,
-                        });
-                    }
-                }
-                profanity::Rule::Replace(_rule) => {}
+                match_lints.push(Lint {
+                    affected_rule: i,
+                    second_affected_rule: Some(other_index),
+                    message: "Possible double match between 2 rules",
+                    importance: LintImportance::Notify,
+                });
             }
         }
 
-        lints
+        LintSet {
+            match_lints,
+            rep_lints,
+            has_errors,
+        }
     }
 
     pub fn build_filter(&self) -> ProfanityFilter {
         let mut filter = ProfanityFilter::empty();
-        for rule in self.rules.iter() {
+        for rule in self.rep_rules.iter() {
             if rule.enabled {
-                filter.insert_rule(rule.inner.clone())
+                filter.insert_rep_rule(rule.inner.clone())
+            }
+        }
+        for rule in self.match_rules.iter() {
+            if rule.enabled {
+                filter.insert_match_rule(rule.inner.clone())
             }
         }
         filter
@@ -214,43 +340,63 @@ pub fn stage() -> AdHoc {
 
 #[cfg(test)]
 mod test {
-    use crate::profanity::{LintImportance, ProfRuleset, RulesetLint};
+    use crate::profanity::{Lint, LintImportance, LintSet, ProfRuleset};
+
+    #[test]
+    fn json_test() {
+        let orig =
+            ProfRuleset::parse_from_str("aeéè => xbd/k/w\nî=>lji\npotato\nsomething").unwrap();
+        let json = rocket::serde::json::to_string(&orig).unwrap();
+
+        assert_eq!(
+            rocket::serde::json::from_str::<ProfRuleset>(&json).unwrap(),
+            orig
+        )
+    }
 
     #[test]
     fn double_match_lint() {
-        let ruleset = ProfRuleset::from_str("sexy\nsex").unwrap();
+        let ruleset = ProfRuleset::parse_from_str("sexy\nsex").unwrap();
         let filter = ruleset.build_filter();
         assert_eq!(
             ruleset.lint(&filter),
-            vec![RulesetLint {
-                affected_rule: 0,
-                second_affected_rule: Some(1),
-                importance: LintImportance::Notify,
-                message: "Possible double match between 2 rules"
-            }]
+            LintSet {
+                match_lints: vec![Lint {
+                    affected_rule: 0,
+                    second_affected_rule: Some(1),
+                    importance: LintImportance::Notify,
+                    message: "Possible double match between 2 rules"
+                }],
+                rep_lints: vec![],
+                has_errors: false,
+            }
         );
     }
 
     #[test]
     fn double_rule_lint() {
-        let ruleset = ProfRuleset::from_str("sex\nsomething\nsex").unwrap();
+        let ruleset = ProfRuleset::parse_from_str("sex\nsomething\nsex").unwrap();
         let filter = ruleset.build_filter();
         assert_eq!(
             ruleset.lint(&filter),
-            vec![
-                RulesetLint {
-                    affected_rule: 0,
-                    second_affected_rule: Some(2),
-                    importance: LintImportance::Error,
-                    message: "Duplicated rule found"
-                },
-                RulesetLint {
-                    affected_rule: 2,
-                    second_affected_rule: Some(0),
-                    importance: LintImportance::Error,
-                    message: "Duplicated rule found"
-                }
-            ]
+            LintSet {
+                match_lints: vec![
+                    Lint {
+                        affected_rule: 0,
+                        second_affected_rule: Some(2),
+                        importance: LintImportance::Error,
+                        message: "Duplicated match rule found"
+                    },
+                    Lint {
+                        affected_rule: 2,
+                        second_affected_rule: Some(0),
+                        importance: LintImportance::Error,
+                        message: "Duplicated match rule found"
+                    }
+                ],
+                rep_lints: vec![],
+                has_errors: true,
+            }
         );
     }
 }

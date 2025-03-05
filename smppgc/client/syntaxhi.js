@@ -1,6 +1,18 @@
 import './syntaxhi.css'
 
 let str_to_token = {};
+let escape_codes = [];
+
+function errWrap(text, error) {
+  return `<i class="special-token special-token-invalid" title="${error}">${text}</i>`;
+}
+function invalidTokenWrap(text) {
+  let allowedStr = "a-z";
+  for (let code of escape_codes) {
+    allowedStr+=", /"+code;
+  }
+  return errWrap(text, "Invalid token (only "+allowedStr+" is allowed)");
+}
 
 function parse_tokengroup_syntax(str) {
   str = str.replace("\n", "");
@@ -18,15 +30,20 @@ function parse_tokengroup_syntax(str) {
         let desc = entry[1];
         parsed+=`<i class="special-token" title="${desc}">&#47;${char}</i>`
       } else {
-        parsed+=`<i class="special-token special-token-invalid" title="Invalid token">&#47;${char}</i>`
+        parsed+=errWrap(`&#47;${char}`, "Invalid escape code");
       }
     } else {
-      parsed+=char;
+      let cCode = char.charCodeAt(0);
+      if (cCode >= 97 && cCode <= 122) {
+        parsed+=char;
+      }else {
+        parsed+=invalidTokenWrap(char);
+      }
     }
 
   }
   if (escape) {
-    parsed+="&#47;";
+    parsed+=invalidTokenWrap(`&#47;`);
   }
   return parsed;
 }
@@ -56,8 +73,11 @@ document.addEventListener("click", (e) => {
 });
 
 export function setTokenInfo(tokenInfo) {
+  escape_codes = [];
+  str_to_token = {};
   for (let token of tokenInfo) {
     str_to_token[token[0]] = [token[1], token[2]];
+    escape_codes.push(token[0]);
   }
 }
 
