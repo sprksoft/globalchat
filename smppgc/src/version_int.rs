@@ -7,13 +7,12 @@ lazy_static! {
             .expect("Major version number can't be parsed into a usize");
         let month: usize = env!("CARGO_PKG_VERSION_MINOR")
             .parse()
-            .expect("Minor version number can't be parsed into a u8");
+            .expect("Minor version number can't be parsed into a usize");
 
         let serial: usize = env!("CARGO_PKG_VERSION_PATCH")
             .parse()
-            .expect("Patch version number can't be parsed into a u8");
+            .expect("Patch version number can't be parsed into a usize");
 
-        // max sure to also modify the js if you change this
         const MAX_SERIALS_PER_MONTH: usize = 20;
         #[cfg(debug_assertions)]
         if serial > MAX_SERIALS_PER_MONTH {

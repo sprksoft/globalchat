@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, ops::Range};
 
 use futures_util::SinkExt;
 use rocket_ws::{
@@ -12,7 +12,7 @@ use tokio_tungstenite::tungstenite;
 use crate::{
     chat::Message,
     users::{UserInfo, UserSid},
-    Timestamp,
+    Snowflake,
 };
 
 use log::*;
@@ -77,7 +77,6 @@ kick_reason! {
 
 pub struct RecievedMessage {
     pub content: String,
-    pub timestamp: Timestamp,
 }
 impl RecievedMessage {
     #[inline]
@@ -110,6 +109,18 @@ impl WsClient {
 
     pub async fn kick(&mut self, reason: KickReason) -> Result<()> {
         self.ws.close(Some(reason.into_close_frame())).await
+    }
+
+    pub async fn profanity_warning(
+        &mut self,
+        message: &str,
+        bad_word: &str,
+        span: Range<crate::MessageLen>,
+    ) -> Result<()> {
+        self.ws
+            .send(packets::new_profanity_warn(message, bad_word, span))
+            .await?;
+        Ok(())
     }
 
     pub async fn forward_client(&mut self, client: &UserInfo) -> Result<()> {
@@ -157,9 +168,6 @@ impl WsClient {
         }
         let content = String::from_utf8_lossy(&message.into_data()).to_string();
 
-        Ok(Some(RecievedMessage {
-            timestamp: Timestamp::now(),
-            content: content,
-        }))
+        Ok(Some(RecievedMessage { content: content }))
     }
 }

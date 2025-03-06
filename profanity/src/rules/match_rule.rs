@@ -148,6 +148,15 @@ impl MatchRule {
 
         str
     }
+    pub fn to_string_friendly(&self) -> String {
+        let mut str = String::with_capacity(self.tokens.len());
+        for t in &self.tokens {
+            if let Some(c) = t.to_friendly_char() {
+                str.push(c);
+            }
+        }
+        str
+    }
 
     #[inline]
     pub fn filter(&self, other: &TokenizedMessage) -> Option<Range<usize>> {
@@ -167,27 +176,22 @@ impl MatchRule {
                 continue;
             }
             prev_char_check = Some(t_other);
-            //println!("{:?} {:?}", t_me, t_other);
+            //dbg!(index, start_index, match_index, t_other);
+            if !t_other.contains(t_me) {
+                match_index = 0;
+                t_me = self.tokens[match_index];
+            };
+
             if t_other.contains(t_me) {
-                //println!("rule: {:?} token: {:?}", t_me, t_other);
+                if match_index == 0 {
+                    start_index = index;
+                }
                 match_index += 1;
                 if match_index == self.tokens.len() {
+                    //dbg!("match");
                     return Some(start_index..index + 1);
                 }
                 t_me = self.tokens[match_index];
-            } else {
-                start_index = index;
-                match_index = 0;
-                t_me = self.tokens[match_index];
-                if t_other.contains(t_me) {
-                    match_index += 1;
-                    if match_index == self.tokens.len() {
-                        return Some(start_index..index + 1);
-                    }
-                    t_me = self.tokens[match_index];
-                }
-
-                //println!("reset");
             }
         }
         if match_index == self.tokens.len() - 1 && self.tokens[match_index].is_whitespace() {
@@ -263,10 +267,10 @@ mod test {
         assert_eq!(result.unwrap().span, 3..11, "End span is wrong");
 
         let result = filter.check(&filter.tokenize(".a_bc d aaaaa").0);
-        assert_eq!(result.unwrap().span, 0..7, "Start span is wrong");
+        assert_eq!(result.unwrap().span, 1..7, "Start span is wrong");
 
         let result = filter.check(&filter.tokenize("Hi word a.b cd end words").0);
-        assert_eq!(result.unwrap().span, 6..14, "Center span is wrong");
+        assert_eq!(result.unwrap().span, 8..14, "Center span is wrong");
     }
 
     #[test]

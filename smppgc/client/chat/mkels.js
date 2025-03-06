@@ -1,5 +1,16 @@
 const STICKERS=["404", "arch", "tux", "smpp", "gc", "fire"]; // avail stickers (used to prevent unneeded 404s to the server)
 
+export function mkProfHighlighted(message, start, end, parent_el) {
+  let span = document.createElement("span");
+  span.appendChild(document.createTextNode(message.substring(0, start)));
+  let hi = document.createElement("mark");
+  hi.classList.add("profanity-mark")
+  hi.innerText = message.substring(start, end);
+  span.appendChild(hi);
+  span.appendChild(document.createTextNode(message.substring(end, message.length)));
+  parent_el.appendChild(span);
+}
+
 export function mksender(sender, parent_el) {
   let special = sender == "system";
   let sender_el = document.createElement("span");
@@ -31,6 +42,14 @@ export function mkspan(innerText, parent_el){
     span.innerText=innerText;
     parent_el.appendChild(span);
 }
+export function mkprofmarkspan(innerText, parent_el) {
+  let span = document.createElement("span");
+  let mark = document.createElement("mark");
+  mark.classList.add("profanity-mark");
+  mark.innerText = innerText;
+  span.appendChild(mark);
+  parent_el.appendChild(span)
+}
 export function mka(link, parent_el) {
     let a = document.createElement("a");
     a.href=link;
@@ -47,29 +66,25 @@ export function mksticker(name, parent_el) {
 }
 
 // Parse the string message and generate html elements for stickers, links,...
-export function mkcontent(message, parent_el) {
-  const find_link_regex = /(https?:\/\/([-.a-z0-9]{1,60})(\/[-a-zA-Z0-9()@:%_\+.~#?&//=]{0,256})?)|(:[a-z0-9_-]{1,10}:)/g;
-  const matches = message.matchAll(find_link_regex);
-  let last_index = 0;
-  for (const match of matches){
-    let skip=false;
-    mkspan(message.substring(last_index, match.index), parent_el);
+export function mkcontent(message, highlight, parent_el) {
+  if (highlight) {
+    mkcontent(message.substring(0, highlight[0]), null, parent_el);
+    mkprofmarkspan(message.substring(highlight[0], highlight[1]), parent_el)
+    mkcontent(message.substring(highlight[1], message.length), null, parent_el);
+  } else {
+    const findStickerRegex = /:[a-z0-9_-]{1,10}:/g;
+    const matches = message.matchAll(findStickerRegex);
+    let last_index = 0;
+    for (const match of matches) {
+      let skip=false;
+      mkspan(message.substring(last_index, match.index), parent_el);
 
-    if (match[1] !== undefined){ // a link
-      mka(match[1], parent_el)
-    }
-    if (match[4] !== undefined){ // a sticker
-      let name = match[4].substring(1, match[4].length-1);
-      if (STICKERS.includes(name)){
+      let name = match[0].substring(1, match[0].length-1);
+      if (STICKERS.includes(name)) {
         mksticker(name, parent_el);
-      }else{
-        skip=true;
+        last_index = match.index+match[0].length;
       }
     }
-    if (!skip){
-      last_index = match.index+match[0].length;
-    }
-
+    mkspan(message.substring(last_index), parent_el);
   }
-  mkspan(message.substring(last_index), parent_el);
 }

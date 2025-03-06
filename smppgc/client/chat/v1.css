@@ -153,8 +153,9 @@ a:hover {
 .space{
   flex-grow: 10;
 }
-.message_timestamp{
-  margin-left: 0.6rem;
+.timestamp{
+  margin-left: auto;
+  padding-left: 0.6rem;
   font-weight: bold;
   font-size: 0.6em;
   opacity: 0.6;
@@ -177,4 +178,16 @@ a:hover {
   word-wrap: break-word;
   display:flex;
   flex-direction:column;
+}
+.profanity-mark {
+  text-decoration: var(--color-error) underline 2px;
+  font-weight: bold;
+  background: inherit;
+  color: var(--color-error);
+}
+
+#profane-message-dialog {
+  max-width: 600px;
+  display: flex;
+  flex-direction: column;
 }

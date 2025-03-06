@@ -101,6 +101,19 @@ impl Token {
         }
         Ok(vec)
     }
+    pub fn to_friendly_char(&self) -> Option<char> {
+        if self.is_number() {
+            return Some('9');
+        };
+        if self.is_vowel() {
+            return Some('a');
+        };
+        if self.to_u8().is_ascii() && !self.to_u8().is_ascii_control() {
+            Some(self.to_u8() as char)
+        } else {
+            None
+        }
+    }
 
     pub fn from_char(char: char) -> Option<Token> {
         if char.is_whitespace() {
@@ -128,6 +141,12 @@ impl Token {
     }
     pub fn is_whitespace(&self) -> bool {
         self.0.get() == ' ' as u8
+    }
+    pub fn is_number(&self) -> bool {
+        self.0.get() == 1
+    }
+    pub fn is_vowel(&self) -> bool {
+        self.0.get() == 3
     }
     pub fn is_unknown(&self) -> bool {
         self.0.get() == 2

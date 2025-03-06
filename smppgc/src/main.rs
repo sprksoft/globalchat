@@ -15,15 +15,15 @@ mod debug;
 mod pages;
 mod profanity;
 mod ratelimit;
+mod snowflake;
 mod socket;
 mod themes;
-mod timestamp;
 mod users;
 mod utils;
 mod version_int;
 mod wsprotocol;
 
-pub use timestamp::*;
+pub use snowflake::*;
 pub use version_int::*;
 
 #[derive(Deserialize, Debug)]
@@ -33,12 +33,15 @@ pub struct ChatConfig {
     pub max_users: u16,
 }
 
+pub type MessageLen = u16;
+pub type BadWordLen = u8;
+
 #[derive(Deserialize, Debug, Clone)]
 #[serde(crate = "rocket::serde")]
 pub struct MessageConfig {
     pub small_message_len: usize,
-    pub max_message_len: usize,
-    pub min_message_len: usize,
+    pub max_message_len: MessageLen,
+    pub min_message_len: MessageLen,
     pub large_message_penalty: u32,
 
     pub max_same_message_streak: u32,

@@ -14,7 +14,7 @@ pub use message::*;
 use crate::{
     users::{ClaimedName, UserInfo, UserSid},
     utils::IdCounter,
-    ChatConfig, Timestamp,
+    ChatConfig,
 };
 use lmetrics::metrics;
 use thiserror::Error;
@@ -154,7 +154,7 @@ impl Chat {
         Ok(client)
     }
 
-    pub async fn history<'a>(&'a self, starting_time: Timestamp) -> Vec<Message> {
+    pub async fn history<'a>(&'a self, starting_time: Snowflake) -> Vec<Message> {
         self.history
             .lock()
             .await
