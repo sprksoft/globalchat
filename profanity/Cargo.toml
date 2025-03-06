@@ -5,9 +5,9 @@ authors.workspace = true
 edition.workspace = true
 
 [dependencies]
-thiserror={version="2.0.11"}
-serde={version="1.0.213", features=["derive"], optional=true}
-bitflags={version="2.8.0"}
+thiserror={version="2.0.12"}
+serde={version="1.0.218", features=["derive"], optional=true}
+bitflags={version="2.9.0"}
 
 [dev-dependencies]
 censor={version="0.3.0"}

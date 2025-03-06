@@ -16,38 +16,48 @@ const sendbtn = document.getElementById("sendbtn");
 const connectbtn = document.getElementById("connectbtn");
 const constatus = document.getElementById("connection-status");
 const err_mesg = document.getElementById("err-mesg");
-const login_popup=document.getElementById("login");
+const login_popup = document.getElementById("login");
+const profaneMessageDialog = document.getElementById("profane-message-dialog");
+const profaneMessage = document.getElementById("profane-message");
+const profaneMessageOk = document.getElementById("profane-message-ok");
+const profaneMessageCountdown = document.getElementById("profane-message-countdown");
+const profaneMessageBadWord = document.getElementById("badword");
+
+const messageTemplate = document.getElementById("message-template");
 
 disclaimer.checkbox.addEventListener("change", (e) => {
   connectbtn.disabled = !e.target.checked;
 });
 connectbtn.disabled=!disclaimer.checkbox.checked;
 
-async function add_message(message, sender, timestamp, scroll=false) {
-  let top_el = document.createElement("div");
-  top_el.classList.add("message_top");
-  mk.mksender(sender, top_el);
-  mk.mkspace(top_el);
-  mk.mktime(timestamp, top_el);
+let profanityCoolDown = 0;
+let profanityCoolDownInterval;
 
-  let content_el = document.createElement("div");
-  content_el.classList.add("content");
-  mk.mkcontent(message, content_el);
+function createMessage(message, sender, timestamp, highlight=null) {
+  const msgFrag = messageTemplate.content.cloneNode(true);
+  let msgEl = msgFrag.querySelector(".message");
 
-  let user_content_el=document.createElement("div");
-  user_content_el.classList.add("user_content");
-  user_content_el.appendChild(top_el);
-  user_content_el.appendChild(content_el);
-  let msg_el = document.createElement("div");
-  msg_el.innerHTML=`<svg class="driehoek_bubble" viewBox="0 0 8 13" height="13" width="8" preserveAspectRatio="xMidYMid meet" class="" version="1.1" x="0px" y="0px" enable-background="new 0 0 8 13"><path fill="currentColor" d="M1.5,2.5L8,11.2V0L2.8,0C1,0,0.5,1.2,1.5,2.6z"></path></svg>`
-  msg_el.appendChild(user_content_el);
-  msg_el.classList.add("message");
-  msg_el.dataset.username=sender;
+  msgEl.dataset.username = sender;
+  msgEl.querySelector(".user").innerText = sender;
+  msgEl.querySelector(".timestamp").innerText = timestamp.toLocaleString(undefined, {
+    dateStyle:"short",
+    timeStyle:"short",
+  });
+  mk.mkcontent(message, highlight, msgEl.querySelector(".content"));
+
+  return msgEl;
+}
+
+function add_message(message, sender, timestamp, scroll=false) {
+  if (timestamp) {
+    timestamp = new Date();
+  }
+  let msgEl = createMessage(message, sender, timestamp);
 
   let should_scroll = Math.abs(mesgs.scrollHeight - mesgs.clientHeight - mesgs.scrollTop) <= 3 || scroll;
-  mesgs.appendChild(msg_el);
+  mesgs.appendChild(msgEl);
   if (should_scroll){
-    msg_el.scrollIntoView();
+    msgEl.scrollIntoView();
   }
 }
 
@@ -128,10 +138,33 @@ socketmgr.on_leave = (code, protoerr, user_wants_leave) => {
   last_message_time=null;
   mesgs.innerHTML="";
   login_popup.showModal();
+  profanityCoolDown = 0;
+  clearInterval(profanityCoolDownInterval);
+  profaneMessageDialog.close();
 }
 
 socketmgr.on_keychange = (key) => {
   localStorage.setItem("key", key);
+}
+socketmgr.on_profanity_warn = (message, badWord, start, end) => {
+  utils.log(`${message} contains the word '${badWord}' at ${start}..${end}'`);
+
+  profanityCoolDown = 10;
+  profanityCoolDownInterval = setInterval(() => {
+    profanityCoolDown--;
+    profaneMessageCountdown.innerText = profanityCoolDown + (profanityCoolDown == 1 ? " seconde" : " seconden");
+    if (profanityCoolDown == 0) {
+      clearInterval(profanityCoolDownInterval);
+      profaneMessageOk.innerText = "Ok";
+      profaneMessageOk.disabled=false;
+    }
+  }, 1000);
+  profaneMessageCountdown.innerText = profanityCoolDown + profanityCoolDown == 1 ? "seconde" : "seconden";
+  profaneMessageOk.disabled=true;
+  profaneMessageBadWord.innerText = badWord;
+  let mesgEl = createMessage(message, get_name(), new Date(), highlight=[start, end])
+  utils.setChild(profaneMessage, mesgEl)
+  profaneMessageDialog.showModal();
 }
 
 async function send_message() {
@@ -209,6 +242,14 @@ connectbtn.addEventListener("click", ()=>{
   sendinput.focus();
 });
 
+profaneMessageDialog.addEventListener("close", ()=> {
+  if (profanityCoolDown > 0) {
+    profaneMessageDialog.showModal();
+  }
+});
+profaneMessageOk.addEventListener("click", () => {
+  profaneMessageDialog.close();
+})
 
 username_field.value = localStorage.getItem("username");
 login_popup.showModal();

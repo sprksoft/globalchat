@@ -159,6 +159,10 @@ dialog {
   display: flex;
   flex-direction: row;
 }
+.flex-col {
+  display: flex;
+  flex-direction: row;
+}
 
 .layered-section {
   margin-top: 3em;

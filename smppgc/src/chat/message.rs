@@ -1,22 +1,14 @@
 use std::sync::Arc;
 
-use crate::{users::UserInfo, Timestamp};
+use crate::{users::UserInfo, Snowflake};
 
 #[derive(Clone, Debug)]
 pub struct Message {
     pub content: Arc<str>,
     pub sender: UserInfo,
-    pub timestamp: Timestamp,
+    pub id: Snowflake,
 }
 impl Message {
-    pub fn new(sender: UserInfo, timestamp: Timestamp, content: Arc<str>) -> Self {
-        Self {
-            content,
-            sender,
-            timestamp,
-        }
-    }
-
     pub fn is_valid(&self) -> bool {
         if self.is_empty() {
             return false;

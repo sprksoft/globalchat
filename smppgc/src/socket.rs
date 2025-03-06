@@ -18,7 +18,7 @@ use crate::{
     ratelimit::{MesgIpRateLimiters, MesgRateLimiters, NewUserIpRateLimiters},
     users::{UserConfig, UserSid, UsernameManager},
     wsprotocol::{KickReason, WsClient},
-    MessageConfig, Timestamp,
+    MessageConfig, Snowflake,
 };
 
 #[derive(Responder)]
@@ -38,7 +38,6 @@ impl<'a> SocketV1Responder<'a> {
 
 metrics! {
     pub counter messages_total("Total count of sent messages");
-    pub counter profanity_messages_total("Total count of sent messages that contain profanity");
     pub counter messages_blocked("Total count of blocked messages", [reason]);
     pub counter blocked_newusers("Total amount of blocked new user creation requests");
     pub counter new_users("Total count of new sid's being generated");
@@ -94,7 +93,7 @@ impl<'r> FromRequest<'r> for IpCountry {
 pub async fn socket_v1<'a>(
     username: &str,
     key: Option<&str>,
-    start_time: Option<Timestamp>,
+    start_time: Option<Snowflake>,
     ws: WebSocket,
     mesg_limits: &State<MessageConfig>,
     user_config: &State<UserConfig>,
@@ -119,7 +118,7 @@ pub async fn socket_v1<'a>(
     } else {
         ip_limits.not_be_penalty
     };
-    let start_time = start_time.unwrap_or(Timestamp::ZERO);
+    let start_time = start_time.unwrap_or(Snowflake::ZERO);
     let (new_user, sid) = key
         .map(|sid| UserSid::parse_str(sid))
         .flatten()
@@ -180,7 +179,7 @@ pub async fn socket_v1<'a>(
                     }
                     mesg = wsclient.try_recv() => {
                         let Some(mesg) = mesg? else { continue; };
-                        if mesg.len() > mesg_limits.max_message_len{
+                        if mesg.len() > mesg_limits.max_message_len as usize{
                             messages_blocked::inc("msgtoobig");
                             continue;
                         }
@@ -207,19 +206,22 @@ pub async fn socket_v1<'a>(
                         }
 
 
-                        let (profanity, content) = {
+                        let (prof_span, content) = {
                             let lock = prof_filter.read().expect("Profanity filter lock poisoned");
                             let (tokenized_mesg, content) = lock.tokenize(&mesg.content);
 
-                            (lock.check(&tokenized_mesg).is_some(), content)
+                            (lock.check(&tokenized_mesg).map(|m|(m.span, m.rule.to_string_friendly())), content)
                         };
-                        if profanity {
-                            //TODO: send profanity warning
+                        if let Some((span, bad_word)) = prof_span {
+                            let span = span.start as crate::MessageLen..span.end as crate::MessageLen;
+                            wsclient.profanity_warning(&content, &bad_word, span).await?;
+
+                            messages_blocked::inc("profanity");
                         }else{
-                            if content.len() < mesg_limits.min_message_len{
+                            if content.len() < mesg_limits.min_message_len as usize {
                                 continue;
                             }
-                            let mesg = Message::new(chat_client.user_info(), mesg.timestamp, content.into());
+                            let mesg = Message::new(chat_client.user_info(), Snowflake::now(), content.into());
                             wsclient.forward(&mesg).await?;
                             chat_client.send(mesg);
                         }

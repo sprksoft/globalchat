@@ -3,6 +3,7 @@ import * as utils from './../utils.js';
 const CLOSED=3;
 const SUBID_SETUP=0;
 const SUBID_USERJOIN=1;
+const SUBID_PROFANITY_WARN=2;
 const KEY_LENGTH=33;
 
 const ERRORS = {
@@ -93,6 +94,7 @@ function handle_version_check(protocol_ver, ver) {
 
 export class SocketMgr {
   on_message;
+  on_profanity_warn;
   on_leave;
   on_join;
   on_keychange;
@@ -143,6 +145,14 @@ export class SocketMgr {
         let username = reader.getString(0)
         utils.log("user join: "+username+" ("+id+")");
         this.users[id] = username;
+        break;
+      case SUBID_PROFANITY_WARN:
+        let start = reader.getUint16(0);
+        let end = reader.getUint16(0);
+        let msgLen = reader.getUint16(0);
+        let message = reader.getString(0, msgLen);
+        let badWord = reader.getString(0);
+        this.on_profanity_warn(message, badWord,start,end);
         break;
       default:
         console.error("PROTOCOL_ERROR: Invalid subid ("+sub_id+") packet recieved");

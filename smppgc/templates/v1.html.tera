@@ -40,6 +40,28 @@
   <span>connecting</span>
 </dialog>
 
+<dialog id="profane-message-dialog">
+  <h1>Er zit een scheld woord in je bericht</h1>
+  <p>Jou bericht bevat het scheld woord <mark id="badword" class="profanity-mark"></mark></p>
+  <div class="flex-col" id="profane-message"></div>
+  <p>Dit is een automatisch bericht maar je kunt nog steeds geband worden door menselijke moderators.<br>Je kunt weer chatten binnen <time id="profane-message-countdown"></time>.</p>
+
+  <button class="pillbtn" id="profane-message-ok">Ok</button>
+</dialog>
+
+<template id="message-template">
+  <div class="message">
+    <svg class="driehoek_bubble" viewBox="0 0 8 13" height="13" width="8" preserveAspectRatio="xMidYMid meet" version="1.1" x="0px" y="0px" enable-background="new 0 0 8 13"><path fill="currentColor" d="M1.5,2.5L8,11.2V0L2.8,0C1,0,0.5,1.2,1.5,2.6z"></path></svg>
+    <div class="user_content">
+      <div class="message_top">
+        <span class="user"></span>
+        <small class="timestamp"></small>
+      </div>
+      <div class="content"></div>
+    </div>
+  </div>
+</template>
+
 <header id="topbar">
   <button id="leavebtn" class="button">
     {% include "svg/arrow_l" %}
@@ -52,15 +74,7 @@
   <div id="botbar">
     <div id="send-input" contenteditable data-plaintext="true" enterkeyhint="send" placeholder="Enter a message"></div> <!--Er is denk ik geen goede manier om textareas niet raar te laten zijn dus we moeten hier wel een div gebruiken :(-->
     <button id="sendbtn" class="button">
-      <svg
-          width="20"
-          height="20"
-          viewBox="0 0 5.2916666 5.2916666"
-          version="1.1">
-        <path
-            style="fill:currentColor;stroke:currentColor;stroke-width:0.529167;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1"
-            d="M 4.7624998,2.6458335 0.52916665,0.52916671 1.0583333,2.1166668 3.9687498,2.6458335 1.0583333,3.1750002 0.52916665,4.7625003 Z"/>
-      </svg>
+      {% include "svg/arrow_r" %}
     </button>
   </div>
 </div>
