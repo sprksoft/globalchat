@@ -78,7 +78,6 @@ fn rocket() -> _ {
         &chat::client_left_events_lost_total::METRIC,
         &chat::history_messages_lost_total::METRIC,
         &socket::messages_total::METRIC,
-        &socket::profanity_messages_total::METRIC,
         &socket::messages_blocked::METRIC,
         &socket::new_users::METRIC,
         &lmetrics::http_errors_total::METRIC,

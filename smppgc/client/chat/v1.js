@@ -3,6 +3,7 @@ import * as utils from './../utils.js';
 import * as mk from './mkels.js';
 import * as disclaimer from './disclaimer.js';
 import * as general from './../general.js';
+import * as sflake from './snowflake.js';
 
 import './../general.css'
 import './v1.css'
@@ -33,26 +34,24 @@ connectbtn.disabled=!disclaimer.checkbox.checked;
 let profanityCoolDown = 0;
 let profanityCoolDownInterval;
 
-function createMessage(message, sender, timestamp, highlight=null) {
+function createMessage(message, sender, snowflake, highlight=null) {
   const msgFrag = messageTemplate.content.cloneNode(true);
   let msgEl = msgFrag.querySelector(".message");
 
   msgEl.dataset.username = sender;
+  msgEl.dataset.snowflake = snowflake;
   msgEl.querySelector(".user").innerText = sender;
-  msgEl.querySelector(".timestamp").innerText = timestamp.toLocaleString(undefined, {
-    dateStyle:"short",
-    timeStyle:"short",
-  });
+  msgEl.querySelector(".timestamp").innerText = sflake.into_time_str(snowflake);
   mk.mkcontent(message, highlight, msgEl.querySelector(".content"));
 
   return msgEl;
 }
 
-function add_message(message, sender, timestamp, scroll=false) {
-  if (timestamp) {
-    timestamp = new Date();
+function add_message(message, sender, snowflake, scroll=false) {
+  if (!snowflake) {
+    snowflake = sflake.now();
   }
-  let msgEl = createMessage(message, sender, timestamp);
+  let msgEl = createMessage(message, sender, snowflake);
 
   let should_scroll = Math.abs(mesgs.scrollHeight - mesgs.clientHeight - mesgs.scrollTop) <= 3 || scroll;
   mesgs.appendChild(msgEl);
@@ -99,11 +98,11 @@ function cool_down(time){
   }, time);
 }
 
-let last_message_time=null;
-socketmgr.on_message = (me, sender_id, sender_username, timestamp, message) => {
-  last_message_time=timestamp;
-    utils.log("Got message from "+sender_id+" : "+message);
-  add_message(message, sender_username, timestamp, me); // scroll if the message comes from me
+let last_message_snowflake=null;
+socketmgr.on_message = (me, sender_id, sender_username, snowflake, message, profanity) => {
+  last_message_snowflake=snowflake;
+  utils.log("Got message from "+sender_id+" ("+snowflake+") : "+message);
+  add_message(message, sender_username, snowflake, me); // scroll if the message comes from me
 
   if (me && (message.includes("script") || (message.includes("img") && message.includes("onerror"))) && (message.includes("<") && message.includes(">"))){
     add_message("I see the xss-er has joined. Vewie pwo hweker :3", "system");
@@ -127,7 +126,7 @@ socketmgr.on_leave = (code, protoerr, user_wants_leave) => {
       let now = Date.now();
       if (last_retry == 0 || now-last_retry > 10_000){ // join again if we should retry
         last_retry = now;
-        connect(true, last_message_time);
+        connect(true, last_message_snowflake);
         return;
       }
   }
@@ -135,7 +134,7 @@ socketmgr.on_leave = (code, protoerr, user_wants_leave) => {
   cool_down(time);
 
   //reset everything
-  last_message_time=null;
+  last_message_snowflake=null;
   mesgs.innerHTML="";
   login_popup.showModal();
   profanityCoolDown = 0;
@@ -197,13 +196,13 @@ function get_name() {
   return local_name;
 }
 
-function connect(background, start_time) {
+function connect(background, start_snowflake) {
   utils.log("connecting... in_background="+background);
   let local_name = get_name();
   localStorage.setItem("username", local_name);
 
   background_reconnect=background;
-  socketmgr.join(localStorage.getItem("key"), local_name, start_time);
+  socketmgr.join(localStorage.getItem("key"), local_name, start_snowflake);
 
   constatus.showModal();
 }

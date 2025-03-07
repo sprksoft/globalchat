@@ -1,10 +1,15 @@
 import * as utils from './../utils.js';
 
+
+const PACKET_SETUP = 0;
+const PACKET_MESSAGE = 1;
+const PACKET_PROFANITY_MESSAGE = 4;
+const PACKET_USERJOIN = 2;
+const PACKET_PROFANITY_WARN = 3;
+
 const CLOSED=3;
-const SUBID_SETUP=0;
-const SUBID_USERJOIN=1;
-const SUBID_PROFANITY_WARN=2;
 const KEY_LENGTH=33;
+
 
 const ERRORS = {
   "err_cmd": "Je bent gekicked door een admin.",
@@ -62,6 +67,11 @@ class Reader {
     this.index+=4;
     return out;
   }
+  getSnowflake(offset=0){
+    let out = this.dv.getBigUint64(this.index+offset, false);
+    this.index+=8;
+    return out;
+  }
 
   getDate(offset=0){
     return new Date((this.getUint32(offset)*1000*60))
@@ -70,10 +80,6 @@ class Reader {
   end(){
     return this.index >= this.dv.byteLength;
   }
-}
-
-function into_gcdate(date) {
-  return (date.getTime()/1000)/60
 }
 
 function handle_version_check(protocol_ver, ver) {
@@ -106,47 +112,31 @@ export class SocketMgr {
   constructor(){
     this.users={};
   }
-
-  #on_special_message(sub_id, reader){
-    switch(sub_id){
-      case SUBID_SETUP:
+  #on_packet(packetId, reader) {
+    switch(packetId) {
+      case PACKET_SETUP:
         this.on_join();
         let version = reader.getUint16(0);
         utils.log("Protocol version: "+version+ " My version: "+VERSION_INT);
         handle_version_check(version, VERSION_INT);
 
         this.local_id = reader.getUint16();
+        this.users[this.local_id] = this.username;
 
         this.local_key = reader.getString(0, KEY_LENGTH);
         this.on_keychange(this.local_key);
 
-        let client_count = reader.getUint16();
-        for (let i = 0; i < client_count; i++){
-          let id = reader.getUint16();
-          let name_length = reader.getUint8();
-          let username = reader.getString(0, name_length);
-          this.users[id]=username;
-          utils.log("(hist_user) "+username+" ("+id+")")
-        }
-
-        while(!reader.end()){
-          let timestamp = reader.getDate();
-          let username_length=reader.getUint8();
-          let username = reader.getString(0, username_length);
-          let mesg_length=reader.getUint8();
-          let message = reader.getString(0, mesg_length);
-          this.on_message(this.local_id, -1, username, timestamp, message);
-        }
-
         utils.log("Setup packet "+this.local_id+" "+this.local_key);
         break;
-      case SUBID_USERJOIN:
+
+      case PACKET_USERJOIN:
         let id = reader.getUint16(0);
         let username = reader.getString(0)
         utils.log("user join: "+username+" ("+id+")");
         this.users[id] = username;
         break;
-      case SUBID_PROFANITY_WARN:
+
+      case PACKET_PROFANITY_WARN:
         let start = reader.getUint16(0);
         let end = reader.getUint16(0);
         let msgLen = reader.getUint16(0);
@@ -154,6 +144,17 @@ export class SocketMgr {
         let badWord = reader.getString(0);
         this.on_profanity_warn(message, badWord,start,end);
         break;
+
+      case PACKET_PROFANITY_MESSAGE:
+      case PACKET_MESSAGE:
+
+        const sender_id = reader.getUint16(0);
+        const snowflake = reader.getSnowflake(0);
+        let mesg = reader.getString(0);
+        let sender_username = this.users[sender_id];
+        this.on_message(this.local_id == sender_id, sender_id, sender_username, snowflake, mesg, packetId==PACKET_PROFANITY_MESSAGE);
+        break;
+
       default:
         console.error("PROTOCOL_ERROR: Invalid subid ("+sub_id+") packet recieved");
         break;
@@ -161,18 +162,20 @@ export class SocketMgr {
 
   }
 
-  async join(key, username, start_time){
+
+  async join(key, username, start_snowflake){
     this.user_wants_leave=false;
+    this.username = username;
     if (this.ws !== undefined){
       await this.ws.close();
     }
     let encoded_username = encodeURIComponent(username);
     let query=`username=${encoded_username}`;
-    if (key !== undefined && key !== null && key !== ""){
+    if (key !== undefined && key !== null && key !== "") {
       query+="&key="+key;
     }
-    if (start_time !== undefined && start_time !== null){
-      query+="&start_time="+into_gcdate(start_time);
+    if (start_snowflake !== undefined && start_snowflake !== null){
+      query+="&start_time="+start_snowflake;
     }
     let fullurl = WEBSOCKET_URL+"?"+query;
     utils.log("creating socket: "+fullurl);
@@ -189,20 +192,8 @@ export class SocketMgr {
       let data = e.data;
       if (data instanceof ArrayBuffer){
         let reader = new Reader(new DataView(data))
-        const sender_id = reader.getUint16();
-        if (sender_id == 0){ // user 0 is special message
-          let sub_id = reader.getUint8();
-          this.#on_special_message(sub_id, reader);
-        }else{
-          const timestamp = reader.getDate();
-          let message = reader.getString(0);
-          let sender_username = this.users[sender_id];
-          let me = this.local_id == sender_id;
-          if (me){
-            sender_username = username;
-          }
-          this.on_message(me, sender_id, sender_username, timestamp, message);
-        }
+        let packetId = reader.getUint8();
+        this.#on_packet(packetId, reader);
       }
     };
   }

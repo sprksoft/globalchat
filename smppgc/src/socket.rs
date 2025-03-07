@@ -13,7 +13,6 @@ use tokio::sync::broadcast::error::RecvError;
 
 use crate::{
     chat::{Chat, Message, NewClientError},
-    profanity::ProfRuleset,
     ratelimit::RateLimitIpPenalty,
     ratelimit::{MesgIpRateLimiters, MesgRateLimiters, NewUserIpRateLimiters},
     users::{UserConfig, UserSid, UsernameManager},
@@ -161,11 +160,11 @@ pub async fn socket_v1<'a>(
     let mesg_limits = mesg_limits.inner().clone();
     SocketV1Responder::Channel(ws.channel(move |stream| {
         Box::pin(async move {
-            let chat_hist = chat.history(start_time).await;
+            let chat_hist = chat.history(start_time, false).await;
             let mut wsclient = WsClient::new(
                 stream,
                 chat_client.user_info(),
-                chat.clients().await,
+                chat.users().await,
                 chat_hist,
             )
             .await?;
@@ -179,8 +178,8 @@ pub async fn socket_v1<'a>(
                     }
                     mesg = wsclient.try_recv() => {
                         let Some(mesg) = mesg? else { continue; };
-                        if mesg.len() > mesg_limits.max_message_len as usize{
-                            messages_blocked::inc("msgtoobig");
+                        if mesg.len() > mesg_limits.max_message_len as usize && mesg.len() < mesg_limits.min_message_len as usize{
+                            messages_blocked::inc("size");
                             continue;
                         }
                         let rl_points = if mesg.len() > mesg_limits.small_message_len { mesg_limits.large_message_penalty } else { 1 };
@@ -212,19 +211,20 @@ pub async fn socket_v1<'a>(
 
                             (lock.check(&tokenized_mesg).map(|m|(m.span, m.rule.to_string_friendly())), content)
                         };
+                        if content.len() > mesg_limits.max_message_len as usize && content.len() < mesg_limits.min_message_len as usize{
+                            messages_blocked::inc("size");
+                            continue;
+                        }
+
+                        let mesg = chat_client.new_message(content.into(), prof_span.is_some());
                         if let Some((span, bad_word)) = prof_span {
                             let span = span.start as crate::MessageLen..span.end as crate::MessageLen;
-                            wsclient.profanity_warning(&content, &bad_word, span).await?;
-
+                            wsclient.profanity_warning(&mesg.content, &bad_word, span).await?;
                             messages_blocked::inc("profanity");
                         }else{
-                            if content.len() < mesg_limits.min_message_len as usize {
-                                continue;
-                            }
-                            let mesg = Message::new(chat_client.user_info(), Snowflake::now(), content.into());
                             wsclient.forward(&mesg).await?;
-                            chat_client.send(mesg);
                         }
+                        chat_client.send(mesg);
 
                     }
                     mesg = chat_client.message_receiver.recv() => {
@@ -245,8 +245,10 @@ pub async fn socket_v1<'a>(
                     joined_client = chat_client.join_receiver.recv() => {
                         match joined_client{
                             Ok(joined_client) => {
-                                info!("user join {}", joined_client.id());
-                                wsclient.forward_client(&joined_client).await?;
+                                if !joined_client.id() == chat_client.user_info().id() {
+                                    info!("user join {}", joined_client.id());
+                                    wsclient.forward_client(&joined_client).await?;
+                                }
                             },
                             Err(RecvError::Lagged(count)) => {
                                 error!("{} Join messages lost", count);
