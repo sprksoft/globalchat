@@ -96,14 +96,18 @@ impl WsClient {
         clients: Vec<UserInfo>,
         history: Vec<Message>,
     ) -> Result<Self> {
-        ws.send(packets::new_setup(
-            user_info.static_id(),
-            user_info.id(),
-            clients,
-            history,
-        ))
-        .await?;
+        ws.feed(packets::new_setup(user_info.static_id(), user_info.id()))
+            .await?;
 
+        for client in clients {
+            ws.feed(packets::new_client_joined(&client)).await?;
+        }
+
+        for msg in history {
+            ws.feed(packets::new_message(&msg)).await?;
+        }
+
+        ws.flush().await?;
         Ok(Self { ws, user_info })
     }
 
