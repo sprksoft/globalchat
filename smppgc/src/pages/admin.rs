@@ -15,6 +15,7 @@ use rocket::{
 use rocket_dyn_templates::{context, Template};
 
 use crate::{
+    auth::{GcAdmin, GcMod},
     chat::Chat,
     profanity::{LintSet, ProfRuleset, RulesetError},
     themes::Theme,
@@ -22,6 +23,7 @@ use crate::{
 
 #[get("/prof")]
 fn prof(
+    _gcadmin: GcAdmin,
     theme: Theme,
     ruleset: &State<Mutex<ProfRuleset>>,
     filter: &State<RwLock<ProfanityFilter>>,
@@ -52,6 +54,7 @@ enum RulesetWriteResponse {
 
 #[post("/prof/ruleset", data = "<ruleset>")]
 async fn prof_ruleset_save(
+    _gcadmin: GcAdmin,
     ruleset: Json<ProfRuleset>,
     global_ruleset: &State<Mutex<ProfRuleset>>,
     global_filter: &State<RwLock<ProfanityFilter>>,
@@ -86,7 +89,7 @@ async fn prof_ruleset_save(
 }
 
 #[get("/")]
-fn index() -> Redirect {
+fn index(_gcadmin: GcAdmin) -> Redirect {
     Redirect::permanent("/admin/prof")
 }
 

@@ -5,7 +5,7 @@ function into_gctime(date) {
 }
 
 export function now() {
-  return BigInt(new Date()-SMPPGC_EPOCH) << 22n;
+  return BigInt(new Date().getTime()-SMPPGC_EPOCH) << 22n;
 }
 
 export function into_time_str(snowflake) {

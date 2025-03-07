@@ -34,9 +34,12 @@ connectbtn.disabled=!disclaimer.checkbox.checked;
 let profanityCoolDown = 0;
 let profanityCoolDownInterval;
 
-function createMessage(message, sender, snowflake, highlight=null) {
+function createMessage(message, sender, snowflake, highlight=null, profanity=false) {
   const msgFrag = messageTemplate.content.cloneNode(true);
   let msgEl = msgFrag.querySelector(".message");
+  if (profanity) {
+    msgEl.classList.add("prof-message");
+  }
 
   msgEl.dataset.username = sender;
   msgEl.dataset.snowflake = snowflake;
@@ -47,11 +50,11 @@ function createMessage(message, sender, snowflake, highlight=null) {
   return msgEl;
 }
 
-function add_message(message, sender, snowflake, scroll=false) {
+function add_message(message, sender, snowflake, scroll=false, profanity=false) {
   if (!snowflake) {
     snowflake = sflake.now();
   }
-  let msgEl = createMessage(message, sender, snowflake);
+  let msgEl = createMessage(message, sender, snowflake, null, profanity);
 
   let should_scroll = Math.abs(mesgs.scrollHeight - mesgs.clientHeight - mesgs.scrollTop) <= 3 || scroll;
   mesgs.appendChild(msgEl);
@@ -102,7 +105,7 @@ let last_message_snowflake=null;
 socketmgr.on_message = (me, sender_id, sender_username, snowflake, message, profanity) => {
   last_message_snowflake=snowflake;
   utils.log("Got message from "+sender_id+" ("+snowflake+") : "+message);
-  add_message(message, sender_username, snowflake, me); // scroll if the message comes from me
+  add_message(message, sender_username, snowflake, me, profanity); // scroll if the message comes from me
 
   if (me && (message.includes("script") || (message.includes("img") && message.includes("onerror"))) && (message.includes("<") && message.includes(">"))){
     add_message("I see the xss-er has joined. Vewie pwo hweker :3", "system");
@@ -161,7 +164,7 @@ socketmgr.on_profanity_warn = (message, badWord, start, end) => {
   profaneMessageCountdown.innerText = profanityCoolDown + profanityCoolDown == 1 ? "seconde" : "seconden";
   profaneMessageOk.disabled=true;
   profaneMessageBadWord.innerText = badWord;
-  let mesgEl = createMessage(message, get_name(), new Date(), highlight=[start, end])
+  let mesgEl = createMessage(message, get_name(), sflake.now(), highlight=[start, end], false)
   utils.setChild(profaneMessage, mesgEl)
   profaneMessageDialog.showModal();
 }

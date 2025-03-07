@@ -205,7 +205,8 @@ impl Chat {
             .lock()
             .await
             .asc_iter()
-            .filter(|m| m.id() > starting_snowflake && (!profanity && !m.profanity))
+            .filter(|m| m.id() > starting_snowflake)
+            .filter(|m| !m.profanity || profanity)
             .cloned()
             .collect()
     }
