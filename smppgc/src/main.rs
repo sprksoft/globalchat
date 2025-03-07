@@ -9,9 +9,11 @@ use rocket::{fairing::AdHoc, launch};
 use rocket::{get, State};
 use utils::static_routing;
 
+mod auth;
 mod chat;
 mod csp;
 mod debug;
+mod ipcountry;
 mod pages;
 mod profanity;
 mod ratelimit;
@@ -92,6 +94,7 @@ fn rocket() -> _ {
         .attach(static_routing::stage())
         .attach(pages::stage())
         .attach(users::stage())
+        .attach(auth::stage())
         .attach(AdHoc::on_ignite("chat", |r| async {
             let config = r
                 .figment()

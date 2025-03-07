@@ -146,6 +146,9 @@ a:hover {
   display:flex;
   flex-direction: column;
 }
+.prof-message {
+  border: solid var(--color-error) var(--border-size);
+}
 .message_top{
   display:flex;
   flex-direction: row;
