@@ -3,6 +3,7 @@ use log::*;
 use rocket::form::FromFormField;
 use std::{
     ops::Deref,
+    str::FromStr,
     sync::{atomic::AtomicU16, Mutex},
     time::{Duration, SystemTime},
 };
@@ -40,6 +41,9 @@ impl Snowflake {
         Snowflake(u64::from_le(
             time_part.to_le() << 22 | (inc_part as u64).to_le(),
         ))
+    }
+    pub fn from_u64(u: u64) -> Self {
+        Self(u)
     }
 
     /// Get the incremented per id part of the snowfalke

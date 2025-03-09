@@ -13,7 +13,7 @@ use tokio::sync::broadcast::error::RecvError;
 
 use crate::{
     auth::GcMod,
-    chat::{Chat, Message, NewClientError},
+    chat::{Chat, Message, MessageChange, MessageChangeType, NewClientError},
     ipcountry::IpCountry,
     ratelimit::RateLimitIpPenalty,
     ratelimit::{MesgIpRateLimiters, MesgRateLimiters, NewUserIpRateLimiters},
@@ -161,6 +161,24 @@ pub async fn socket_v1<'a>(
                             continue;
                         }
 
+                        if gcmod.is_some() {
+                            match parse_admin_cmd(&mesg.content) {
+                                Some(AdminCmd::DelMsg(snowflake)) => {
+                                    chat.delete_message(snowflake).await;
+                                    continue;
+                                },
+                                Some(AdminCmd::Invalid) => {
+                                    continue;
+                                    //TODO: notify client of invalid command
+                                }
+                                Some(AdminCmd::UnknownCmd) => {
+                                    continue;
+                                    //TODO: notify client of unknown command
+                                }
+                                None => {},
+                            }
+
+                        }
 
                         let (prof_span, content) = {
                             let lock = prof_filter.read().expect("Profanity filter lock poisoned");
@@ -172,7 +190,6 @@ pub async fn socket_v1<'a>(
                             messages_blocked::inc("size");
                             continue;
                         }
-
                         let mesg = chat_client.new_message(content.into(), prof_span.is_some());
                         if let Some((span, bad_word)) = prof_span {
                             let span = span.start as crate::MessageLen..span.end as crate::MessageLen;
@@ -182,6 +199,8 @@ pub async fn socket_v1<'a>(
                             wsclient.forward(&mesg).await?;
                         }
                         chat_client.send(mesg);
+
+
 
                     }
                     mesg = chat_client.message_receiver.recv() => {
@@ -195,6 +214,22 @@ pub async fn socket_v1<'a>(
                             }
                             Err(RecvError::Lagged(count)) => {
                                 error!("Lost {} messages", count);
+                            },
+                            Err(RecvError::Closed)=>{
+                                return Ok(());
+                            }
+                        }
+                    }
+                    mesg_change = chat_client.message_change_receiver.recv() => {
+                        match mesg_change{
+                            Ok(MessageChange { message_id, mut ty}) => {
+                                if gcmod.is_none() {
+                                    ty = MessageChangeType::Deleted;
+                                }
+                                wsclient.forward_message_change(message_id, ty).await?;
+                            }
+                            Err(RecvError::Lagged(count)) => {
+                                error!("Lost {} message changes", count);
                             },
                             Err(RecvError::Closed)=>{
                                 return Ok(());
@@ -220,4 +255,31 @@ pub async fn socket_v1<'a>(
             }
         })
     }))
+}
+
+pub enum AdminCmd {
+    DelMsg(Snowflake),
+    Invalid,
+    UnknownCmd,
+}
+
+fn parse_admin_cmd(str: &str) -> Option<AdminCmd> {
+    let admin_cmd_prefix = "%admin ";
+    if !str.starts_with(admin_cmd_prefix) {
+        return None;
+    }
+    let str = &str[admin_cmd_prefix.len()..];
+
+    let cmd = "/delmsg ";
+    if str.starts_with(cmd) {
+        match str[cmd.len()..].parse().map(|n| Snowflake::from_u64(n)) {
+            Ok(s) => Some(AdminCmd::DelMsg(s)),
+            Err(e) => {
+                error!("Invalid /delmsg command. Failed to parse snowflake: {}", e);
+                Some(AdminCmd::Invalid)
+            }
+        }
+    } else {
+        Some(AdminCmd::UnknownCmd)
+    }
 }

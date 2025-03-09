@@ -146,15 +146,19 @@ a:hover {
   display:flex;
   flex-direction: column;
 }
-.prof-message {
-  border: solid var(--color-error) var(--border-size);
+.prof-message .content {
+  text-decoration: var(--color-error) underline 2px;
+  font-weight: bold;
+  color: var(--color-error);
+  filter: blur(5px);
+  transition: filter 0.4s;
+}
+.prof-message:hover .content {
+  filter: blur(0px);
 }
 .message_top{
   display:flex;
   flex-direction: row;
-}
-.space{
-  flex-grow: 10;
 }
 .timestamp{
   margin-left: auto;
@@ -164,23 +168,32 @@ a:hover {
   opacity: 0.6;
   color: var(--color-text);
 }
-.driehoek_bubble{
+.driehoek_bubble {
   position: relative;
   left: -18px;
   top: 0px;
   color: var(--color-base03);
 }
-.user{
+.user {
   font-weight: bold;
   font-size: 0.8em;
   margin-bottom: 2px;
 }
-.user_content{
+.user_content {
   margin-top:-5px; /* To offset the space taken up by the arrow */
   max-width:100%;
   word-wrap: break-word;
   display:flex;
   flex-direction:column;
+}
+.message-actions {
+  display:flex;
+  flex-direction: row;
+  justify-content: end;
+}
+.message-actions > * {
+  font-size: 0.8em;
+  margin: 0px;
 }
 .profanity-mark {
   text-decoration: var(--color-error) underline 2px;
@@ -194,3 +207,4 @@ a:hover {
   display: flex;
   flex-direction: column;
 }
+
