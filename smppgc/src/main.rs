@@ -57,8 +57,8 @@ fn server_version(debug: &State<debug::Debug>) -> String {
     format!(
         "{} debug_assertions: {} debug: {} ",
         ver_str,
+        cfg!(debug_assertions),
         debug.debug,
-        cfg!(debug_assertions)
     )
 }
 
