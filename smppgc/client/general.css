@@ -172,6 +172,16 @@ dialog {
   border-radius: var(--border-radius);
 }
 
+.unimportantbtn {
+  background: transparent;
+  color: var(--color-accent);
+  text-decoration: none;
+}
+.unimportantbtn:hover {
+  color: var(--color-accent);
+  text-decoration: var(--color-accent) underline 2px;
+}
+
 .pillbtn {
   background: var(--color-base02);
   border: solid var(--color-base03) var(--border-size);

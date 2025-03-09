@@ -1,4 +1,5 @@
 <!-- vim: set ft=html: -->
+<!-- vim: set spelllang=nl: -->
 <section>
   <h3 class="warning">⚠️ Belangrijke regels ⚠️</h3>
   <ul>
@@ -7,6 +8,7 @@
     <li>Er is een <b>automatische filter</b>, het zou kunnen dat die onterecht je bericht blokkeert. <b>Heb daar begrip voor</b> en probeer een andere formulering.</li>
     <li>Deel <b>geen persoonlijke gegevens</b>. (telefoonnummers, thuisadressen, wachtwoorden, ...)</li>
     <li>Het is mogelijk om een willekeurige naam te kiezen. <b>Vertrouw dus niemand</b> op basis van hun naam.</li>
+    <li>Voer gesprekken alleen in het <b>Engels</b> of <b>Nederlands</b> (zodat moderators effectief kunnen werken).</li>
     <li>Als de regels overtreden worden, kan dat resulteren in een <b>(tijdelijke) ban</b></li>
   </ul>
 </section>

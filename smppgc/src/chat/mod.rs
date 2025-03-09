@@ -25,8 +25,7 @@ use thiserror::Error;
 metrics! {
     pub counter joined_total("Total joined users",[]);
     pub counter left_total("Total left users", []);
-    pub counter history_messages_lost_total("Total count of messages lost while trying to record msg history", []);
-    pub counter client_left_events_lost_total("Total count of client_left events lost.", []);
+    pub counter history_events_lost_total("Total history events lost. ", [event]);
 }
 
 #[derive(Debug, Error)]
@@ -41,11 +40,22 @@ struct ChatUserInfo {
     user_info: UserInfo,
 }
 
+#[derive(Copy, Clone)]
+pub enum MessageChangeType {
+    Censored,
+    Deleted,
+}
+#[derive(Copy, Clone)]
+pub struct MessageChange {
+    pub message_id: Snowflake,
+    pub ty: MessageChangeType,
+}
+
 pub struct Chat {
     messages_sender: broadcast::Sender<Message>,
     join_sender: broadcast::Sender<UserInfo>,
     left_sender: broadcast::Sender<UserInfo>,
-    message_delete_sender: broadcast::Sender<Message>,
+    message_change_sender: broadcast::Sender<MessageChange>,
 
     users: Arc<Mutex<HashMap<u16, ChatUserInfo>>>,
     history: Arc<Mutex<CircularQueue<Message>>>,
@@ -60,7 +70,7 @@ impl Chat {
         let (join_sender, _) = broadcast::channel(20);
         let (left_sender, left_receiver) = broadcast::channel(20);
 
-        let (message_delete_sender, _) = broadcast::channel(20);
+        let (message_change_sender, _) = broadcast::channel(20);
 
         let users = Arc::new(Mutex::new(HashMap::new()));
         let history = Arc::new(Mutex::new(CircularQueue::with_capacity(
@@ -76,7 +86,7 @@ impl Chat {
 
         Self {
             message_ids: SnowflakeGenerator::new().into(),
-            message_delete_sender,
+            message_change_sender,
             messages_sender,
             join_sender,
             left_sender,
@@ -115,8 +125,8 @@ impl Chat {
                                 return;
                             },
                             Err(RecvError::Lagged(count))=>{
-                                client_left_events_lost_total::inc();
-                                error!("main client_left receiver lagged behind {} times. Ghosts will appear", count);
+                                history_events_lost_total::inc("message");
+                                error!("Lost {} client left events. while recording history", count);
                             }
                         }
                     },
@@ -143,7 +153,7 @@ impl Chat {
                                 return;
                             },
                             Err(RecvError::Lagged(count))=>{
-                                history_messages_lost_total::inc();
+                                history_events_lost_total::inc("message");
                                 error!("Lost {} messages. while recording storing history", count);
                             }
                         }
@@ -177,7 +187,7 @@ impl Chat {
             message_sender: self.messages_sender.clone(),
             message_receiver: self.messages_sender.subscribe(),
             join_receiver: self.join_sender.subscribe(),
-            message_delete_receiver: self.message_delete_sender.subscribe(),
+            message_change_receiver: self.message_change_sender.subscribe(),
             message_id_gen: self.message_ids.clone(),
         };
 
@@ -221,7 +231,26 @@ impl Chat {
             if filter.check(&content_tokenized).is_none() {
                 new_messages.push(mesg);
             } else {
-                let _ = self.message_delete_sender.send(mesg);
+                let _ = self.message_change_sender.send(MessageChange {
+                    message_id: mesg.id(),
+                    ty: MessageChangeType::Censored,
+                });
+            }
+        }
+        *lock = new_messages;
+    }
+    pub async fn delete_message(&self, snowflake: Snowflake) {
+        let mut lock = self.history.lock().await;
+        let mut new_messages = CircularQueue::with_capacity(lock.capacity());
+        // TODO: When my pullrequest gets released on circular_queue use into Vec<T>
+        for mesg in lock.iter().cloned() {
+            if mesg.id() == snowflake {
+                let _ = self.message_change_sender.send(MessageChange {
+                    message_id: snowflake,
+                    ty: MessageChangeType::Deleted,
+                });
+            } else {
+                new_messages.push(mesg);
             }
         }
         *lock = new_messages;
@@ -245,7 +274,7 @@ pub struct ChatClient {
     message_sender: broadcast::Sender<Message>,
     pub message_receiver: broadcast::Receiver<Message>,
     pub join_receiver: broadcast::Receiver<UserInfo>,
-    pub message_delete_receiver: broadcast::Receiver<Message>,
+    pub message_change_receiver: broadcast::Receiver<MessageChange>,
 }
 impl ChatClient {
     #[inline]

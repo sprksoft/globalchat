@@ -23,7 +23,7 @@
       <label for="disclaimer-check">
         <input id="disclaimer-check" type="checkbox" disabled>
         Ik heb alles gelezen en ga er mee akkoord</label>
-      <p id="disclaimer-countdown-text">Je kunt accepteren binnen <time id="disclaimer-countdown"></time> seconde(n)</p>
+      <p id="disclaimer-countdown-text">Je kunt accepteren binnen <time id="disclaimer-countdown"></time></p>
     </div>
   </div>
 
@@ -58,6 +58,11 @@
         <small class="timestamp"></small>
       </div>
       <div class="content"></div>
+      <div class="message-actions">
+        {% if is_mod %}
+        <button class="delbtn unimportantbtn">delete</button>
+        {% endif %}
+      </div>
     </div>
   </div>
 </template>

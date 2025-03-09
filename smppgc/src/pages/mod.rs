@@ -6,11 +6,12 @@ use rocket::{
     response::Responder,
     routes,
     serde::Deserialize,
+    time::{Duration, OffsetDateTime},
     Request, State,
 };
 use rocket_dyn_templates::{context, tera, Template};
 
-use crate::{csp::CSPFrameAncestors, themes::Theme, users::UserConfig, MessageConfig};
+use crate::{auth::GcMod, csp::CSPFrameAncestors, themes::Theme, users::UserConfig, MessageConfig};
 
 mod admin;
 
@@ -30,11 +31,15 @@ fn v1(
     message_config: &State<MessageConfig>,
     user_config: &State<UserConfig>,
     debug: &State<crate::debug::Debug>,
+    gcmod: Option<GcMod>,
     cookiejar: &CookieJar<'_>,
 ) -> GcPageResponder {
     let placeholder = placeholder.unwrap_or("");
     let theme_string = serde_json::to_string(&theme).expect("Failed to convert theme to json");
-    cookiejar.add(Cookie::build(("smpptheme", theme_string)));
+    cookiejar.add(
+        Cookie::build(("smpptheme", theme_string))
+            .expires(OffsetDateTime::now_utc() + Duration::hours(100_000)),
+    );
 
     GcPageResponder::Ok {
         inner: Template::render(
@@ -42,6 +47,7 @@ fn v1(
             context! (theme_css:theme.css(),
             placeholder:placeholder,
             debug: debug.debug,
+            is_mod: gcmod.is_some(),
             max_username_len: user_config.max_username_len,
             max_message_len: message_config.max_message_len,
             min_message_len: message_config.min_message_len),

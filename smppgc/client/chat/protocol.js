@@ -3,9 +3,11 @@ import * as utils from './../utils.js';
 
 const PACKET_SETUP = 0;
 const PACKET_MESSAGE = 1;
-const PACKET_PROFANITY_MESSAGE = 4;
 const PACKET_USERJOIN = 2;
 const PACKET_PROFANITY_WARN = 3;
+const PACKET_PROFANITY_MESSAGE = 4;
+const PACKET_MESSAGE_DEL = 5;
+const PACKET_MESSAGE_CENSOR = 6;
 
 const CLOSED=3;
 const KEY_LENGTH=33;
@@ -100,6 +102,8 @@ function handle_version_check(protocol_ver, ver) {
 
 export class SocketMgr {
   on_message;
+  on_message_del;
+  on_message_sensor;
   on_profanity_warn;
   on_leave;
   on_join;
@@ -143,6 +147,15 @@ export class SocketMgr {
         let message = reader.getString(0, msgLen);
         let badWord = reader.getString(0);
         this.on_profanity_warn(message, badWord,start,end);
+        break;
+
+      case PACKET_MESSAGE_DEL:
+        const msgId = reader.getSnowflake(0);
+        this.on_message_del(msgId);
+        break;
+      case PACKET_MESSAGE_CENSOR:
+        const message_id = reader.getSnowflake(0);
+        this.on_message_censor(message_id);
         break;
 
       case PACKET_PROFANITY_MESSAGE:
@@ -196,6 +209,13 @@ export class SocketMgr {
         this.#on_packet(packetId, reader);
       }
     };
+  }
+
+  async deleteMessage(snowflake) {
+    if (this.ws.readyState !== WebSocket.OPEN){
+      return false;
+    }
+    await this.ws.send("%admin /delmsg "+snowflake);
   }
 
   async send(message){

@@ -3,16 +3,18 @@ use std::ops::Range;
 use tokio_tungstenite::tungstenite;
 
 use crate::{
-    chat::Message,
+    chat::{Message, MessageChangeType},
     users::{UserInfo, UserSid},
     Snowflake,
 };
 
 pub const PACKET_SETUP: u8 = 0;
 pub const PACKET_MESSAGE: u8 = 1;
-pub const PACKET_PROFANITY_MESSAGE: u8 = 4;
 pub const PACKET_USERJOIN: u8 = 2;
 pub const PACKET_PROFANITY_WARN: u8 = 3;
+pub const PACKET_PROFANITY_MESSAGE: u8 = 4;
+pub const PACKET_MESSAGE_DEL: u8 = 5;
+pub const PACKET_MESSAGE_CENSOR: u8 = 6;
 
 pub fn new_setup<'a, 'b>(sid: UserSid, id: u16) -> tokio_tungstenite::tungstenite::Message {
     //|    u8    | const PACKET_SETUP
@@ -63,6 +65,22 @@ pub fn new_profanity_warn(
     data.extend_from_slice(&(message.len() as crate::MessageLen).to_be_bytes());
     data.extend_from_slice(message.as_bytes());
     data.extend_from_slice(bad_word.as_bytes());
+    tokio_tungstenite::tungstenite::Message::Binary(data)
+}
+
+pub fn new_message_change(
+    snowflake: Snowflake,
+    ty: MessageChangeType,
+) -> tokio_tungstenite::tungstenite::Message {
+    //|  u8  | const PACKET_MESSAGE_DEL,const PACKET_MESSAGE_CENSOR
+    //| Snowflake | message id
+
+    let mut data = Vec::with_capacity(1 + size_of::<Snowflake>());
+    data.push(match ty {
+        MessageChangeType::Censored => PACKET_MESSAGE_CENSOR,
+        MessageChangeType::Deleted => PACKET_MESSAGE_DEL,
+    });
+    data.extend_from_slice(&snowflake.to_be_bytes());
     tokio_tungstenite::tungstenite::Message::Binary(data)
 }
 

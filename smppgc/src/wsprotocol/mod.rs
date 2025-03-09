@@ -10,7 +10,7 @@ use thiserror::Error;
 use tokio_tungstenite::tungstenite;
 
 use crate::{
-    chat::Message,
+    chat::{Message, MessageChangeType},
     users::{UserInfo, UserSid},
     Snowflake,
 };
@@ -123,6 +123,17 @@ impl WsClient {
     ) -> Result<()> {
         self.ws
             .send(packets::new_profanity_warn(message, bad_word, span))
+            .await?;
+        Ok(())
+    }
+
+    pub async fn forward_message_change(
+        &mut self,
+        message_id: Snowflake,
+        ty: MessageChangeType,
+    ) -> Result<()> {
+        self.ws
+            .send(packets::new_message_change(message_id, ty))
             .await?;
         Ok(())
     }

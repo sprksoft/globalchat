@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use log::*;
 use rocket::{
@@ -10,9 +10,27 @@ use rocket::{
     Request,
 };
 
+pub fn get_role_from_key(key: &str, auth_file: &Path) -> std::io::Result<Option<PermRole>> {
+    let file_contents = std::fs::read_to_string(auth_file)?;
+    for (key, role) in file_contents
+        .lines()
+        .map(|l| l.split_once(":"))
+        .filter_map(|l| l)
+    {
+        if key.trim() == key {
+            return Ok(Some(match role {
+                "mod" => PermRole::Mod,
+                "admin" => PermRole::Admin,
+                _ => continue,
+            }));
+        }
+    }
+    Ok(None)
+}
+
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "rocket::serde")]
-struct AuthConfig {
+pub struct AuthConfig {
     pub auth_file: PathBuf,
 }
 
@@ -33,29 +51,17 @@ impl<'r> FromRequest<'r> for GcAuth {
         };
 
         if let Some(auth) = request.cookies().get("SMPPGC-Auth") {
-            let file_contents = match std::fs::read_to_string(&conf.auth_file) {
-                Ok(s) => s,
+            match get_role_from_key(auth.value_trimmed(), &conf.auth_file) {
                 Err(e) => {
                     error!("Failed to load auth file: {}", e);
                     return Outcome::Error((Status::InternalServerError, e));
                 }
-            };
-            for (key, role) in file_contents
-                .lines()
-                .map(|l| l.split_once(":"))
-                .filter_map(|l| l)
-            {
-                if key.trim() == auth.value_trimmed() {
-                    return Outcome::Success(GcAuth(match role {
-                        "mod" => PermRole::Mod,
-                        "admin" => PermRole::Admin,
-                        _ => continue,
-                    }));
-                }
+                Ok(Some(role)) => Outcome::Success(GcAuth(role)),
+                Ok(None) => Outcome::Forward(Status::Unauthorized),
             }
+        } else {
+            Outcome::Forward(Status::Unauthorized)
         }
-
-        Outcome::Forward(Status::Unauthorized)
     }
 }
 

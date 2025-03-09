@@ -11,10 +11,10 @@ if (localStorage.getItem("accepted_disclaimer") == disclaimerEl.dataset.disclaim
 } else {
   checkbox.disabled = true;
   checkbox.checked = false;
-  countdownEl.innerText = disclaimerCountdown;
+  countdownEl.innerText = disclaimerCountdown + (disclaimerCountdown == 1 ? " seconde" : " seconden");
   disclaimerInterval = setInterval(() => {
     disclaimerCountdown--;
-    countdownEl.innerText = disclaimerCountdown;
+    countdownEl.innerText = disclaimerCountdown + (disclaimerCountdown == 1 ? " seconde" : " seconden");
 
     if (disclaimerCountdown <= 0) {
       checkEnable();

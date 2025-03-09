@@ -34,6 +34,8 @@ connectbtn.disabled=!disclaimer.checkbox.checked;
 let profanityCoolDown = 0;
 let profanityCoolDownInterval;
 
+let socketmgr = new proto.SocketMgr();
+
 function createMessage(message, sender, snowflake, highlight=null, profanity=false) {
   const msgFrag = messageTemplate.content.cloneNode(true);
   let msgEl = msgFrag.querySelector(".message");
@@ -45,6 +47,12 @@ function createMessage(message, sender, snowflake, highlight=null, profanity=fal
   msgEl.dataset.snowflake = snowflake;
   msgEl.querySelector(".user").innerText = sender;
   msgEl.querySelector(".timestamp").innerText = sflake.into_time_str(snowflake);
+  let delbtnEl = msgEl.querySelector(".delbtn");
+  if (delbtnEl) {
+    delbtnEl.addEventListener("click", ()=>{
+      socketmgr.deleteMessage(snowflake);
+    });
+  }
   mk.mkcontent(message, highlight, msgEl.querySelector(".content"));
 
   return msgEl;
@@ -62,9 +70,6 @@ function add_message(message, sender, snowflake, scroll=false, profanity=false) 
     msgEl.scrollIntoView();
   }
 }
-
-
-let socketmgr = new proto.SocketMgr();
 
 local_commands.push(["/clearkey", function () {
     localStorage.removeItem("key");
@@ -112,6 +117,24 @@ socketmgr.on_message = (me, sender_id, sender_username, snowflake, message, prof
   }
   if (me && (message.includes("\"") || message.includes("'")) && (message.includes("SELECT * FROM") || message.includes("DROP TABLE") || (message.includes("WHERE") && message.includes("=")))){
     add_message("Sql injection? Why? Messages aren't even stored?", "system");
+  }
+}
+
+function getMessage(snowflake) {
+  return document.querySelector(`.message[data-snowflake="${snowflake}"]`);
+}
+
+socketmgr.on_message_censor = (snowflake) => {
+  let mesgEl = getMessage(snowflake);
+  if (mesgEl) {
+    mesgEl.classList.add("prof-message");
+  }
+}
+
+socketmgr.on_message_del = (snowflake) => {
+  let mesgEl = getMessage(snowflake);
+  if (mesgEl) {
+    mesgEl.remove();
   }
 }
 
@@ -209,7 +232,6 @@ function connect(background, start_snowflake) {
 
   constatus.showModal();
 }
-
 
 sendinput.addEventListener("keypress", (e)=>{
   if (e.key == "Enter" && !e.shiftKey && !utils.has_virtkb()){

@@ -6,16 +6,19 @@ use std::{
 use profanity::{Flags, ProfanityFilter, RuleFlags, Token};
 use rocket::{
     fairing::AdHoc,
-    get, post,
+    get,
+    http::{Cookie, CookieJar},
+    post,
     response::{Debug, Redirect},
     routes,
     serde::json::Json,
+    time::{Duration, OffsetDateTime},
     Responder, State,
 };
 use rocket_dyn_templates::{context, Template};
 
 use crate::{
-    auth::{GcAdmin, GcMod},
+    auth::{self, AuthConfig, GcAdmin},
     chat::Chat,
     profanity::{LintSet, ProfRuleset, RulesetError},
     themes::Theme,
@@ -93,8 +96,31 @@ fn index(_gcadmin: GcAdmin) -> Redirect {
     Redirect::permanent("/admin/prof")
 }
 
+#[get("/become?<key>")]
+fn become_role(
+    key: &str,
+    cookie_jar: &CookieJar,
+    auth_config: &State<AuthConfig>,
+) -> Result<&'static str, Debug<std::io::Error>> {
+    match auth::get_role_from_key(key, &auth_config.auth_file)? {
+        Some(_) => {
+            cookie_jar.add(
+                Cookie::build(("SMPPGC-Auth", key.to_string()))
+                    .http_only(true)
+                    .secure(true)
+                    .expires(OffsetDateTime::now_utc() + Duration::hours(100_000)),
+            );
+            Ok("ok")
+        }
+        None => Ok("Invalid key"),
+    }
+}
+
 pub fn stage() -> AdHoc {
     AdHoc::on_ignite("admin pages", |r| async {
-        r.mount("/admin", routes![index, prof, prof_ruleset_save])
+        r.mount(
+            "/admin",
+            routes![index, prof, prof_ruleset_save, become_role],
+        )
     })
 }
