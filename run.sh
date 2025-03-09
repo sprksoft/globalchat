@@ -12,7 +12,7 @@ if ! $DOCKER_COMPOSE version ; then
 fi
 
 echo "Creating network..."
-$DOCKET network create ldeveuorg_backend_net &> /dev/null
+$DOCKET network create ldeveuorg_gc &> /dev/null
 
 if [[ $* == *--nodbgenv* ]] ; then
 $DOCKER_COMPOSE -f compose.yml up || exit 1

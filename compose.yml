@@ -3,7 +3,7 @@ services:
     build:
       dockerfile: Dockerfile
     networks:
-      - ldeveuorg_backend_net
+      - ldeveuorg_gc
       - gc
     volumes:
       - proffilter:/var/proffilter
@@ -18,5 +18,5 @@ volumes:
 
 networks:
   gc:
-  ldeveuorg_backend_net:
+  ldeveuorg_gc:
     external: true
