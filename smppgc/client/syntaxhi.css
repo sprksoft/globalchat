@@ -1,0 +1,45 @@
+.editor {
+  position: relative;
+}
+
+.editor_highlight,
+.editor_input {
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+.editor_highlight {
+  position: absolute;
+  padding: 5px 20px;
+  z-index: 10;
+  pointer-events: none;
+}
+.editor_input {
+  position: relative;
+  color: transparent; /* Make text invisible */
+  caret-color: var(--color-text); /* But keep caret visible */
+  padding: 5px 20px;
+  border-radius: 100px;
+}
+
+.special-token {
+  color: var(--color-accent);
+  font-weight: bold;
+  border: solid transparent 2px;
+  margin: -2px; /* This is to offset the space the border takes */
+  border-radius:5px;
+  transition: border-color 0.5s;
+  pointer-events: all;
+}
+.special-token-invalid {
+  color: var(--color-error);
+}
+
+.special-token:hover{
+  border-color: var(--color-accent);
+}
+.special-token-invalid:hover {
+  border-color: var(--color-error);
+}

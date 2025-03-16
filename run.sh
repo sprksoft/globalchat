@@ -1,30 +1,21 @@
-#!/bin/bash
-# run.sh <extra_packages>
+DOCKER="sudo docker"
+DOCKER_COMPOSE="sudo docker compose"
 
-ROOT="$(dirname $0)"
-
-CARGO="cargo"
-GIT_HOOK=".git/hooks/pre-commit"
-
-# set git hook
-
-if ! ls "$ROOT/$GIT_HOOK"  ; then
-  echo "Generating git hook..."
-  echo "#!/bin/bash
-# A hook to build the js and css files on commit
-smppgc/build_js.sh --git-add" > "$ROOT/$GIT_HOOK" || exit 1
-  sudo chmod +x "$ROOT/$GIT_HOOK" || exit 1
+if ! $DOCKER version >> /dev/null ; then
+  echo "docker possibly not installed or sudo canceled"
+  exit 0
 fi
 
-smppgc/build_js.sh || exit 1
-
-
-if [[ "$1" == "--fast" ]] ; then
-  echo "using nightly..."
-  CARGO="cargo +nightly"
-  RUSTFLAGS="-Z threads=8"
+if ! $DOCKER_COMPOSE version ; then
+  echo "docker compose possibly not installed or sudo canceled"
+  exit 0
 fi
 
+echo "Creating network..."
+$DOCKET network create ldeveuorg_gc &> /dev/null
 
-export ROCKET_CONFIG="smppgc/Rocket.toml"
-$CARGO run --bin smppgc
+if [[ $* == *--nodbgenv* ]] ; then
+$DOCKER_COMPOSE -f compose.yml up || exit 1
+else
+$DOCKER_COMPOSE -f compose.yml -f debugenv.compose.yml watch || exit 1
+fi

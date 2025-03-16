@@ -1,110 +1,105 @@
-use lazy_static::lazy_static;
+use std::ops::Range;
+
 use tokio_tungstenite::tungstenite;
 
-use crate::{chat::Message, names::UserSid, userinfo::UserInfo};
+use crate::{
+    chat::{Message, MessageChangeType},
+    users::{UserInfo, UserSid},
+    Snowflake,
+};
 
-pub const USERID_SPECIAL: u16 = 0;
-pub const SUBID_SETUP: u8 = 0;
-pub const SUBID_USERJOIN: u8 = 1;
+pub const PACKET_SETUP: u8 = 0;
+pub const PACKET_MESSAGE: u8 = 1;
+pub const PACKET_USERJOIN: u8 = 2;
+pub const PACKET_PROFANITY_WARN: u8 = 3;
+pub const PACKET_PROFANITY_MESSAGE: u8 = 4;
+pub const PACKET_MESSAGE_DEL: u8 = 5;
+pub const PACKET_MESSAGE_CENSOR: u8 = 6;
 
-lazy_static! {
-    static ref VERSION: u16 = {
-        let year: usize = env!("CARGO_PKG_VERSION_MAJOR")
-            .parse()
-            .expect("Major version number can't be parsed into a usize");
-        let month: usize = env!("CARGO_PKG_VERSION_MINOR")
-            .parse()
-            .expect("Minor version number can't be parsed into a u8");
-
-        let serial: usize = env!("CARGO_PKG_VERSION_PATCH")
-            .parse()
-            .expect("Patch version number can't be parsed into a u8");
-
-        ((year - 2024) + month + serial) as u16
-    };
-}
-
-pub fn new_setup<'a, 'b>(
-    key: UserSid,
-    id: u16,
-    clients: Vec<UserInfo>,
-    history: Vec<Message>,
-) -> tokio_tungstenite::tungstenite::Message {
-    //|    u16   | const USERID_SPECIAL
-    //|    u8    | const SUBID_SETUP
+pub fn new_setup<'a, 'b>(sid: UserSid, id: u16) -> tokio_tungstenite::tungstenite::Message {
+    //|    u8    | const PACKET_SETUP
     //| [u8; 3]  | version
-    //|    u16   | id
-    //| [u8; 33] | key
-    //
-    //  clients:
-    //|    u16   | client count
-    //|    u16   | client id
-    //|    u8    | username len
-    //|    [u8]  | username
-    //
-    //  hist messages:
-    //|    u32   | time (minutes since UNIX_EPOCH)
-    //|    u8    | sender username len
-    //|    [u8]  | sender username
-    //|    u8    | content len
-    //|    [u8]  | content
+    //|    u16   | local id
+    //| [u8; 33] | static id
 
-    let key_str = key.to_string();
-    let key_str_bytes = key_str.as_bytes();
-    let mut data = Vec::with_capacity(size_of::<u16>() + 2 + 1 + 2 + key_str_bytes.len());
-    data.extend_from_slice(&USERID_SPECIAL.to_be_bytes());
-    data.push(SUBID_SETUP);
-    data.extend_from_slice(&VERSION.to_be_bytes());
+    let sid_str = sid.to_string();
+    let key_str_bytes = sid_str.as_bytes();
+    let mut data = Vec::with_capacity(1 + 3 + size_of::<u16>() + key_str_bytes.len());
+    data.push(PACKET_SETUP);
+    data.extend_from_slice(&crate::VERSION_INT.to_be_bytes());
     data.extend_from_slice(&id.to_be_bytes());
     data.extend_from_slice(key_str_bytes);
 
-    data.extend_from_slice(&(clients.len() as u16).to_be_bytes());
-    for client in clients {
-        let name_bytes = client.username().as_bytes();
-        data.reserve(name_bytes.len() + 3);
-        data.extend_from_slice(&client.id().to_be_bytes());
-        data.push(name_bytes.len() as u8);
-        data.extend_from_slice(name_bytes);
-    }
-    for message in history {
-        let sender_bytes = message.sender.as_bytes();
-        let content_bytes = message.content.as_bytes();
-        data.reserve(sender_bytes.len() + content_bytes.len() + 2 + 8);
-        data.extend_from_slice(&message.timestamp.to_be_bytes());
-        data.push(sender_bytes.len() as u8);
-        data.extend_from_slice(sender_bytes);
-        data.push(content_bytes.len() as u8);
-        data.extend_from_slice(content_bytes);
-    }
     tokio_tungstenite::tungstenite::Message::Binary(data)
 }
 pub fn new_client_joined(client: &UserInfo) -> tokio_tungstenite::tungstenite::Message {
-    //|  u16 | const USERID_SPECIAL
-    //|  u8  | const SUBID_USERJOIN
+    //|  u8  | const PACKET_USERJOIN
     //| u16  | user id
-    //| [u8]  | username
+    //| [u8] | username
 
     let username_bytes = client.username().as_bytes();
-    let mut data = Vec::with_capacity(username_bytes.len() + 5);
-    data.extend_from_slice(&USERID_SPECIAL.to_be_bytes());
-    data.push(SUBID_USERJOIN);
+    let mut data = Vec::with_capacity(username_bytes.len() + size_of::<u16>() + 1);
+    data.push(PACKET_USERJOIN);
     data.extend_from_slice(&client.id().to_be_bytes());
     data.extend_from_slice(&username_bytes);
     tokio_tungstenite::tungstenite::Message::Binary(data)
 }
+
+pub fn new_profanity_warn(
+    message: &str,
+    bad_word: &str,
+    span: Range<crate::MessageLen>,
+) -> tokio_tungstenite::tungstenite::Message {
+    //|  u8  | const PACKET_PROFANITY_WARN
+    //| MessageLen | match start
+    //| MessageLen | match end
+    //| MessageLen | len of message
+    //| [u8]  | message
+    //| [u8] | bad word
+
+    let mut data =
+        Vec::with_capacity(1 + size_of::<crate::MessageLen>() * 3 + message.len() + bad_word.len());
+    data.push(PACKET_PROFANITY_WARN);
+    data.extend_from_slice(&span.start.to_be_bytes());
+    data.extend_from_slice(&span.end.to_be_bytes());
+    data.extend_from_slice(&(message.len() as crate::MessageLen).to_be_bytes());
+    data.extend_from_slice(message.as_bytes());
+    data.extend_from_slice(bad_word.as_bytes());
+    tokio_tungstenite::tungstenite::Message::Binary(data)
+}
+
+pub fn new_message_change(
+    snowflake: Snowflake,
+    ty: MessageChangeType,
+) -> tokio_tungstenite::tungstenite::Message {
+    //|  u8  | const PACKET_MESSAGE_DEL,const PACKET_MESSAGE_CENSOR
+    //| Snowflake | message id
+
+    let mut data = Vec::with_capacity(1 + size_of::<Snowflake>());
+    data.push(match ty {
+        MessageChangeType::Censored => PACKET_MESSAGE_CENSOR,
+        MessageChangeType::Deleted => PACKET_MESSAGE_DEL,
+    });
+    data.extend_from_slice(&snowflake.to_be_bytes());
+    tokio_tungstenite::tungstenite::Message::Binary(data)
+}
+
 pub fn new_message(mesg: &Message) -> tokio_tungstenite::tungstenite::Message {
-    //|  u16 | local sender id
-    //|  u32 | time (minutes since UNIX_EPOCH)
+    //|  u8  | const PACKET_MESSAGE, const PACKET_PROFANITY_MESSAGE
+    //|  u16 | sender id
+    //| Snowflake | message id
     //| [u8] | content bytes
-    #[cfg(debug_assertions)]
-    if mesg.sender_id == 0 {
-        panic!("Cant create a message with sender_id set to 0")
-    }
 
     let content_bytes = mesg.content.as_bytes();
-    let mut data = Vec::with_capacity(content_bytes.len() + size_of::<u16>() + size_of::<u32>());
-    data.extend_from_slice(&mesg.sender_id.to_be_bytes());
-    data.extend_from_slice(&mesg.timestamp.to_be_bytes());
+    let mut data =
+        Vec::with_capacity(1 + size_of::<u16>() + size_of::<Snowflake>() + content_bytes.len());
+    if mesg.profanity {
+        data.push(PACKET_PROFANITY_MESSAGE)
+    } else {
+        data.push(PACKET_MESSAGE)
+    }
+    data.extend_from_slice(&mesg.sender.id().to_be_bytes());
+    data.extend_from_slice(&mesg.id().to_be_bytes());
     data.extend_from_slice(content_bytes);
     tungstenite::Message::Binary(data)
 }

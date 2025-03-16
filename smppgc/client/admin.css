@@ -1,0 +1,218 @@
+body {
+  background-color: var(--color-base00);
+  color: var(--color-text);
+}
+
+header {
+  align-items: center;
+  background: var(--color-base01);
+  display: flex;
+  flex-direction: row;
+
+  border-bottom: solid var(--color-base02) var(--border-size);
+}
+.header-btns {
+  margin-right: 1em;
+}
+
+header > h1 {
+  flex-grow: 10;
+  margin: 0.5em 1em 0.5em 1em
+}
+
+main {
+  margin-left: auto;
+  margin-right: auto;
+  padding: 3em;
+  min-width: 100em;
+  overflow:auto;
+}
+
+@media (max-width: 100em) {
+  main {
+    min-width:none;
+  }
+}
+@media screen and (max-width: 100em) {
+  main {
+    min-width: auto;
+    margin: 0px;
+  }
+}
+
+.rules-list {
+  display:flex;
+  flex-direction:column;
+}
+
+@keyframes ruleSpawn {
+  0% {
+    transform: translateY(200px);
+    opacity: 0;
+  }
+  80%{
+    transform: translateY(-10px);
+  }
+  100%{
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.rule {
+  animation: ruleSpawn 0.3s ease-in-out;
+  animation-fill-mode: both;
+  background: var(--color-base01);
+  border: solid var(--color-base02) var(--border-size);
+  border-radius: var(--border-radius);
+  margin: 2em;
+  padding: 1em;
+
+  display:flex;
+  flex-direction: column;
+  transition: border-color 0.5s;
+}
+.rule:target,
+.rule:focus {
+  border-color: var(--color-accent);
+}
+.rule .top-row,
+.rule .bot-row {
+  display:flex;
+  flex-direction: row;
+}
+
+.replace-arrow {
+  margin: calc(5px + var(--border-size)) 1em 1em 1em;
+  font-family: "JetBrains Mono", monospace;
+  font-weight: bold;
+  color: var(--color-accent);
+}
+.rule-input {
+  flex-grow: 10;
+  font-size: 15px;
+  font-family: "JetBrains Mono", monospace;
+  background: var(--color-base02);
+  border: solid var(--color-base03) var(--border-size);
+  border-radius: 100px;
+  color: var(--color-text);
+  margin: 0em 0em 1em 0em;
+}
+.char-rule-input {
+  flex-grow: 0;
+}
+
+.rule-options {
+  display:flex;
+  flex-direction: row;
+}
+.rule-buttons {
+  display: flex;
+  flex-direction: row;
+  margin-left: auto;
+}
+
+.rule-option {
+  border: solid var(--color-base03) var(--border-size);
+  border-radius: 10000px;
+  padding: 0px 0.5em 0px 0.5em;
+  margin: 3px 2px 3px 2px;
+
+  font-family: "JetBrains Mono", monospace;
+  cursor: pointer;
+  color: var(--color-text);
+  background-color: var(--color-base02);
+  transition: background-color 0.5s, border-color 0.5s, color 0.5s;
+}
+.checked {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.top-row,
+.rule-options {
+  transition: opacity 0.5s;
+}
+
+.rule-disabled .top-row,
+.rule-disabled .rule-options {
+  opacity: 0.3;
+}
+@keyframes ruleDelete {
+  0% {
+  }
+  100%{
+    transform: translateY(100px);
+    opacity: 0;
+    display: none;
+    background: var(--color-error);
+  }
+}
+.rule-deleted {
+  animation: ruleDelete 0.5s;
+  animation-fill-mode: both;
+  animation-delay: 0s !important; /* This is important to overide the animation-delay in style that is given for the spawn animation */
+}
+
+#save-dialog {
+  display:flex;
+  flex-direction: column;
+}
+
+.lint-section {
+  padding-top: 0px;
+  margin-bottom: 2em;
+  overflow: scroll;
+}
+
+.lint {
+  font-family: "JetBrains Mono", monospace;
+  margin-bottom: 0.5em;
+  color: var(--color-text);
+  display:flex;
+  padding: 0.3em;
+  border-bottom: solid var(--color-base03) var(--border-size);
+}
+.lint:before {
+  font-family: "JetBrains Mono", monospace;
+  font-weight: bold;
+  margin-right: 1em;
+}
+.lint-links {
+  margin-left: auto;
+}
+.lint-links a {
+  margin: 0em 0.5em 0em 0.5em;
+}
+.lint span {
+  margin-right: 4em;
+}
+
+.lint-notify:before
+{
+  content:"nofity: ";
+  color: var(--color-ok);
+}
+
+.lint-error {
+  color: var(--color-error);
+}
+.lint-error:before {
+  content:"error: ";
+  color: var(--color-error);
+}
+#error-dialog {
+  display:flex;
+  flex-direction: column;
+}
+#error-message {
+  text-align: center;
+  font-weight: bold;
+  color: var(--color-error);
+  margin-top: 0px;
+}
+
+.hints {
+  margin-left: 0.5em;
+  opacity: 0.8;
+}

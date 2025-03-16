@@ -12,14 +12,7 @@ impl IdCounter {
         }
     }
     pub fn new_id(&self) -> u16 {
-        let value = self
-            .id_counter
-            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        if value == 0 {
-            self.id_counter
-                .fetch_add(1, std::sync::atomic::Ordering::Relaxed)
-        } else {
-            value
-        }
+        self.id_counter
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed)
     }
 }

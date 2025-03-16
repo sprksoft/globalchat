@@ -1,7 +1,4 @@
-use std::{
-    borrow::Cow,
-    time::{Duration, SystemTime},
-};
+use std::{borrow::Cow, ops::Range};
 
 use futures_util::SinkExt;
 use rocket_ws::{
@@ -12,7 +9,11 @@ use rocket_ws::{
 use thiserror::Error;
 use tokio_tungstenite::tungstenite;
 
-use crate::{chat::Message, names::UserSid, userinfo::UserInfo};
+use crate::{
+    chat::{Message, MessageChangeType},
+    users::{UserInfo, UserSid},
+    Snowflake,
+};
 
 use log::*;
 
@@ -74,6 +75,16 @@ kick_reason! {
     }
 }
 
+pub struct RecievedMessage {
+    pub content: String,
+}
+impl RecievedMessage {
+    #[inline]
+    pub fn len(&self) -> usize {
+        self.content.len()
+    }
+}
+
 pub struct WsClient {
     ws: DuplexStream,
     user_info: UserInfo,
@@ -81,24 +92,50 @@ pub struct WsClient {
 impl WsClient {
     pub async fn new(
         mut ws: DuplexStream,
-        user_static_id: UserSid,
         user_info: UserInfo,
         clients: Vec<UserInfo>,
         history: Vec<Message>,
     ) -> Result<Self> {
-        ws.send(packets::new_setup(
-            user_static_id,
-            user_info.id(),
-            clients,
-            history,
-        ))
-        .await?;
+        ws.feed(packets::new_setup(user_info.static_id(), user_info.id()))
+            .await?;
 
+        for client in clients {
+            ws.feed(packets::new_client_joined(&client)).await?;
+        }
+
+        for msg in history {
+            ws.feed(packets::new_message(&msg)).await?;
+        }
+
+        ws.flush().await?;
         Ok(Self { ws, user_info })
     }
 
     pub async fn kick(&mut self, reason: KickReason) -> Result<()> {
         self.ws.close(Some(reason.into_close_frame())).await
+    }
+
+    pub async fn profanity_warning(
+        &mut self,
+        message: &str,
+        bad_word: &str,
+        span: Range<crate::MessageLen>,
+    ) -> Result<()> {
+        self.ws
+            .send(packets::new_profanity_warn(message, bad_word, span))
+            .await?;
+        Ok(())
+    }
+
+    pub async fn forward_message_change(
+        &mut self,
+        message_id: Snowflake,
+        ty: MessageChangeType,
+    ) -> Result<()> {
+        self.ws
+            .send(packets::new_message_change(message_id, ty))
+            .await?;
+        Ok(())
     }
 
     pub async fn forward_client(&mut self, client: &UserInfo) -> Result<()> {
@@ -126,7 +163,7 @@ impl WsClient {
         self.ws.flush().await?;
         Ok(())
     }
-    pub async fn try_recv(&mut self) -> Result<Option<Message>> {
+    pub async fn try_recv(&mut self) -> Result<Option<RecievedMessage>> {
         let Some(message) = futures_util::StreamExt::next(&mut self.ws).await else {
             return Err(rocket_ws::result::Error::ConnectionClosed);
         };
@@ -146,19 +183,6 @@ impl WsClient {
         }
         let content = String::from_utf8_lossy(&message.into_data()).to_string();
 
-        let timestamp = (SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .unwrap_or_else(|_| {
-                error!("Time went backwards");
-                Duration::from_secs(0)
-            })
-            .as_secs()
-            / 60) as u32;
-        Ok(Some(Message {
-            timestamp,
-            sender_id: self.user_info.id(),
-            sender: self.user_info.username.clone(),
-            content: content.into(),
-        }))
+        Ok(Some(RecievedMessage { content: content }))
     }
 }

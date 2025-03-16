@@ -1,12 +1,12 @@
-use crate::names::UserSid;
+use crate::users::UserSid;
 use std::{net::IpAddr, time::Instant};
 
 use dashmap::DashMap;
 use log::*;
 use rocket::{fairing::AdHoc, serde::Deserialize};
 
-pub struct UserRateLimiters(pub RateLimiters<IpAddr>);
-pub struct IpRateLimiters(pub RateLimiters<IpAddr>);
+pub struct NewUserIpRateLimiters(pub RateLimiters<IpAddr>);
+pub struct MesgIpRateLimiters(pub RateLimiters<IpAddr>);
 pub struct MesgRateLimiters(pub RateLimiters<UserSid>);
 
 pub struct RateLimiters<T: std::hash::Hash> {
@@ -79,57 +79,29 @@ pub struct RateLimitConfig {
 
 #[derive(Deserialize, Debug, Clone)]
 #[serde(crate = "rocket::serde")]
-pub struct MessageLimits {
-    pub small_message_len: usize,
-    pub max_message_len: usize,
-    pub large_message_penalty: u32,
-    #[serde(flatten)]
-    pub ratelimit: RateLimitConfig,
-}
-
-#[derive(Deserialize, Debug, Clone)]
-#[serde(crate = "rocket::serde")]
-pub struct UserLimits {
-    pub max_username_len: usize,
-    #[serde(flatten)]
-    pub ratelimit: RateLimitConfig,
-}
-
-#[derive(Deserialize, Debug, Clone)]
-#[serde(crate = "rocket::serde")]
-pub struct IpLimits {
+pub struct RateLimitIpPenalty {
     pub xx_penalty: u32,
     pub not_be_penalty: u32,
-    #[serde(flatten)]
-    pub ratelimit: RateLimitConfig,
 }
 
 pub fn stage() -> AdHoc {
     AdHoc::on_ignite("ratelimiting", |r| async {
-        let mesg_limits: MessageLimits = r
+        let mesg_ip_rate: RateLimitConfig = r
             .figment()
-            .extract_inner("mesg_limits")
+            .extract_inner("mesg_ip_rate")
             .expect("Failed to read message ratelimiting config value");
-        let user_limits: UserLimits = r
+        let mesg_rate: RateLimitConfig = r
             .figment()
-            .extract_inner("user_limits")
-            .expect("Failed to read user ratelimiting config value");
-        let ip_limits: IpLimits = r
+            .extract_inner("mesg_rate")
+            .expect("Failed to read message ratelimiting config value");
+        let new_user_ip_rate: RateLimitConfig = r
             .figment()
-            .extract_inner("ip_limits")
-            .expect("Failed to read ip ratelimiting config value");
+            .extract_inner("new_user_ip_rate")
+            .expect("Failed to read message ratelimiting config value");
 
-        r.manage(MesgRateLimiters(RateLimiters::<UserSid>::new(
-            mesg_limits.ratelimit.clone(),
-        )))
-        .manage(mesg_limits)
-        .manage(UserRateLimiters(RateLimiters::<IpAddr>::new(
-            user_limits.ratelimit.clone(),
-        )))
-        .manage(user_limits)
-        .manage(IpRateLimiters(RateLimiters::<IpAddr>::new(
-            ip_limits.ratelimit.clone(),
-        )))
-        .manage(ip_limits)
+        r.attach(AdHoc::config::<RateLimitIpPenalty>())
+            .manage(MesgRateLimiters(RateLimiters::new(mesg_rate)))
+            .manage(MesgIpRateLimiters(RateLimiters::new(mesg_ip_rate)))
+            .manage(NewUserIpRateLimiters(RateLimiters::new(new_user_ip_rate)))
     })
 }

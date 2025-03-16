@@ -1,131 +1,165 @@
 #![cfg_attr(test, feature(test))]
-use serde::{Deserialize, Serialize};
-use string_tree::StringTree;
+use std::{collections::HashMap, ops::Range};
 
 #[cfg(test)]
-mod test;
-#[cfg(test)]
-mod wordlist;
+mod other_impls;
 
-#[derive(Serialize, Deserialize)]
+mod rules;
+mod tokens;
+
+pub use rules::*;
+pub use tokens::*;
+
+#[cfg(feature = "serde")]
+mod json;
+
+#[derive(Debug, Hash, Eq, PartialEq, Clone)]
+pub struct TokenizedMessage(Vec<TokenGroup>);
+impl TokenizedMessage {
+    pub fn tokens(&self) -> std::slice::Iter<'_, TokenGroup> {
+        self.0.iter()
+    }
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub struct FilterMatch<'a> {
+    pub rule: &'a MatchRule,
+    pub span: Range<usize>,
+}
+
+#[derive(Debug)]
 pub struct ProfanityFilter {
-    wordlist: Vec<Box<str>>,
+    rules: Vec<MatchRule>,
+    char_to_token_map: HashMap<char, TokenGroup>,
 }
+
 impl ProfanityFilter {
-    pub fn from_wordlist(wordlist: &str) -> Self {
-        let wordlist = wordlist
-            .lines()
-            .map(|l| l.trim_matches(['"']).to_lowercase())
-            .filter(|i| i.len() > 0)
-            .map(|s| Box::from(s))
-            .collect();
-        //println!("{:?}", wordlist);
-        Self { wordlist }
-    }
-    pub fn add_word(&mut self, word: impl Into<Box<str>>) {
-        self.wordlist.push(word.into());
+    pub fn empty() -> Self {
+        Self {
+            rules: vec![],
+            char_to_token_map: HashMap::new(),
+        }
     }
 
-    pub fn contains_profanity(&self, string: &str) -> bool {
-        sentence_contains_loop(&self.wordlist, string)
-    }
-}
-
-fn char_equals_normalized(nchar: u8, cchar: u8) -> bool {
-    if nchar == cchar {
-        return true;
-    }
-
-    let a: &[u8] = match nchar {
-        b'!' => &[b'i', b'l', b'j'],
-        b'i' => &[b'l', b'j'],
-        b'l' => &[b'i', b'j'],
-        b'j' => &[b'i', b'j'],
-
-        b'1' => &[b'i', b'l', b'j'],
-        b'3' => &[b'e'],
-        b'4' => &[b'a'],
-        b'6' => &[b'g'],
-
-        b'@' => &[b'a', b'e', b'i', b'o', b'u'],
-        b'*' => &[b'a', b'e', b'i', b'o', b'u'],
-        b'$' => &[b'4', b's'],
-        _ => &[],
-    };
-    a.contains(&cchar)
-}
-
-fn matches(sentence: &str, check: &str) -> bool {
-    let mut iter_check = check.bytes();
-    let mut iter_sentence = sentence.bytes();
-    //println!("matching {} {}", sentence, check);
-    let mut prev_char_check = None;
-    loop {
-        let Some(char_check) = iter_check.next() else {
-            return true;
-        };
-        let Some(mut char_sen) = iter_sentence.next() else {
-            return char_check.is_ascii_whitespace();
-        };
-        loop {
-            if char_equals_normalized(char_sen, char_check) {
-                // println!(
-                //     "normalize check between {}={}",
-                //     char::from_u32(char_sen as u32).unwrap(),
-                //     char::from_u32(char_check as u32).unwrap()
-                // );
-                break;
-            }
-
-            if !char_sen.is_ascii_alphabetic()
-                || prev_char_check
-                    .map(|prev_char_check| char_equals_normalized(char_sen, prev_char_check))
-                    .unwrap_or(false)
-            {
-                char_sen = match iter_sentence.next() {
-                    Some(v) => v,
-                    None => return char_check.is_ascii_whitespace(),
-                };
+    pub fn parse_from_str(str: &str) -> Result<Self, ParseRuleError> {
+        let mut me = Self::empty();
+        for line in str.lines() {
+            let line = &line[..line.find('#').unwrap_or(line.len())];
+            if line.is_empty() {
                 continue;
             }
-            return false;
+            me.insert_rule(Rule::parse_from_str(&line)?);
         }
-        prev_char_check = Some(char_check);
+        Ok(me)
     }
-}
 
-fn sentence_contains_tree(tree: &StringTree, sentence: &str) -> bool {
-    let mut index = 0;
-    let sentence = sentence.to_lowercase();
-    loop {
-        let result = tree.contains(&|check: &str, i| matches(&sentence[index + i..], &check[i..]));
-        if result.0 {
-            return true;
-        }
-        index += result.1 + 1;
-        if index >= sentence.len() {
-            return false;
+    pub fn insert_rule(&mut self, rule: Rule) {
+        match rule {
+            Rule::Replace(r) => self.insert_rep_rule(r),
+            Rule::Match(m) => self.insert_match_rule(m),
         }
     }
-}
 
-fn sentence_contains_loop(wordlist: &Vec<Box<str>>, sentence: &str) -> bool {
-    let sentence = sentence.to_lowercase();
-    for i in 0..sentence.len() {
-        if !sentence.is_char_boundary(i) {
-            continue;
+    pub fn insert_rep_rule(&mut self, new_rule: RepRule) {
+        for token in new_rule.match_chars.chars() {
+            self.char_to_token_map
+                .insert(token, new_rule.replace_tg.clone());
         }
-        for item in wordlist.iter() {
-            if matches(&sentence[i..], &item) {
-                // println!(
-                //     "MATCH '{}' starts with '{}' index: {}",
-                //     &sentence[i..],
-                //     item,
-                //     i
-                // );
-                return true;
+    }
+
+    pub fn insert_match_rule(&mut self, new_rule: MatchRule) {
+        self.rules.push(new_rule);
+    }
+    pub fn rule(&self, i: usize) -> &MatchRule {
+        &self.rules[i]
+    }
+    pub fn match_rules(&self) -> &[MatchRule] {
+        &self.rules
+    }
+
+    pub fn check(&self, msg: &TokenizedMessage) -> Option<FilterMatch> {
+        for rule in self.rules.iter() {
+            if let Some(span) = rule.filter(&msg) {
+                return Some(FilterMatch { rule: rule, span });
             }
         }
+        None
     }
-    false
+    pub fn check_all(&self, msg: &TokenizedMessage) -> Vec<FilterMatch> {
+        let mut matches = vec![];
+        for rule in self.rules.iter() {
+            if let Some(span) = rule.filter(&msg) {
+                matches.push(FilterMatch { rule: rule, span });
+            }
+        }
+        matches
+    }
+
+    pub fn tokenize_match_rule(&self, rule: &MatchRule) -> TokenizedMessage {
+        TokenizedMessage(
+            rule.tokens
+                .iter()
+                .map(|t| TokenGroup::from_single(*t))
+                .collect(),
+        )
+    }
+    pub fn tokenize(&self, str: &str) -> (TokenizedMessage, String) {
+        let mut new_str = String::with_capacity(str.len());
+        let mut tokens = Vec::with_capacity(str.len());
+        for char in str.chars() {
+            if let Some(t) = self.char_to_token(char) {
+                new_str.push(char);
+                tokens.push(t);
+            } else {
+                tokens.push(TokenGroup::from_single(Token::new_unknown()));
+            }
+        }
+        (TokenizedMessage(tokens), new_str)
+    }
+
+    fn char_to_token(&self, char: char) -> Option<TokenGroup> {
+        if let Some(tgroup) = self.char_to_token_map.get(&char).cloned() {
+            return Some(tgroup);
+        }
+
+        TokenGroup::from_char(char)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::{
+        rules::{MatchRule, RepRule, RuleFlags},
+        tokens::TokenGroup,
+        tokens_ar, ProfanityFilter, TokenizedMessage,
+    };
+
+    #[test]
+    fn char_replace() {
+        let mut filter = ProfanityFilter::empty();
+        filter.insert_rep_rule(RepRule::parse_from_str("i => ij").unwrap());
+        assert_eq!(
+            filter.char_to_token_map.get(&'i'),
+            Some(TokenGroup::parse_from_str("ij").unwrap()).as_ref()
+        )
+    }
+
+    #[test]
+    fn tokenize_test() {
+        let filter = ProfanityFilter::empty();
+
+        assert_eq!(
+            filter.tokenize("ik"),
+            (
+                TokenizedMessage(vec![
+                    TokenGroup::parse_from_str("i/k").unwrap(),
+                    TokenGroup::parse_from_str("k").unwrap()
+                ]),
+                "ik".to_string()
+            )
+        )
+    }
 }

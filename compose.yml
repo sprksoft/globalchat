@@ -1,0 +1,22 @@
+services:
+  smppgc:
+    build:
+      dockerfile: Dockerfile
+    networks:
+      - ldeveuorg_gc
+      - gc
+    volumes:
+      - proffilter:/var/proffilter
+      - auth:/var/auth
+
+    expose:
+      - 8080
+
+volumes:
+  proffilter:
+  auth:
+
+networks:
+  gc:
+  ldeveuorg_gc:
+    external: true

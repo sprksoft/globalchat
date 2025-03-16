@@ -1,0 +1,5 @@
+services:
+  smppgc:
+    build:
+      target: prod
+    restart: always

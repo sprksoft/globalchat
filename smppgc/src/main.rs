@@ -2,7 +2,6 @@ use std::ops::Deref;
 
 use chat::Chat;
 use lmetrics::LMetrics;
-use ratelimit::RateLimitConfig;
 use rocket::response::Redirect;
 use rocket::routes;
 use rocket::serde::Deserialize;
@@ -10,20 +9,24 @@ use rocket::{fairing::AdHoc, launch};
 use rocket::{get, State};
 use utils::static_routing;
 
-#[cfg(test)]
-mod test;
-
-pub mod chat;
+mod auth;
+mod chat;
+mod csp;
 mod debug;
-mod mesg_filter;
-pub mod names;
-pub mod profanity;
-pub mod ratelimit;
-pub mod socket;
-mod template;
-mod userinfo;
+mod ipcountry;
+mod pages;
+mod profanity;
+mod ratelimit;
+mod snowflake;
+mod socket;
+mod themes;
+mod users;
 mod utils;
+mod version_int;
 mod wsprotocol;
+
+pub use snowflake::*;
+pub use version_int::*;
 
 #[derive(Deserialize, Debug)]
 #[serde(crate = "rocket::serde")]
@@ -32,33 +35,31 @@ pub struct ChatConfig {
     pub max_users: u16,
 }
 
-#[derive(Deserialize, Debug)]
-#[serde(crate = "rocket::serde", default = "RootUrl::default")]
-pub struct RootUrl {
-    pub root_url: String,
-}
+pub type MessageLen = u16;
+pub type BadWordLen = u8;
 
-impl Default for RootUrl {
-    fn default() -> Self {
-        Self {
-            root_url: String::new(),
-        }
-    }
-}
-impl Deref for RootUrl {
-    type Target = String;
-    fn deref(&self) -> &Self::Target {
-        &self.root_url
-    }
+#[derive(Deserialize, Debug, Clone)]
+#[serde(crate = "rocket::serde")]
+pub struct MessageConfig {
+    pub small_message_len: usize,
+    pub max_message_len: MessageLen,
+    pub min_message_len: MessageLen,
+    pub large_message_penalty: u32,
+
+    pub max_same_message_streak: u32,
+    pub same_message_penalty: u32,
 }
 
 #[get("/version")]
-fn server_version(debug: &State<debug::Debug>) -> &'static str {
-    if debug.debug {
-        concat!(env!("CARGO_PKG_NAME"), "-debug-", env!("CARGO_PKG_VERSION"))
-    } else {
-        concat!(env!("CARGO_PKG_NAME"), "-", env!("CARGO_PKG_VERSION"))
-    }
+fn server_version(debug: &State<debug::Debug>) -> String {
+    let ver_str = concat!(env!("CARGO_PKG_NAME"), "-", env!("CARGO_PKG_VERSION"));
+
+    format!(
+        "{} debug_assertions: {} debug: {} ",
+        ver_str,
+        cfg!(debug_assertions),
+        debug.debug,
+    )
 }
 
 #[get("/")]
@@ -76,10 +77,8 @@ fn rocket() -> _ {
         &static_routing::static_req_total::METRIC,
         &chat::joined_total::METRIC,
         &chat::left_total::METRIC,
-        &chat::client_left_events_lost_total::METRIC,
-        &chat::history_messages_lost_total::METRIC,
+        &chat::history_events_lost_total::METRIC,
         &socket::messages_total::METRIC,
-        &socket::profanity_messages_total::METRIC,
         &socket::messages_blocked::METRIC,
         &socket::new_users::METRIC,
         &lmetrics::http_errors_total::METRIC,
@@ -89,11 +88,12 @@ fn rocket() -> _ {
     rocket::build()
         .mount("/", routes![index, server_version])
         .mount("/metrics", metrics)
+        .attach(AdHoc::config::<MessageConfig>())
         .attach(ratelimit::stage())
         .attach(static_routing::stage())
-        .attach(template::stage())
-        .attach(names::stage())
-        .attach(AdHoc::config::<RootUrl>())
+        .attach(pages::stage())
+        .attach(users::stage())
+        .attach(auth::stage())
         .attach(AdHoc::on_ignite("chat", |r| async {
             let config = r
                 .figment()

@@ -1,12 +1,18 @@
 [package]
 name = "profanity"
-version.workspace = true
+version="2025.3.0"
 authors.workspace = true
 edition.workspace = true
 
 [dependencies]
-string_tree={path="../string_tree", features=["serde"]}
-serde={version="1.0.213", features=["derive"]}
+thiserror={version="2.0.12"}
+serde={version="1.0.218", features=["derive"], optional=true}
+bitflags={version="2.9.0"}
 
 [dev-dependencies]
 censor={version="0.3.0"}
+string_tree={path="../string_tree", features=["serde"]}
+
+[features]
+default=[]
+serde=["dep:serde", "bitflags/serde"]

@@ -1,6 +1,11 @@
 #!/bin/bash
 set -e
+RUST_PROJECTS=( lmetrics profanity smppgc ) # NOTE: also change in prod_images.sh if project is an image
+PROD_SERVER="ldev@192.168.1.69"
+PROJECT="smppserver"
 
+# software override
+SSH="ssh"
 
 ALLOW_DEPLOY_ON_MAIN="false"
 ALLOW_UNCOMMITED="false"
@@ -8,7 +13,7 @@ ALLOW_UNCOMMITED="false"
 if [[ "$@" == *"--allow-deploy-on-main"* ]] ; then
   ALLOW_DEPLOY_ON_MAIN="true"
 fi
-if [[ "$@" == *"--allow-deploy-on-main"* ]] ; then
+if [[ "$@" == *"--allow-uncommited"* ]] ; then
   ALLOW_UNCOMMITED="true"
 fi
 
@@ -32,14 +37,16 @@ if [[ "$BRANCH" != "dev" ]] && [[ "$ALLOW_DEPLOY_ON_MAIN" == "false" ]] ; then
 fi
 echo "new version: $new_ver"
 
-echo "Bumping Cargo.toml..."
-new_cargo_toml=$(cat Cargo.toml | rg --passthru 'version\s*=\s*"([0-9]*\.[0-9]*\.[0-9]*)"' -r "version=\"$new_ver\"")
-echo "$new_cargo_toml" > Cargo.toml
+for rust_proj in ${RUST_PROJECTS[@]} ; do
+  echo "Bumping Cargo.toml of $rust_proj..."
+  new_cargo_toml=$(cat $rust_proj/Cargo.toml | rg --passthru '^version\s*=\s*"([0-9]*\.[0-9]*\.[0-9]*)"' -r "version=\"$new_ver\"")
+  echo "$new_cargo_toml" > $rust_proj/Cargo.toml
+done
 
-echo "Bumping PKGBUILD..."
-new_pkgbuild=$(cat PKGBUILD | rg --passthru 'pkgver\s*=\s*([0-9]*\.[0-9]*\.[0-9]*)' -r "pkgver=$new_ver")
-echo "$new_pkgbuild" > PKGBUILD
-
+if [[ $@ == *"--no-git"* ]] ; then
+  echo "skipping git commands"
+  exit 0
+fi
 
 echo "Checking into version control..."
 git add .
@@ -61,5 +68,14 @@ if [[ "$BRANCH" != "main" ]] ; then
 else
   echo "No need to merge into main branch"
 fi
+
+echo "Building prod images"
+./prod_images.sh build
+
+echo "Pushing prod images..."
+./prod_images.sh push "$PROD_SERVER"
+
+echo "Restarting containers on server..."
+$SSH $PROD_SERVER "cd ~/source/repos/$PROJECT ; ./run_prod.sh"
 
 echo "done"

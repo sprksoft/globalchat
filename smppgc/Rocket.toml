@@ -1,50 +1,44 @@
 [default]
-max_stored_messages=30
-max_reserved_names=2
-max_users=1000
-
+address = "0.0.0.0"
 port = 8080
 ip_header="CF-Connecting-IP"
 
-[default.ip_limits]
-timeframe=60
-amount=500
-xx_penalty=2
-not_be_penalty=100
+root_url=""
+auth_file="/var/auth/authfile.txt"
+prof_filter_file="/var/proffilter/rules.txt"
+static_dir="/app/www"
+template_dir="/app/templates"
 
-[default.mesg_limits]
-timeframe=10
-amount=6
+max_stored_messages=30
+max_users=1000
+
+max_username_len=30
+max_reserved_names=2
+
+
+max_same_message_streak=3
+same_message_penalty=6
+
 small_message_len=150
 max_message_len=300
-large_message_penalty=5
+min_message_len=2
+large_message_penalty=2
 
-[default.user_limits]
-timeframe=300 # 5 minutes
-amount=60
-max_username_len=30
+mesg_rate={timeframe=5,amount=3}
+
+xx_penalty=2
+not_be_penalty=4
+mesg_ip_rate={timeframe=60,amount=400}
+new_user_ip_rate={timeframe=120, amount=60} # 2 minuten
+
 
 
 [debug]
 debug=true
-static_dir="www/static"
-template_dir="www/templates"
-prof_wordlist="profanity.txt"
-address = "0.0.0.0"
 log_level="normal"
 
-
 [release]
+debug=false
 root_url="/smpp/gc"
-static_dir="/var/smppgc/www/static"
-template_dir="/var/smppgc/www/templates"
-address = "127.0.0.1"
-port = 8081
 log_level = "critical"
-prof_wordlist="/var/smppgc/profanity.txt"
 
-[staging]
-root_url="/smpp/gc"
-static_dir="www/static"
-template_dir="www/templates"
-prof_wordlist="profanity.txt"

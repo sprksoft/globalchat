@@ -1,8 +1,7 @@
 [workspace]
 resolver="2"
-members= ["smppgc", "lmetrics", "string_tree", "profanity", "integration_tests"]
+members= ["smppgc", "lmetrics", "string_tree", "profanity"]
 
 [workspace.package]
-version="2024.12.4"
 authors=["ldev <ldev@ldev.eu.org>"]
 edition = "2021"
