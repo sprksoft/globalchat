@@ -1,5 +1,5 @@
-DOCKER="sudo docker"
-DOCKER_COMPOSE="sudo docker compose"
+DOCKER="docker"
+DOCKER_COMPOSE="docker compose"
 
 if ! $DOCKER version >> /dev/null ; then
   echo "docker possibly not installed or sudo canceled"

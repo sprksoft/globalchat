@@ -10,22 +10,22 @@ use rocket::{
     Request,
 };
 
-pub fn get_role_from_key(key: &str, auth_file: &Path) -> std::io::Result<Option<PermRole>> {
+pub fn get_role_from_key(key: &str, auth_file: &Path) -> std::io::Result<GcAuth> {
     let file_contents = std::fs::read_to_string(auth_file)?;
-    for (key, role) in file_contents
+    for (file_key, role) in file_contents
         .lines()
         .map(|l| l.split_once(":"))
         .filter_map(|l| l)
     {
-        if key.trim() == key {
-            return Ok(Some(match role {
-                "mod" => PermRole::Mod,
-                "admin" => PermRole::Admin,
+        if key.trim() == file_key.trim() {
+            return Ok(match role {
+                "mod" => GcAuth::Mod,
+                "admin" => GcAuth::Admin,
                 _ => continue,
-            }));
+            });
         }
     }
-    Ok(None)
+    Ok(GcAuth::InvalidKey)
 }
 
 #[derive(Serialize, Deserialize)]
@@ -34,12 +34,11 @@ pub struct AuthConfig {
     pub auth_file: PathBuf,
 }
 
-pub enum PermRole {
+pub enum GcAuth {
+    InvalidKey,
     Mod,
     Admin,
 }
-
-pub struct GcAuth(PermRole);
 #[rocket::async_trait]
 impl<'r> FromRequest<'r> for GcAuth {
     type Error = std::io::Error;
@@ -56,8 +55,7 @@ impl<'r> FromRequest<'r> for GcAuth {
                     error!("Failed to load auth file: {}", e);
                     return Outcome::Error((Status::InternalServerError, e));
                 }
-                Ok(Some(role)) => Outcome::Success(GcAuth(role)),
-                Ok(None) => Outcome::Forward(Status::Unauthorized),
+                Ok(role) => Outcome::Success(role),
             }
         } else {
             Outcome::Forward(Status::Unauthorized)
@@ -72,8 +70,9 @@ impl<'r> FromRequest<'r> for GcMod {
 
     async fn from_request(request: &'r Request<'_>) -> Outcome<Self, Self::Error> {
         match try_outcome!(request.guard().await) {
-            GcAuth(PermRole::Mod) => rocket::outcome::Outcome::Success(GcMod),
-            GcAuth(PermRole::Admin) => rocket::outcome::Outcome::Success(GcMod),
+            GcAuth::Mod => rocket::outcome::Outcome::Success(GcMod),
+            GcAuth::Admin => rocket::outcome::Outcome::Success(GcMod),
+            _ => Outcome::Forward(Status::Forbidden),
         }
     }
 }
@@ -85,7 +84,7 @@ impl<'r> FromRequest<'r> for GcAdmin {
 
     async fn from_request(request: &'r Request<'_>) -> Outcome<Self, Self::Error> {
         match try_outcome!(request.guard().await) {
-            GcAuth(PermRole::Mod) => rocket::outcome::Outcome::Success(GcAdmin),
+            GcAuth::Admin => rocket::outcome::Outcome::Success(GcAdmin),
             _ => Outcome::Forward(Status::Forbidden),
         }
     }

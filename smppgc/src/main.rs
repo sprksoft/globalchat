@@ -2,6 +2,7 @@ use std::ops::Deref;
 
 use chat::Chat;
 use lmetrics::LMetrics;
+use pages::RootUrl;
 use rocket::response::Redirect;
 use rocket::routes;
 use rocket::serde::Deserialize;
@@ -12,7 +13,6 @@ use utils::static_routing;
 mod auth;
 mod chat;
 mod csp;
-mod debug;
 mod ipcountry;
 mod pages;
 mod profanity;
@@ -51,24 +51,20 @@ pub struct MessageConfig {
 }
 
 #[get("/version")]
-fn server_version(debug: &State<debug::Debug>) -> String {
+fn server_version(root_url: &State<RootUrl>) -> String {
     let ver_str = concat!(env!("CARGO_PKG_NAME"), "-", env!("CARGO_PKG_VERSION"));
 
     format!(
-        "{} debug_assertions: {} debug: {} ",
+        "{} debug_assertions: {} root_url: {} ",
         ver_str,
         cfg!(debug_assertions),
-        debug.debug,
+        root_url.root_url
     )
 }
 
 #[get("/")]
-fn index(debug: &State<debug::Debug>) -> Redirect {
-    if debug.debug {
-        Redirect::permanent("/v1")
-    } else {
-        Redirect::permanent("/smpp/gc/v1")
-    }
+fn index() -> Redirect {
+    Redirect::permanent("v1")
 }
 
 #[launch]
@@ -104,5 +100,5 @@ fn rocket() -> _ {
                 .manage(Chat::new(config))
         }))
         .attach(profanity::stage())
-        .attach(debug::stage())
+        .attach(AdHoc::config::<RootUrl>())
 }

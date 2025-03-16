@@ -135,7 +135,7 @@ pub async fn socket_v1<'a>(
                     }
                     mesg = wsclient.try_recv() => {
                         let Some(mesg) = mesg? else { continue; };
-                        if mesg.len() > mesg_limits.max_message_len as usize && mesg.len() < mesg_limits.min_message_len as usize{
+                        if mesg.len() > mesg_limits.max_message_len as usize || mesg.len() < mesg_limits.min_message_len as usize{
                             messages_blocked::inc("size");
                             continue;
                         }
@@ -186,7 +186,7 @@ pub async fn socket_v1<'a>(
 
                             (lock.check(&tokenized_mesg).map(|m|(m.span, m.rule.to_string_friendly())), content)
                         };
-                        if content.len() > mesg_limits.max_message_len as usize && content.len() < mesg_limits.min_message_len as usize{
+                        if content.len() > mesg_limits.max_message_len as usize || content.len() < mesg_limits.min_message_len as usize{
                             messages_blocked::inc("size");
                             continue;
                         }
@@ -239,8 +239,9 @@ pub async fn socket_v1<'a>(
                     joined_client = chat_client.join_receiver.recv() => {
                         match joined_client{
                             Ok(joined_client) => {
-                                if !joined_client.id() == chat_client.user_info().id() {
-                                    info!("user join {}", joined_client.id());
+                                dbg!("join", &joined_client, &chat_client.user_info());
+                                if joined_client.id() != chat_client.user_info().id() {
+                                    dbg!("forwarding", &joined_client);
                                     wsclient.forward_client(&joined_client).await?;
                                 }
                             },
