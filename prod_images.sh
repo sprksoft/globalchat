@@ -53,8 +53,8 @@ build ()
     mkdir -p $IMAGES_DIR
     mkdir -p $IMAGES_DIR/$image
     cp $image/Rocket.toml $IMAGES_DIR/$image/
-    cp -r $image/templates $IMAGES_DIR/$image/templates || true
-    cp -r $image/www $IMAGES_DIR/$image/www || true
+    cp -rf $image/templates $IMAGES_DIR/$image/templates || true
+    cp -rf $image/www $IMAGES_DIR/$image/www || true
 
     if ls $image/client > /dev/null ; then
       $ESBUILD --bundle --minify --sourcemap --outdir=$IMAGES_DIR/$image/www/ $image/client/v1.js $image/client/admin.js
