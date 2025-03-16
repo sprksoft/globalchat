@@ -104,7 +104,7 @@
     protocol =  "wss://"
   }
   const VERSION_INT = {{ version_int() }}
-  const WEBSOCKET_URL=protocol+location.host+"/socket/v1";
+  const WEBSOCKET_URL=protocol+location.host+ROOT_URL+"/socket/v1";
   const MAX_MESSAGE_LEN="{{max_message_len}}";
   const MIN_MESSAGE_LEN="{{min_message_len}}";
 </script>

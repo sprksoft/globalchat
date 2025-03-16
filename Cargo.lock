@@ -923,7 +923,7 @@ checksum = "78b3ae25bc7c8c38cec158d1f2757ee79e9b3740fbc7ccf0e59e4b08d793fa89"
 
 [[package]]
 name = "lmetrics"
-version = "2025.3.1"
+version = "2025.3.2"
 dependencies = [
  "once_cell",
  "prometheus",
@@ -1315,7 +1315,7 @@ dependencies = [
 
 [[package]]
 name = "profanity"
-version = "2025.3.1"
+version = "2025.3.2"
 dependencies = [
  "bitflags 2.9.0",
  "censor",
@@ -1744,7 +1744,7 @@ checksum = "3c5e1a9a646d36c3599cd173a41282daf47c44583ad367b8e6837255952e5c67"
 
 [[package]]
 name = "smppgc"
-version = "2025.3.1"
+version = "2025.3.2"
 dependencies = [
  "base64",
  "bincode",
