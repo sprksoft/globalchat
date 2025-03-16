@@ -61,7 +61,7 @@ build ()
     fi
 
     cp ./target/$RUSTTARGET/release/$image $IMAGES_DIR/$image/app
-    $DOCKER buildx build --platform $DOCKERTARGET --build-arg APP=./$IMAGES_DIR/$image --build-arg -t "${PROJECT}_$image:prod" -f prod.Dockerfile .
+    $DOCKER buildx build --platform $DOCKERTARGET --build-arg APP=./$IMAGES_DIR/$image -t "${PROJECT}_$image:prod" -f prod.Dockerfile .
 
   done
 }
