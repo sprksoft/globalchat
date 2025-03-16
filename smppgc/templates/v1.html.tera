@@ -41,7 +41,7 @@
 </dialog>
 
 <dialog id="profane-message-dialog">
-  <h1>Er zit een scheld woord in je bericht</h1>
+  <h1>Er zit een ongepast woord in je bericht</h1>
   <p>Jou bericht bevat het scheld woord <mark id="badword" class="profanity-mark"></mark></p>
   <div class="flex-col" id="profane-message"></div>
   <p>Dit is een automatisch bericht maar je kunt nog steeds geband worden door menselijke moderators.<br>Je kunt weer chatten binnen <time id="profane-message-countdown"></time>.</p>
@@ -89,15 +89,6 @@
 {% block scripts %}
 <script type="text/javascript">
   var local_commands = [];
-
-  {% if debug %}
-  function reload_js() {
-    location = "/debug/reload_js"
-  }
-  local_commands.push(["/reloadjs", function(){
-    reload_js();
-  }]);
-  {% endif %}
 
   let protocol = "ws://"
   if (location.protocol.endsWith("s:")){

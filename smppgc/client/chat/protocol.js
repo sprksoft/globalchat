@@ -22,9 +22,10 @@ const ERRORS = {
   "err_full": "De chat zit vol.",
   "err_shutdown": "Globalchat gaat even offline. Sorry voor het ongemak",
 
-  "err_username_invalid":"Gebruikersnaam is ongeldig.",
+  "err_username_invalid":"Gebruikersnaam bevat ongeldige letters.",
+  "err_username_length":"Gebruikersnaam is te kort of te lang.",
   "err_username_taken":"Gebruikersnaam is bezet.",
-  "err_username_prof":"Gebruikersnaam bevat scheldwoorden",
+  "err_username_prof":"Gebruikersnaam is ongepast",
 }
 
 export function human_err(protoerr) {
@@ -197,7 +198,7 @@ export class SocketMgr {
 
     this.ws.onclose = async (e) => {
       this.users={};
-      utils.log("disconnect reason: "+e.reason);
+      console.error("disconnect reason: "+e.reason)
       this.on_leave(e.code, e.reason, this.user_wants_leave);
     }
 
