@@ -30,7 +30,6 @@ fn v1(
     placeholder: Option<&str>,
     message_config: &State<MessageConfig>,
     user_config: &State<UserConfig>,
-    debug: &State<crate::debug::Debug>,
     gcmod: Option<GcMod>,
     cookiejar: &CookieJar<'_>,
 ) -> GcPageResponder {
@@ -46,7 +45,6 @@ fn v1(
             "v1",
             context! (theme_css:theme.css(),
             placeholder:placeholder,
-            debug: debug.debug,
             is_mod: gcmod.is_some(),
             max_username_len: user_config.max_username_len,
             max_message_len: message_config.max_message_len,

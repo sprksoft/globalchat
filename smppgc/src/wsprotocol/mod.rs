@@ -11,7 +11,7 @@ use tokio_tungstenite::tungstenite;
 
 use crate::{
     chat::{Message, MessageChangeType},
-    users::{UserInfo, UserSid},
+    users::UserInfo,
     Snowflake,
 };
 
@@ -71,7 +71,8 @@ kick_reason! {
         ChatFull(Again,"err_full"),
         UsernameProfanity(Error,"err_username_prof"),
         UsernameTaken(Error,"err_username_taken"),
-        UsernameInvalid(Error,"err_username_invalid")
+        UsernameInvalid(Error,"err_username_invalid"),
+        UsernameInvalidLength(Error,"err_username_length")
     }
 }
 
@@ -168,21 +169,22 @@ impl WsClient {
             return Err(rocket_ws::result::Error::ConnectionClosed);
         };
         let message = message?;
-        if message.is_close() {
-            return Ok(None);
-        }
-        if !message.is_text() {
-            error!("Closing connection because: Received non text message");
+
+        if message.is_text() {
+            let content = String::from_utf8_lossy(&message.into_data()).to_string();
+
+            Ok(Some(RecievedMessage { content: content }))
+        } else if message.is_binary() {
+            error!("Closing connection because: Received binary message");
             self.ws
                 .close(Some(CloseFrame {
                     code: CloseCode::Unsupported,
-                    reason: Cow::Borrowed("INT: No non text messages."),
+                    reason: Cow::Borrowed("INT: No binary messages."),
                 }))
                 .await?;
-            return Ok(None);
+            Ok(None)
+        } else {
+            Ok(None)
         }
-        let content = String::from_utf8_lossy(&message.into_data()).to_string();
-
-        Ok(Some(RecievedMessage { content: content }))
     }
 }

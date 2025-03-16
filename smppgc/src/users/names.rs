@@ -14,11 +14,13 @@ use crate::wsprotocol::KickReason;
 
 #[derive(Error, Debug)]
 pub enum NameClaimError {
-    #[error("Gebruikersnaam is ongeldig.")]
+    #[error("Username contains invalid characters")]
     Invalid,
-    #[error("Gebruikersnaam is bezet.")]
+    #[error("Username too short or long")]
+    Length,
+    #[error("Username taken")]
     Taken,
-    #[error("Gebruikersnaam bevat scheldwoorden")]
+    #[error("Username contains profanity")]
     Profanity,
 }
 impl NameClaimError {
@@ -26,6 +28,7 @@ impl NameClaimError {
         match self {
             Self::Profanity => KickReason::UsernameProfanity,
             Self::Taken => KickReason::UsernameTaken,
+            Self::Length => KickReason::UsernameInvalidLength,
             Self::Invalid => KickReason::UsernameInvalid,
         }
     }
@@ -57,8 +60,8 @@ impl UsernameManager {
         max_name_len: usize,
         prof_filter: &RwLock<ProfanityFilter>,
     ) -> Result<ClaimedName, NameClaimError> {
-        if name.len() > max_name_len {
-            return Err(NameClaimError::Invalid);
+        if name.len() > max_name_len || name.len() < 2 {
+            return Err(NameClaimError::Length);
         }
         let (name, tokenized_name) = {
             let lock = prof_filter
@@ -71,6 +74,10 @@ impl UsernameManager {
             }
             (Arc::<str>::from(name), tokenized_name)
         };
+
+        if name.len() > max_name_len || name.len() < 2 {
+            return Err(NameClaimError::Invalid);
+        }
 
         {
             let mut slot = self
