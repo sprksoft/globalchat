@@ -121,21 +121,17 @@ impl ProfanityFilter {
     }
 
     fn char_to_token(&self, char: char) -> Option<TokenGroup> {
+        let mut tg = TokenGroup::from_char(char)?;
         if let Some(tgroup) = self.char_to_token_map.get(&char).cloned() {
-            return Some(tgroup);
+            tg.extend(tgroup);
         }
-
-        TokenGroup::from_char(char)
+        Some(tg)
     }
 }
 
 #[cfg(test)]
 mod test {
-    use crate::{
-        rules::{MatchRule, RepRule, RuleFlags},
-        tokens::TokenGroup,
-        tokens_ar, ProfanityFilter, TokenizedMessage,
-    };
+    use crate::{rules::RepRule, tokens::TokenGroup, ProfanityFilter, TokenizedMessage};
 
     #[test]
     fn char_replace() {
