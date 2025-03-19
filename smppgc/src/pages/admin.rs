@@ -118,7 +118,7 @@ fn become_role(
                     .secure(true)
                     .expires(OffsetDateTime::now_utc() + Duration::hours(100_000)),
             );
-            Ok(BecomeResponse::Redirect(Redirect::temporary("../../")))
+            Ok(BecomeResponse::Redirect(Redirect::temporary("../")))
         }
     }
 }

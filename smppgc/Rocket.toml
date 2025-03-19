@@ -24,12 +24,12 @@ max_message_len=300
 min_message_len=2
 large_message_penalty=2
 
-mesg_rate={timeframe=5,amount=3}
+mesg_rate={timeframe=6,amount=3}
 
 xx_penalty=2
 not_be_penalty=4
-mesg_ip_rate={timeframe=60,amount=400}
-new_user_ip_rate={timeframe=120, amount=60} # 2 minuten
+mesg_ip_rate={timeframe=60,amount=300}
+new_user_ip_rate={timeframe=120, amount=50} # 2 minuten
 
 
 

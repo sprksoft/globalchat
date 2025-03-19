@@ -268,7 +268,15 @@ impl TokenGroup {
             _ => false,
         }
     }
+    pub fn extend(&mut self, other: TokenGroup) {
+        for token in other.iter() {
+            self.push(*token);
+        }
+    }
     pub fn push(&mut self, new: Token) {
+        if self.contains(new) {
+            return;
+        }
         match self {
             Self::Single(t) => {
                 let new_tg = Self::Multiple(vec![*t, new]);
