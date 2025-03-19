@@ -1,7 +1,7 @@
 use rocket::{
     fairing::AdHoc,
     get,
-    http::{hyper::Uri, Cookie, CookieJar, Header, Status},
+    http::{hyper::Uri, Cookie, CookieJar, Header, SameSite, Status},
     request::{self, FromRequest},
     response::Responder,
     routes,
@@ -37,6 +37,7 @@ fn v1(
     let theme_string = serde_json::to_string(&theme).expect("Failed to convert theme to json");
     cookiejar.add(
         Cookie::build(("smpptheme", theme_string))
+            .same_site(SameSite::None)
             .expires(OffsetDateTime::now_utc() + Duration::hours(100_000)),
     );
 
