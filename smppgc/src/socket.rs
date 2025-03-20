@@ -135,6 +135,26 @@ pub async fn socket_v1<'a>(
                     }
                     mesg = wsclient.try_recv() => {
                         let Some(mesg) = mesg? else { continue; };
+
+                        if gcmod.is_some() {
+                            match parse_admin_cmd(&mesg.content) {
+                                Some(AdminCmd::DelMsg(snowflake)) => {
+                                    chat.delete_message(snowflake).await;
+                                    continue;
+                                },
+                                Some(AdminCmd::Invalid) => {
+                                    continue;
+                                    //TODO: notify client of invalid command
+                                }
+                                Some(AdminCmd::UnknownCmd) => {
+                                    continue;
+                                    //TODO: notify client of unknown command
+                                }
+                                None => {},
+                            }
+
+                        }
+
                         if mesg.len() > mesg_limits.max_message_len as usize || mesg.len() < mesg_limits.min_message_len as usize{
                             messages_blocked::inc("size");
                             continue;
@@ -161,24 +181,6 @@ pub async fn socket_v1<'a>(
                             continue;
                         }
 
-                        if gcmod.is_some() {
-                            match parse_admin_cmd(&mesg.content) {
-                                Some(AdminCmd::DelMsg(snowflake)) => {
-                                    chat.delete_message(snowflake).await;
-                                    continue;
-                                },
-                                Some(AdminCmd::Invalid) => {
-                                    continue;
-                                    //TODO: notify client of invalid command
-                                }
-                                Some(AdminCmd::UnknownCmd) => {
-                                    continue;
-                                    //TODO: notify client of unknown command
-                                }
-                                None => {},
-                            }
-
-                        }
 
                         let (prof_span, content) = {
                             let lock = prof_filter.read().expect("Profanity filter lock poisoned");
