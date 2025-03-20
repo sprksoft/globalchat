@@ -60,6 +60,7 @@ impl UsernameManager {
         max_name_len: usize,
         prof_filter: &RwLock<ProfanityFilter>,
     ) -> Result<ClaimedName, NameClaimError> {
+        let name = name.trim();
         if name.len() > max_name_len || name.len() < 2 {
             return Err(NameClaimError::Length);
         }

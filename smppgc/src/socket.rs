@@ -182,7 +182,7 @@ pub async fn socket_v1<'a>(
 
                         let (prof_span, content) = {
                             let lock = prof_filter.read().expect("Profanity filter lock poisoned");
-                            let (tokenized_mesg, content) = lock.tokenize(&mesg.content);
+                            let (tokenized_mesg, content) = lock.tokenize(&mesg.content.trim());
 
                             (lock.check(&tokenized_mesg).map(|m|(m.span, m.rule.to_string_friendly())), content)
                         };
