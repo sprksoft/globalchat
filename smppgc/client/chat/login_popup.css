@@ -2,18 +2,22 @@
   color:var(--text_color);
 
   align-self: center;
-  max-width: 600px;
-  padding: 1em;
+  width: 50em;
+  padding: 2em;
   overflow:visible;
   flex-direction: column;
   margin: auto;
+}
+@media (max-width: 50em) {
+  #login {
+    padding: 0.5em;
+  }
 }
 #login[open] {
   display:flex;
 }
 
 #disclaimer {
-  margin: 1em;
   overflow: auto;
   flex-shrink: 10;
 }
