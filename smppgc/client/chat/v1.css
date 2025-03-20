@@ -43,6 +43,12 @@ main {
   margin-top: 0.5em;
   margin-bottom: 0.5em;
 }
+@media (max-width: 500px) {
+  .chat-name {
+    margin-left: 0.5em;
+    font-size: 1.5em;
+  }
+}
 
 .button {
   border-radius:var(--border-radius);
@@ -139,7 +145,7 @@ a:hover {
   border-radius: 10px;
   border-top-left-radius: 0px;
   margin: 10px;
-  margin-left: 20px;
+  margin-left: 10px;
   margin-right: 20px;
   align-self: start;
   max-width: -moz-available;

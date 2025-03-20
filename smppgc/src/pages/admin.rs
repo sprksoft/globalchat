@@ -58,11 +58,12 @@ enum RulesetWriteResponse {
 #[post("/prof/ruleset", data = "<ruleset>")]
 async fn prof_ruleset_save(
     _gcadmin: GcAdmin,
-    ruleset: Json<ProfRuleset>,
+    mut ruleset: Json<ProfRuleset>,
     global_ruleset: &State<Mutex<ProfRuleset>>,
     global_filter: &State<RwLock<ProfanityFilter>>,
     chat: &State<Chat>,
 ) -> Result<RulesetWriteResponse, Debug<RulesetError>> {
+    ruleset.sort();
     let filter = ruleset.build_filter();
     let lints = ruleset.lint(&filter);
 
@@ -101,13 +102,16 @@ enum BecomeResponse {
     Redirect(Redirect),
     #[response(status = 400)]
     Err(&'static str),
+    #[response(status = 200)]
+    Ok(&'static str),
 }
 
-#[get("/become?<key>")]
+#[get("/become?<key>&<no_redirect>")]
 fn become_role(
     key: &str,
     cookie_jar: &CookieJar,
     auth_config: &State<AuthConfig>,
+    no_redirect: bool,
 ) -> Result<BecomeResponse, Debug<std::io::Error>> {
     match auth::get_role_from_key(key, &auth_config.auth_file)? {
         GcAuth::InvalidKey => Ok(BecomeResponse::Err("Invalid key")),
@@ -118,7 +122,11 @@ fn become_role(
                     .secure(true)
                     .expires(OffsetDateTime::now_utc() + Duration::hours(100_000)),
             );
-            Ok(BecomeResponse::Redirect(Redirect::temporary("../")))
+            if no_redirect {
+                Ok(BecomeResponse::Ok("ok"))
+            } else {
+                Ok(BecomeResponse::Redirect(Redirect::temporary("../")))
+            }
         }
     }
 }

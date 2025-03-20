@@ -107,6 +107,16 @@ pub struct MatchRule {
     pub tokens: Vec<crate::Token>,
     pub flags: RuleFlags,
 }
+impl Ord for MatchRule {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.tokens.cmp(&other.tokens)
+    }
+}
+impl PartialOrd for MatchRule {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.tokens.partial_cmp(&other.tokens)
+    }
+}
 impl MatchRule {
     pub fn from_match_str(str: &str) -> Result<Self, MatchRuleParseError> {
         Ok(Self {
