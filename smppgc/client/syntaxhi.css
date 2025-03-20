@@ -1,5 +1,6 @@
 .editor {
   position: relative;
+  border-radius: 1.1em;
 }
 
 .editor_highlight,
@@ -21,7 +22,7 @@
   color: transparent; /* Make text invisible */
   caret-color: var(--color-text); /* But keep caret visible */
   padding: 5px 20px;
-  border-radius: 100px;
+  border-radius: 1.1em;
 }
 
 .special-token {

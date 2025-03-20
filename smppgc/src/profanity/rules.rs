@@ -8,7 +8,7 @@ pub trait Rule {
     fn lint(&self) -> Vec<(LintImportance, &'static str)>;
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, PartialOrd, Ord)]
 #[serde(crate = "rocket::serde")]
 pub struct MatchRule {
     pub enabled: bool,
