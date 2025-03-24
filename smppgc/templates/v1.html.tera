@@ -42,10 +42,10 @@
 </dialog>
 
 <dialog id="profane-message-dialog">
-  <h1>Er zit een ongepast woord in je bericht</h1>
+  <h1>Je bericht bevat een ongepast woord</h1>
   <p>Jou bericht bevat het scheld woord <mark id="badword" class="profanity-mark"></mark></p>
   <div class="flex-col" id="profane-message"></div>
-  <p>Dit is een automatisch bericht maar je kunt nog steeds geband worden door menselijke moderators.<br>Je kunt weer chatten binnen <time id="profane-message-countdown"></time>.</p>
+  <p>Dit is een automatisch bericht maar je kunt nog steeds verbannen worden door menselijke moderators.<br>Je kunt weer chatten binnen <time id="profane-message-countdown"></time>.</p>
 
   <button class="pillbtn" id="profane-message-ok">Ok</button>
 </dialog>
@@ -73,7 +73,7 @@
     {% include "svg/arrow_l" %}
   </button>
 
-  <h1 class="chat-name">Global chat</h1>
+  <h1 class="header-title chat-name">Global chat</h1>
 </header>
 <div id="mesgs"></div>
 <div class="bottom">

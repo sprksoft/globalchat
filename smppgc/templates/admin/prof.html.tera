@@ -74,24 +74,27 @@ Global Chat Admin
 </template>
 
 <header>
-  <h1>Profanity filter</h1>
-  <div class="header-btns">
-    <button class="pillbtn" id="show-lints-btn">Show lints</button>
-    <button class="pillbtn" id="save-btn">Save rules</button>
-  </div>
+  <h1 class="header-title">Profanity filter</h1>
 </header>
 <main>
   <h2>Replace Rules</h2>
   <div id="replace-rules-list">
 
   </div>
-  <button class="pillbtn" id="replace-rule-add-btn">Add rule</button>
   <h2>Match Rules</h2>
   <div id="rules-list">
   </div>
-  <button class="pillbtn" id="rule-add-btn">Add rule</button>
-
 </main>
+<div class="toolbar">
+  <div class="left-tools">
+  <button class="pillbtn" id="replace-rule-add-btn">Add replace rule</button>
+  <button class="pillbtn" id="rule-add-btn">Add rule</button>
+  </div>
+  <div class="right-tools">
+  <button class="pillbtn" id="show-lints-btn">Show lints</button>
+  <button class="pillbtn" id="save-btn">Save rules</button>
+  </div>
+</div>
 
 {% endblock content %}
 

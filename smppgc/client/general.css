@@ -20,6 +20,31 @@ body {
   scroll-behavior: smooth;
 }
 
+header {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+
+  background: var(--color-base01);
+  border-bottom: solid var(--color-base02) var(--border-size);
+  padding: 1em 1em 1em 2em;
+}
+.header-title {
+  flex-grow: 1;
+}
+.v-sep-base02 {
+  border-left: solid var(--color-base02) var(--border-size);
+  width: 0px;
+  margin-left: 0.5em;
+  margin-right: 0.5em;
+}
+
+@media (max-width: 500px) {
+  header {
+    padding: 0.5em 0.5em 0.5em 1em;
+  }
+}
+
 
 input[type=checkbox] {
   appearance: none;
@@ -172,7 +197,7 @@ dialog {
 
 .layered-section {
   margin-top: 3em;
-  padding: 2em;
+  padding: 1.5em;
   background: var(--color-base01);
   border: solid var(--color-base02) var(--border-size);
   border-radius: var(--border-radius);

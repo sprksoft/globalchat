@@ -3,44 +3,46 @@ body {
   color: var(--color-text);
 }
 
-header {
-  align-items: center;
-  background: var(--color-base01);
-  display: flex;
-  flex-direction: row;
 
-  border-bottom: solid var(--color-base02) var(--border-size);
-}
-header {
-
-}
-.header-btns {
-  display:flex;
-  flex-direction: row;
-  margin: 1em;
+.header-title{
+  margin: 0px;
 }
 
-header > h1 {
-  flex-grow: 1;
-  margin: 0.5em 0em 0.5em 1em
-}
-@media (max-width: 500px) {
-  header > h1 {
-    margin-left: 0.5em;
-    font-size: 1.3em;
-    flex-grow: 0;
-  }
-  .header-btns {
-    margin: 0px;
-  }
-}
 
 main {
   margin-left: auto;
   margin-right: auto;
   padding: 0.5em;
   min-width: 100em;
-  overflow:auto;
+}
+
+.toolbar {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: end;
+  background: var(--color-base01);
+  border-top: solid var(--color-base02) var(--border-size);
+  padding: 0.5em;
+
+  position: fixed;
+  bottom: 0px;
+  left: 0px;
+  right: 0px;
+}
+.left-tools * {
+  margin-left: auto;
+}
+.left-tools {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+.right-tools {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  margin-left: auto;
 }
 
 @media (max-width: 100em) {
@@ -119,10 +121,16 @@ main {
 .rule-options {
   display:flex;
   flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
 }
 .rule-buttons {
   display: flex;
   flex-direction: row;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+.rule-buttons * {
   margin-left: auto;
 }
 
@@ -137,6 +145,8 @@ main {
   color: var(--color-text);
   background-color: var(--color-base02);
   transition: background-color 0.5s, border-color 0.5s, color 0.5s;
+
+  padding: 4px 10px 5px 10px;
 }
 .checked {
   border-color: var(--color-accent);
