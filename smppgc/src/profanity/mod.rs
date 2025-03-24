@@ -85,6 +85,10 @@ impl ProfRuleset {
     pub fn sort(&mut self) {
         self.match_rules.sort();
     }
+    pub fn append(&mut self, other: &mut ProfRuleset) {
+        self.rep_rules.append(&mut other.rep_rules);
+        self.match_rules.append(&mut other.match_rules);
+    }
 
     pub fn parse_from_str(str: &str) -> Result<Self, ParseError> {
         let mut match_rules = Vec::new();

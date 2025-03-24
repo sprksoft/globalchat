@@ -41,18 +41,18 @@ fn prof(
 
 #[derive(rocket::serde::Serialize)]
 #[serde(crate = "rocket::serde")]
-struct RulesetSaveError {
-    message: &'static str,
+struct RuleLintSet {
     lints: LintSet,
+    rules: ProfRuleset,
 }
 
 #[derive(Responder)]
 enum RulesetWriteResponse {
     #[response(status = 422)]
-    Error(Json<RulesetSaveError>),
+    Error(Json<RuleLintSet>),
 
     #[response(status = 200)]
-    Ok(Json<LintSet>),
+    Ok(Json<RuleLintSet>),
 }
 
 #[post("/prof/ruleset", data = "<ruleset>")]
@@ -63,15 +63,18 @@ async fn prof_ruleset_save(
     global_filter: &State<RwLock<ProfanityFilter>>,
     chat: &State<Chat>,
 ) -> Result<RulesetWriteResponse, Debug<RulesetError>> {
+    let global_ruleset = global_ruleset.lock().expect("Global ruleset poisoned");
+    ruleset.merge(&mut global_ruleset);
     ruleset.sort();
     let filter = ruleset.build_filter();
     let lints = ruleset.lint(&filter);
+    let rule_lint_set = RuleLintSet {
+        lints,
+        rules: ruleset.into_inner(),
+    };
 
     if lints.has_errors() {
-        Ok(RulesetWriteResponse::Error(Json(RulesetSaveError {
-            message: "Ruleset contains errors",
-            lints,
-        })))
+        Ok(RulesetWriteResponse::Error(Json(rule_lint_set)))
     } else {
         {
             let mut lock = global_ruleset

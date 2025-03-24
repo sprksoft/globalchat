@@ -4,19 +4,12 @@ main {
   flex-direction:column;
 }
 
-#topbar,#botbar{
+#botbar{
   background: var(--color-base01);
   display: flex;
   flex-direction: row;
-}
-#botbar{
+
   border-top: solid var(--color-base02) var(--border-size);
-}
-#topbar{
-  border-bottom: solid var(--color-base02) var(--border-size);
-}
-#topbar > *{
-  padding-right: 2em;
 }
 
 
@@ -37,17 +30,11 @@ main {
   max-height:300px;
 }
 
-
-.chat-name {
-  flex-grow: 10;
-  margin-top: 0.5em;
-  margin-bottom: 0.5em;
+header {
+  padding:0px;
 }
-@media (max-width: 500px) {
-  .chat-name {
-    margin-left: 0.5em;
-    font-size: 1.5em;
-  }
+.chat-name {
+  margin: 0px;
 }
 
 .button {
@@ -57,7 +44,7 @@ main {
   border: none;
   color: var(--color-accent);
 
-  padding: 0.7em 2em 0.7em 2em;
+  padding: 1em 2em 1em 2em;
   cursor: pointer;
 }
 .button:hover {

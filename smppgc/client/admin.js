@@ -360,11 +360,11 @@ saveOkBtn.addEventListener("click", (e)=>{
 
 
 ruleAddBtn.addEventListener("click", (e)=> {
-  createHTMLRule({enabled:true, tokens:[], flags:[] }, type=MATCH_RULE);
+  createHTMLRule({enabled:true, tokens:[], flags:[] }, type=MATCH_RULE).scrollIntoView();
 });
 
 repRuleAddBtn.addEventListener("click", (e)=> {
-  createHTMLRule({enabled:true, match_chars: "", replace_tg:[] }, type=REP_RULE);
+  createHTMLRule({enabled:true, match_chars: "", replace_tg:[] }, type=REP_RULE).scrollIntoView();
 })
 
 saveBtn.addEventListener("click", saveChangesToServer);
