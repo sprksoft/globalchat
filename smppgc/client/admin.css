@@ -16,6 +16,17 @@ main {
   min-width: 100em;
 }
 
+@media screen and (max-width: 100rem) {
+  main {
+    min-width: auto;
+    margin: 0px;
+  }
+}
+.view {
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+}
 .toolbar {
   display: flex;
   flex-direction: row;
@@ -25,10 +36,6 @@ main {
   border-top: solid var(--color-base02) var(--border-size);
   padding: 0.5em;
 
-  position: fixed;
-  bottom: 0px;
-  left: 0px;
-  right: 0px;
 }
 .left-tools * {
   margin-left: auto;
@@ -45,17 +52,6 @@ main {
   margin-left: auto;
 }
 
-@media (max-width: 100em) {
-  main {
-    min-width:none;
-  }
-}
-@media screen and (max-width: 100em) {
-  main {
-    min-width: auto;
-    margin: 0px;
-  }
-}
 
 .rules-list {
   display:flex;
@@ -82,7 +78,7 @@ main {
   background: var(--color-base01);
   border: solid var(--color-base02) var(--border-size);
   border-radius: var(--border-radius);
-  margin: 2em 0em 2em 0em;
+  margin-top: 2em;
   padding: 1em;
 
   display:flex;
@@ -97,6 +93,27 @@ main {
 .rule .bot-row {
   display:flex;
   flex-direction: row;
+}
+
+.insert-rule {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+.insert-rule div {
+  margin-left: 1em;
+  margin-right: 1em;
+  flex-grow: 1;
+  border-radius: 1000px;
+  background: var(--color-base03);
+  height: var(--border-size);
+}
+.insert-rule button {
+  color: var(--color-base00);
+  background: var(--color-accent);
+  border-radius: 10000px;
+  padding: 5px;
+  display:block;
 }
 
 .replace-arrow {
@@ -239,4 +256,9 @@ main {
 .hints {
   margin-left: 0.5em;
   opacity: 0.8;
+}
+
+.role {
+  font-weight: bold;
+  color: var(--color-accent);
 }

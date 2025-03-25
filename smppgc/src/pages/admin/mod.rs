@@ -9,7 +9,7 @@ use rocket::{
     get,
     http::{Cookie, CookieJar},
     post,
-    response::{Debug, Redirect},
+    response::{status::Forbidden, Debug, Redirect},
     routes,
     serde::json::Json,
     time::{Duration, OffsetDateTime},
@@ -18,11 +18,12 @@ use rocket::{
 use rocket_dyn_templates::{context, Template};
 
 use crate::{
-    auth::{self, AuthConfig, GcAdmin, GcAuth},
-    chat::Chat,
+    auth::{self, AuthConfig, GcAdmin, GcRole},
     profanity::{LintSet, ProfRuleset, RulesetError},
     themes::Theme,
 };
+
+mod api;
 
 #[get("/prof")]
 fn prof(
@@ -34,7 +35,7 @@ fn prof(
     let ruleset = ruleset.lock().expect("Prof ruleset lock poisoned");
     let lints = { ruleset.lint(&filter.read().expect("profanity filter lock poisoned")) };
     Template::render(
-        "admin/prof",
+        "gcadmin/prof",
         context! {theme_css:theme.css(), flagsinfo: RuleFlags::flags_info(), ruleset: ruleset.deref(), tokeninfo: Token::token_info(), lints:lints},
     )
 }
@@ -55,49 +56,55 @@ enum RulesetWriteResponse {
     Ok(Json<RuleLintSet>),
 }
 
-#[post("/prof/ruleset", data = "<ruleset>")]
-async fn prof_ruleset_save(
-    _gcadmin: GcAdmin,
-    mut ruleset: Json<ProfRuleset>,
-    global_ruleset: &State<Mutex<ProfRuleset>>,
-    global_filter: &State<RwLock<ProfanityFilter>>,
-    chat: &State<Chat>,
-) -> Result<RulesetWriteResponse, Debug<RulesetError>> {
-    let global_ruleset = global_ruleset.lock().expect("Global ruleset poisoned");
-    ruleset.merge(&mut global_ruleset);
-    ruleset.sort();
-    let filter = ruleset.build_filter();
-    let lints = ruleset.lint(&filter);
-    let rule_lint_set = RuleLintSet {
-        lints,
-        rules: ruleset.into_inner(),
-    };
-
-    if lints.has_errors() {
-        Ok(RulesetWriteResponse::Error(Json(rule_lint_set)))
-    } else {
-        {
-            let mut lock = global_ruleset
-                .lock()
-                .expect("Profanity ruleset lock poisoned");
-            lock.replace_from(ruleset.0);
-            lock.save()?;
-        }
-        chat.run_filter(&filter).await;
-        {
-            let mut lock = global_filter
-                .write()
-                .expect("profanity filter lock poisoned");
-            *lock = filter;
-        }
-
-        Ok(RulesetWriteResponse::Ok(Json(lints)))
-    }
-}
+// #[post("/prof/ruleset", data = "<ruleset>")]
+// async fn prof_ruleset_save(
+//     _gcadmin: GcAdmin,
+//     mut ruleset: Json<ProfRuleset>,
+//     global_ruleset: &State<Mutex<ProfRuleset>>,
+//     global_filter: &State<RwLock<ProfanityFilter>>,
+//     chat: &State<Chat>,
+// ) -> Result<RulesetWriteResponse, Debug<RulesetError>> {
+//     let global_ruleset = global_ruleset.lock().expect("Global ruleset poisoned");
+//     ruleset.merge(&mut global_ruleset);
+//     ruleset.sort();
+//     let filter = ruleset.build_filter();
+//     let lints = ruleset.lint(&filter);
+//     let rule_lint_set = RuleLintSet {
+//         lints,
+//         rules: ruleset.into_inner(),
+//     };
+//
+//     if lints.has_errors() {
+//         Ok(RulesetWriteResponse::Error(Json(rule_lint_set)))
+//     } else {
+//         {
+//             let mut lock = global_ruleset
+//                 .lock()
+//                 .expect("Profanity ruleset lock poisoned");
+//             lock.replace_from(ruleset.0);
+//             lock.save()?;
+//         }
+//         chat.run_filter(&filter).await;
+//         {
+//             let mut lock = global_filter
+//                 .write()
+//                 .expect("profanity filter lock poisoned");
+//             *lock = filter;
+//         }
+//
+//         Ok(RulesetWriteResponse::Ok(Json(lints)))
+//     }
+// }
 
 #[get("/")]
-fn index(_gcadmin: GcAdmin) -> Redirect {
-    Redirect::permanent("prof")
+fn index(theme: Theme, role: GcRole) -> Template {
+    Template::render(
+        "gcadmin/gcadmin",
+        context! {
+            role,
+            theme_css:theme.css()
+        },
+    )
 }
 
 #[derive(Responder)]
@@ -117,7 +124,7 @@ fn become_role(
     no_redirect: bool,
 ) -> Result<BecomeResponse, Debug<std::io::Error>> {
     match auth::get_role_from_key(key, &auth_config.auth_file)? {
-        GcAuth::InvalidKey => Ok(BecomeResponse::Err("Invalid key")),
+        None => Ok(BecomeResponse::Err("Invalid key")),
         _ => {
             cookie_jar.add(
                 Cookie::build(("SMPPGC-Auth", key.to_string()))
@@ -128,27 +135,25 @@ fn become_role(
             if no_redirect {
                 Ok(BecomeResponse::Ok("ok"))
             } else {
-                Ok(BecomeResponse::Redirect(Redirect::temporary("../")))
+                Ok(BecomeResponse::Redirect(Redirect::temporary("../admin")))
             }
         }
     }
 }
 
 #[get("/role")]
-fn role(auth: Option<GcAuth>) -> &'static str {
+fn role(auth: Option<GcRole>) -> &'static str {
     match auth {
-        None => "normal user",
-        Some(GcAuth::Mod) => "mod",
-        Some(GcAuth::Admin) => "admin",
-        Some(GcAuth::InvalidKey) => "normal user with invalid key",
+        None => "invalid key",
+        Some(GcRole::Mod) => "mod",
+        Some(GcRole::Admin) => "admin",
+        Some(GcRole::User) => "normal user",
     }
 }
 
 pub fn stage() -> AdHoc {
     AdHoc::on_ignite("admin pages", |r| async {
-        r.mount(
-            "/admin",
-            routes![index, prof, prof_ruleset_save, become_role, role],
-        )
+        r.mount("/admin", routes![index, prof, become_role, role])
+            .mount("/admin/api", routes![])
     })
 }

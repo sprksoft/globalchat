@@ -26,6 +26,7 @@ ENV ESBUILD_CMD="esbuild --bundle --minify --sourcemap --outdir=/app/www/ smppgc
 RUN $ESBUILD_CMD
 
 WORKDIR /app
+STOPSIGNAL SIGINT
 EXPOSE 8080
 
 ENV ROCKET_CONFIG=/app/Rocket.toml
@@ -47,6 +48,7 @@ FROM scratch AS prod
 COPY --from=dev /app /app
 
 EXPOSE 8080
+STOPSIGNAL SIGINT
 WORKDIR /app
 ENV ROCKET_CONFIG=/app/Rocket.toml
 ENV ROCKET_PROFILE=release
