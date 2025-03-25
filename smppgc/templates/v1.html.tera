@@ -68,7 +68,7 @@
   </div>
 </template>
 
-<header id="topbar">
+<header class="slim-header" id="topbar">
   <button id="leavebtn" class="button">
     {% include "svg/arrow_l" %}
   </button>

@@ -4,6 +4,14 @@ main {
   flex-direction:column;
 }
 
+a {
+  color: var(--color-accent);
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
+
 #botbar{
   background: var(--color-base01);
   display: flex;
@@ -30,33 +38,8 @@ main {
   max-height:300px;
 }
 
-header {
-  padding:0px;
-}
 .chat-name {
   margin: 0px;
-}
-
-.button {
-  border-radius:var(--border-radius);
-  margin:3px;
-  background-color: var(--color-base01);
-  border: none;
-  color: var(--color-accent);
-
-  padding: 1em 2em 1em 2em;
-  cursor: pointer;
-}
-.button:hover {
-  background-color:var(--color-base02) ;
-}
-.button[disabled]:hover {
-  cursor:unset;
-  background-color:inherit;
-}
-.button[disabled] {
-  cursor: unset;
-  color: var(--color-base03);
 }
 
 
@@ -74,14 +57,6 @@ header {
   border-radius: 1000px;
 }
 
-
-a {
-  color: var(--color-accent);
-  text-decoration: none;
-}
-a:hover {
-  text-decoration: underline;
-}
 
 
 #err-mesg {

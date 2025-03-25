@@ -241,9 +241,9 @@ pub async fn socket_v1<'a>(
                     joined_client = chat_client.join_receiver.recv() => {
                         match joined_client{
                             Ok(joined_client) => {
-                                dbg!("join", &joined_client, &chat_client.user_info());
+                                //dbg!("join", &joined_client, &chat_client.user_info());
                                 if joined_client.id() != chat_client.user_info().id() {
-                                    dbg!("forwarding", &joined_client);
+                                    //dbg!("forwarding", &joined_client);
                                     wsclient.forward_client(&joined_client).await?;
                                 }
                             },

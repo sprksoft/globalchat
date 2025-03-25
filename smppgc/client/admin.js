@@ -101,7 +101,7 @@ window.addEventListener('beforeunload', (e) => {
   }
 });
 
-function createHTMLRule(jsonRule, type, anDelay=0) {
+function createHTMLRule(jsonRule, type, anDelay=0, insertTop=false) {
 
   let template;
   if (type == MATCH_RULE) {
@@ -122,10 +122,12 @@ function createHTMLRule(jsonRule, type, anDelay=0) {
   });
   rule.querySelector(".rule-del-btn").addEventListener("click", (e) => {
     rule.classList.add("rule-deleted");
+    rule.nextElementSibling.remove();
     markChanges();
   });
   enableHTMLRule(rule, jsonRule.enabled);
 
+  let parent;
   if (type == MATCH_RULE) {
     let ruleInput = rule.querySelector(".rule-input");
     syntaxhi.createEditor(ruleInput);
@@ -136,7 +138,7 @@ function createHTMLRule(jsonRule, type, anDelay=0) {
     }
 
     rule.id = "matchrule-"+rulesListEl.childElementCount;
-    rulesListEl.appendChild(rule);
+    parent = rulesListEl;
   } else if (type == REP_RULE) {
     let matchInput = rule.querySelector(".match-input");
     syntaxhi.createEditor(matchInput);
@@ -147,7 +149,13 @@ function createHTMLRule(jsonRule, type, anDelay=0) {
     syntaxhi.setContent(replaceInput, tokensToString(jsonRule.replace_tg));
 
     rule.id = "reprule-"+repRulesListEl.childElementCount;
-    repRulesListEl.appendChild(rule);
+
+    parent = repRulesListEl;
+  }
+  if (insertTop) {
+    parent.insertBefore(parent.firstChild, rule);
+  } else {
+    parent.appendChild(rule);
   }
 
 
@@ -195,18 +203,20 @@ function createHTMLLint(jsonLint, type, primaryLink=true) {
 function createHTMLLintSet(lintset) {
   for (let i=0; i < repRulesListEl.childNodes.length; i++) {
     let lintsEl = repRulesListEl.childNodes[i].querySelector(".lints");
+    if (lintsEl == null) { continue; }
     lintsEl.innerHTML = "";
 
     if (lintset == null) { continue; }
 
     for (let lint of lintset.rep_lints) {
-      if (lint.affected_rule == i){
+      if (lint.affected_rule == i) {
         lintsEl.appendChild(createHTMLLint(lint, type=REP_RULE, primaryLink=false));
       }
     }
   }
   for (let i=0; i < rulesListEl.childNodes.length; i++) {
     let lintsEl = rulesListEl.childNodes[i].querySelector(".lints");
+    if (lintsEl == null) { continue; }
     lintsEl.innerHTML = "";
 
     if (lintset == null) { continue; }
@@ -217,8 +227,8 @@ function createHTMLLintSet(lintset) {
       }
     }
   }
-
   saveLintsEl.innerHTML = "";
+  document.getElementById("lints-section").style.display = (lintset != null && (lintset.rep_lints.length > 0 || lintset.match_lints.length > 0)) ? "block" : "none";
 
   if (lintset == null) { return; }
 
@@ -236,6 +246,9 @@ function prepHTMLRulesAndGenerateJson() {
 
   for (let i=0; i < repRulesListEl.childNodes.length; i++) {
     let htmlRule = repRulesListEl.childNodes[i];
+    if (!htmlRule.classList.contains("rule")) {
+      continue;
+    }
     if (htmlRule.nodeName == "#text" || htmlRule.classList.contains("rule-deleted")) {
       htmlRule.remove();
       i--;
@@ -255,6 +268,9 @@ function prepHTMLRulesAndGenerateJson() {
   let matchRulesJson = [];
   for (let i=0; i < rulesListEl.childNodes.length; i++) {
     let htmlRule = rulesListEl.childNodes[i];
+    if (!htmlRule.classList.contains("rule")){
+      continue;
+    }
     if (htmlRule.nodeName == "#text" || htmlRule.classList.contains("rule-deleted")) {
       htmlRule.remove();
       i--;
@@ -360,11 +376,11 @@ saveOkBtn.addEventListener("click", (e)=>{
 
 
 ruleAddBtn.addEventListener("click", (e)=> {
-  createHTMLRule({enabled:true, tokens:[], flags:[] }, type=MATCH_RULE).scrollIntoView();
+  createHTMLRule({enabled:true, tokens:[], flags:[] }, type=MATCH_RULE, insertTop=true);
 });
 
 repRuleAddBtn.addEventListener("click", (e)=> {
-  createHTMLRule({enabled:true, match_chars: "", replace_tg:[] }, type=REP_RULE).scrollIntoView();
+  createHTMLRule({enabled:true, match_chars: "", replace_tg:[] }, type=REP_RULE, insertTop=true);
 })
 
 saveBtn.addEventListener("click", saveChangesToServer);

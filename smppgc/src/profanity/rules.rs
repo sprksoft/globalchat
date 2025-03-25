@@ -24,7 +24,7 @@ impl Rule for MatchRule {
             Token::from_char('n').unwrap(),
         ]) {
             lints.push((
-                LintImportance::Error,
+                LintImportance::Notify,
                 "Rule ends in -en. Ex. 'aaien' will not match 'aaie'. (Replace -en suffix with -e)",
             ));
         }
