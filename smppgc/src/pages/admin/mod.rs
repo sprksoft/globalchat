@@ -8,8 +8,7 @@ use rocket::{
     fairing::AdHoc,
     get,
     http::{Cookie, CookieJar},
-    post,
-    response::{status::Forbidden, Debug, Redirect},
+    response::{Debug, Redirect},
     routes,
     serde::json::Json,
     time::{Duration, OffsetDateTime},
@@ -19,7 +18,7 @@ use rocket_dyn_templates::{context, Template};
 
 use crate::{
     auth::{self, AuthConfig, GcAdmin, GcRole},
-    profanity::{LintSet, ProfRuleset, RulesetError},
+    profanity::{LintSet, ProfRuleset},
     themes::Theme,
 };
 
@@ -55,46 +54,6 @@ enum RulesetWriteResponse {
     #[response(status = 200)]
     Ok(Json<RuleLintSet>),
 }
-
-// #[post("/prof/ruleset", data = "<ruleset>")]
-// async fn prof_ruleset_save(
-//     _gcadmin: GcAdmin,
-//     mut ruleset: Json<ProfRuleset>,
-//     global_ruleset: &State<Mutex<ProfRuleset>>,
-//     global_filter: &State<RwLock<ProfanityFilter>>,
-//     chat: &State<Chat>,
-// ) -> Result<RulesetWriteResponse, Debug<RulesetError>> {
-//     let global_ruleset = global_ruleset.lock().expect("Global ruleset poisoned");
-//     ruleset.merge(&mut global_ruleset);
-//     ruleset.sort();
-//     let filter = ruleset.build_filter();
-//     let lints = ruleset.lint(&filter);
-//     let rule_lint_set = RuleLintSet {
-//         lints,
-//         rules: ruleset.into_inner(),
-//     };
-//
-//     if lints.has_errors() {
-//         Ok(RulesetWriteResponse::Error(Json(rule_lint_set)))
-//     } else {
-//         {
-//             let mut lock = global_ruleset
-//                 .lock()
-//                 .expect("Profanity ruleset lock poisoned");
-//             lock.replace_from(ruleset.0);
-//             lock.save()?;
-//         }
-//         chat.run_filter(&filter).await;
-//         {
-//             let mut lock = global_filter
-//                 .write()
-//                 .expect("profanity filter lock poisoned");
-//             *lock = filter;
-//         }
-//
-//         Ok(RulesetWriteResponse::Ok(Json(lints)))
-//     }
-// }
 
 #[get("/")]
 fn index(theme: Theme, role: GcRole) -> Template {

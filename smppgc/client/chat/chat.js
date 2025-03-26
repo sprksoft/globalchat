@@ -6,8 +6,9 @@ import * as general from './../general.js';
 import * as sflake from './snowflake.js';
 
 import './../general.css'
-import './v1.css'
-import './login_popup.css'
+import './../buttons.css'
+import './css/chat.css'
+import './css/login_popup.css'
 
 const mesgs = document.getElementById("mesgs");
 const sendinput = document.getElementById("send-input");

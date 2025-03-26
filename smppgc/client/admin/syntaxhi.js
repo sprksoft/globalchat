@@ -1,4 +1,4 @@
-import './syntaxhi.css'
+import './css/syntaxhi.css'
 
 let str_to_token = {};
 let escape_codes = [];
