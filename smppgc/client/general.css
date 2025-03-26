@@ -51,12 +51,6 @@ header {
   }
 }
 
-button {
-  font-family: inherit;
-  border: none;
-  cursor: pointer;
-}
-
 input[type=checkbox] {
   appearance: none;
   width: 1.5em;
@@ -131,44 +125,6 @@ input[type=checkbox]:checked::after {
   transform: scale(0.7);
 }
 
-.pillbtn,
-.button {
-  display:flex;
-  flex-direction: row;
-  align-items: center;
-  margin:3px;
-
-  background-color: var(--color-base01);
-  color: var(--color-accent);
-  border-radius:var(--border-radius);
-  border: none;
-  font-weight: bold;
-
-  padding: 1em 2em 1em 2em;
-  cursor: pointer;
-
-  transition: color 0.5s, background-color 0.5s;
-}
-.pillbtn:hover,
-.button:hover {
-  background-color:var(--color-base02) ;
-}
-.pillbtn[disabled]:hover,
-.button[disabled]:hover {
-  cursor:unset;
-  background-color:inherit;
-}
-.pillbtn[disabled],
-.button[disabled] {
-  cursor: unset;
-  color: var(--color-base03);
-}
-
-.btnicon {
-  margin-right: 0.5em;
-  width: 20px;
-}
-
 ::selection{
   background-color: #ffffff40 !important;
 }
@@ -237,39 +193,6 @@ dialog {
   border-radius: var(--border-radius);
 }
 
-.unimportantbtn {
-  font-weight: bold;
-  background: transparent;
-  color: var(--color-accent);
-  text-decoration: none;
-}
-.unimportantbtn:hover {
-  color: var(--color-accent);
-  text-decoration: var(--color-accent) underline 2px;
-}
-
-.pillbtn {
-  background: var(--color-base02);
-  border: solid var(--color-base03) var(--border-size);
-  border-radius: 10000px;
-  padding: 4px 10px 5px 10px;
-
-  cursor:pointer;
-  color: var(--color-accent);
-}
-.pillbtn[disabled] {
-  opacity: 0.5;
-  cursor: auto;
-  color: var(--color-base03);
-}
-.pillbtn[disabled]:hover {
-  background-color:var(--color-base03);
-}
-
-.dangerbtn {
-  color: var(--color-error);
-}
-
 
 @keyframes spinner {
   0%{
@@ -304,9 +227,3 @@ dialog {
   display:block;
 }
 
-.button-list {
-  display: flex;
-  flex-direction: column;
-  padding-top: 2em;
-  padding-bottom: 2em;
-}

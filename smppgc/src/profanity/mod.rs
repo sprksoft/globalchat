@@ -6,6 +6,7 @@ use profanity::ProfanityFilter;
 use rocket::fairing::AdHoc;
 use rocket::serde::{Deserialize, Serialize};
 use thiserror::Error;
+use uuid::Uuid;
 
 mod rules;
 pub use rules::*;
@@ -64,6 +65,22 @@ pub enum RulesetError {
     NoFilterPath,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(crate = "rocket::serde")]
+#[serde(tag = "type")]
+pub enum RuleChange {
+    Match(rules::MatchRule),
+    Rep(rules::RepRule),
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(crate = "rocket::serde")]
+pub struct RulesetChanges {
+    additions: Vec<RuleChange>,
+    changes: Vec<RuleChange>,
+    deletions: Vec<Uuid>,
+}
+
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]
 #[serde(crate = "rocket::serde")]
 pub struct ProfRuleset {
@@ -84,6 +101,36 @@ impl ProfRuleset {
 
     pub fn sort(&mut self) {
         self.match_rules.sort();
+    }
+    pub fn apply(&mut self, changes: RulesetChanges) {
+        for addition in changes.additions {
+            match addition {
+                RuleChange::Rep(r) => {
+                    if let None = self.rep_rules.iter_mut().find(|rule| rule.id == r.id) {
+                        self.rep_rules.push(r)
+                    }
+                }
+                RuleChange::Match(r) => {
+                    if let None = self.rep_rules.iter_mut().find(|rule| rule.id == r.id) {
+                        self.rep_rules.push(r)
+                    }
+                }
+            }
+        }
+        for change in changes.changes {
+            match change {
+                RuleChange::Rep(mut r) => {
+                    if let Some(rule) = self.rep_rules.iter_mut().find(|rule| rule.id == r.id) {
+                        let _ = std::mem::swap(rule, &mut r);
+                    }
+                }
+                RuleChange::Match(mut r) => {
+                    if let Some(rule) = self.match_rules.iter_mut().find(|rule| rule.id == r.id) {
+                        let _ = std::mem::swap(rule, &mut r);
+                    }
+                }
+            }
+        }
     }
     pub fn append(&mut self, other: &mut ProfRuleset) {
         self.rep_rules.append(&mut other.rep_rules);
