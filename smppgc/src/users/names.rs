@@ -3,12 +3,9 @@ use dashmap::DashMap;
 use log::*;
 use profanity::{ProfanityFilter, TokenizedMessage};
 use rocket::{fairing::AdHoc, serde::Deserialize};
-use std::{
-    collections::VecDeque,
-    ops::Deref,
-    sync::{Arc, RwLock},
-};
+use std::{collections::VecDeque, ops::Deref, sync::Arc};
 use thiserror::Error;
+use tokio::sync::RwLock;
 
 use crate::wsprotocol::KickReason;
 
@@ -65,9 +62,7 @@ impl UsernameManager {
             return Err(NameClaimError::Length);
         }
         let (name, tokenized_name) = {
-            let lock = prof_filter
-                .read()
-                .expect("Profanity filter lock has been poisoned");
+            let lock = prof_filter.read().await;
 
             let (tokenized_name, name) = lock.tokenize(name);
             if lock.check(&tokenized_name).is_some() {

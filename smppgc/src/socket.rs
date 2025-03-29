@@ -5,7 +5,8 @@ use rocket::{
     request::{FromRequest, Outcome},
     Request, Responder, Shutdown, State,
 };
-use std::{convert::Infallible, net::IpAddr, sync::RwLock};
+use std::{convert::Infallible, net::IpAddr};
+use tokio::sync::RwLock;
 
 use log::*;
 use rocket_ws::{Channel, WebSocket};
@@ -183,7 +184,7 @@ pub async fn socket_v1<'a>(
 
 
                         let (prof_span, content) = {
-                            let lock = prof_filter.read().expect("Profanity filter lock poisoned");
+                            let lock = prof_filter.read().await;
                             let (tokenized_mesg, content) = lock.tokenize(&mesg.content.trim());
 
                             (lock.check(&tokenized_mesg).map(|m|(m.span, m.rule.to_string_friendly())), content)

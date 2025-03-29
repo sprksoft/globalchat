@@ -17,6 +17,7 @@
 </div>
 <div class="lints">
 </div>
+<span class="changes-text">Unsaved changes *</span>
 {% endmacro ruleBase %}
 
 {% macro insertRuleBtn(id) %}
@@ -44,23 +45,29 @@ Profanity filter - GC Admin
 
 <dialog id="save-dialog">
   <h1 id="save-dialog-title" class="center-title"></h1>
-  <p id="error-message"></p>
-  <div id="lints-section" class="lint-section layered-section" style="display:none">
-    <h2>Problems</h2>
-    <div id="lints"></div>
-  </div>
+  <p id="save-dialog-message"></p>
   <p class="hints">
-  <b>Hint:</b> Press <kbd>ctrl</kbd> + <kbd>e</kbd> to show this menu again and <kbd>ctrl</kbd> + <kbd>s</kbd> to save.
+  <b>Hint:</b> Press <kbd>ctrl</kbd> + <kbd>s</kbd> to save changes.
   </p>
   <div class="flex-row">
-    <button autofocus id="ok-btn" class="pillbtn">Continue editing</button>
+    <button id="show-lints-btn2" class="dangerbtn pillbtn" disabled>Show problems</button>
+    <button autofocus onclick="document.getElementById('save-dialog').close()" class="pillbtn">Continue editing</button>
+  </div>
+</dialog>
+
+<dialog id="lints-dialog" class="linst-section">
+  <h2>Problems</h2>
+  <div id="lints"></div>
+  <b>Hint:</b> Press <kbd>ctrl</kbd> + <kbd>e</kbd> to show this menu again.
+  <div class="flex-row">
+    <button autofocus onclick="document.getElementById('lints-dialog').close()" class="pillbtn">Ok</button>
   </div>
 </dialog>
 
 <template id="rule-template">
   <div class="rule">
     <div class="top-row">
-      <div data-lang="tokengroup" class="rule-input" type="text"></div>
+      <div data-lang="tokengroup" class="match-input rule-input" type="text"></div>
     </div>
     {{ self::ruleBase(rule_flags=true) }}
   </div>
@@ -97,7 +104,7 @@ Profanity filter - GC Admin
 </div>
 <div class="toolbar">
   <div class="right-tools">
-  <button class="pillbtn dangerbtn" id="show-lints-btn">Show problems</button>
+  <button class="pillbtn dangerbtn" id="show-lints-btn" disabled>Show problems</button>
   <button class="pillbtn" id="save-btn">Save rules</button>
   </div>
 </div>
@@ -105,12 +112,6 @@ Profanity filter - GC Admin
 {% endblock content %}
 
 {% block scripts %}
-<script id="jsonRuleset" type="application/json">
-  {{ ruleset | json_encode | safe }}
-</script>
-<script id="jsonLints" type="application/json">
-  {{ lints | json_encode | safe }}
-</script>
 <script id="tokenInfo" type="application/json">
   {{ tokeninfo | json_encode | safe }}
 </script>
