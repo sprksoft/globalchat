@@ -1,7 +1,9 @@
-import './css/syntaxhi.css'
+import './css/syntax.css'
 
 let str_to_token = {};
+let token_to_str = {};
 let escape_codes = [];
+
 
 function errWrap(text, error) {
   return `<i class="special-token special-token-invalid" title="${error}">${text}</i>`;
@@ -72,15 +74,6 @@ document.addEventListener("click", (e) => {
 
 });
 
-export function setTokenInfo(tokenInfo) {
-  escape_codes = [];
-  str_to_token = {};
-  for (let token of tokenInfo) {
-    str_to_token[token[0]] = [token[1], token[2]];
-    escape_codes.push(token[0]);
-  }
-}
-
 export function setContent(editorEl, content) {
   let input = editorEl.querySelector(".editor_input")
   input.innerText=content;
@@ -112,3 +105,48 @@ export function createEditor(parent) {
   parent.appendChild(inputDiv);
 }
 
+export function setTokenInfo(tokenInfo) {
+  escape_codes = [];
+  str_to_token = {};
+  token_to_str = {};
+  for (let token of tokenInfo) {
+    str_to_token[token[0]] = [token[1], token[2]];
+    token_to_str[token[1]] = ["/"+token[0], token[2]];
+    escape_codes.push(token[0]);
+  }
+}
+
+
+export function tokensToString(jsonTg) {
+  let string = "";
+  for (let token of jsonTg) {
+    let entry = token_to_str[token];
+    if (entry) {
+      string+=entry[0];
+    } else {
+      string+=String.fromCharCode(token);
+    }
+  }
+  return string;
+}
+export function stringToTokens(string) {
+  let tokens = [];
+  let escape = false;
+  for (let char of string) {
+    if (char == '/' && !escape) {
+      escape=true;
+      continue;
+    }
+    if (escape) {
+      tokens.push(str_to_token[char][0]);
+      escape=false;
+    } else {
+      tokens.push(char.charCodeAt(0));
+    }
+  }
+  if (escape) {
+    tokens.push('/'.charCodeAt(0));
+  }
+
+  return tokens;
+}

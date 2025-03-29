@@ -2,108 +2,26 @@ import './../general.css'
 import './../buttons.css'
 import './css/admin.css'
 import * as general from './../general.js'
-import * as syntaxhi from './syntaxhi.js'
+import * as syntax from './syntax.js'
+import * as rule from './rule.js'
 import { log } from './../utils.js'
 
 const loadingDialog = document.getElementById("loading-dialog");
 const saveDialog = document.getElementById("save-dialog");
-const saveLintsEl = document.getElementById("lints");
+const lintsEl = document.getElementById("lints");
 const saveDialogTitle = document.getElementById("save-dialog-title");
-const saveOkBtn = document.getElementById("ok-btn");
 const saveBtn = document.getElementById("save-btn");
+const lintsDialog = document.getElementById("lints-dialog");
 const showlintsBtn = document.getElementById("show-lints-btn");
-const ruleAddBtn = document.getElementById("rule-add-btn");
-const ruleTemplate = document.getElementById("rule-template");
-const rulesListEl = document.getElementById("rules-list");
+const showlintsBtn2 = document.getElementById("show-lints-btn2");
 
-const repRuleTemplate = document.getElementById("replace-rule-template");
-const repRulesListEl = document.getElementById("replace-rules-list");
+const ruleAddBtn = document.getElementById("rule-add-btn");
 const repRuleAddBtn = document.getElementById("replace-rule-add-btn");
 
-const REP_RULE="rep";
-const MATCH_RULE="match";
-
-let currentLintset = JSON.parse(document.getElementById("jsonLints").textContent);
-let currentRules = JSON.parse(document.getElementById("jsonRuleset").textContent);
 const TOKEN_INFO = JSON.parse(document.getElementById("tokenInfo").textContent);
+syntax.setTokenInfo(TOKEN_INFO);
 
-let changes = {
-  additions: [],
-  changes: [],
-  deletions: [],
-};
-function restoreChanges() {
-  changes = {
-    additions: [],
-    changes: [],
-    deletions: [],
-  };
-}
-
-function hasUnsavedChanges() {
-  return changes.additions.length > 0 || changes.deletions.length > 0 || changes.changes.length > 0;
-}
-
-syntaxhi.setTokenInfo(TOKEN_INFO);
-
-let str_to_token = {};
-let token_to_str = {};
-for (let token of TOKEN_INFO) {
-  token_to_str[token[1]] = ["/"+token[0], token[2]];
-  str_to_token[token[0]] = token[1];
-}
-
-function tokensToString(jsonTg) {
-  let string = "";
-  for (let token of jsonTg) {
-    let entry = token_to_str[token];
-    if (entry) {
-      string+=entry[0];
-    } else {
-      string+=String.fromCharCode(token);
-    }
-  }
-  return string;
-}
-function stringToTokens(string) {
-  let tokens = [];
-  let escape = false;
-  for (let char of string) {
-    if (char == '/' && !escape) {
-      escape=true;
-      continue;
-    }
-    if (escape) {
-      tokens.push(str_to_token[char]);
-      escape=false;
-    } else {
-      tokens.push(char.charCodeAt(0));
-    }
-  }
-  if (escape) {
-    tokens.push('/'.charCodeAt(0));
-  }
-
-  return tokens;
-}
-
-function toggleEnabledHTMLRule(rule) {
-  enableHTMLRule(rule, rule.classList.contains("rule-disabled"));
-}
-function enableHTMLRule(rule, value) {
-  let toggleBtn = rule.querySelector(".rule-disable-toggle");
-  let ruleDelBtn = rule.querySelector(".rule-del-btn");
-
-  if (value) {
-    rule.classList.remove("rule-disabled");
-    toggleBtn.innerText = "Disable rule";
-    ruleDelBtn.disabled=true;
-  } else {
-    rule.classList.add("rule-disabled");
-    toggleBtn.innerText = "Enable rule";
-    ruleDelBtn.disabled=false;
-  }
-}
+let currentLints;
 
 window.addEventListener('beforeunload', (e) => {
   if (hasUnsavedChanges()) {
@@ -111,77 +29,8 @@ window.addEventListener('beforeunload', (e) => {
   }
 });
 
-function createHTMLRule(jsonRule, type, anDelay=0, insertTop=false) {
-
-  let template;
-  if (type == MATCH_RULE) {
-    template = ruleTemplate;
-  } else if (REP_RULE) {
-    template = repRuleTemplate;
-  }
-
-  let ruleFrag = template.content.cloneNode(true);
-  let rule = ruleFrag.querySelector(".rule");
-  rule.style=`animation-delay:${anDelay}s`
-
-  rule.addEventListener("input", (e) => { markChanges() } );
-
-  rule.querySelector(".rule-disable-toggle").addEventListener("click", (e) => {
-    toggleEnabledHTMLRule(rule);
-    markChanges();
-  });
-  rule.querySelector(".rule-del-btn").addEventListener("click", (e) => {
-    rule.classList.add("rule-deleted");
-    rule.nextElementSibling?.remove();
-    markChanges();
-  });
-  enableHTMLRule(rule, jsonRule.enabled);
-
-  let parent;
-  if (type == MATCH_RULE) {
-    let ruleInput = rule.querySelector(".rule-input");
-    syntaxhi.createEditor(ruleInput);
-    syntaxhi.setContent(ruleInput, tokensToString(jsonRule.tokens));
-
-    for (let flag of jsonRule.flags) {
-      rule.querySelector(`.rule-option[data-flagname="${flag}"]`).classList.add("checked");
-    }
-
-    rule.id = "matchrule-"+rulesListEl.childElementCount;
-    parent = rulesListEl;
-  } else if (type == REP_RULE) {
-    let matchInput = rule.querySelector(".match-input");
-    syntaxhi.createEditor(matchInput);
-    syntaxhi.setContent(matchInput, jsonRule.match_chars);
-
-    let replaceInput = rule.querySelector(".replace-input");
-    syntaxhi.createEditor(replaceInput);
-    syntaxhi.setContent(replaceInput, tokensToString(jsonRule.replace_tg));
-
-    rule.id = "reprule-"+repRulesListEl.childElementCount;
-
-    parent = repRulesListEl;
-  }
-  if (insertTop) {
-    parent.insertBefore(rule, parent.firstChild);
-  } else {
-    parent.appendChild(rule);
-  }
-
-
-  return rule;
-}
-
-function getRuleJson(htmlRule) {
-  if
-
-  let matchInput = htmlRule.querySelector(".match-input");
-  let repInput = htmlRule.querySelector(".replace-input");
-  return {
-    match_chars: syntaxhi.getContent(matchInput),
-    replace_tg: stringToTokens(syntaxhi.getContent(repInput)),
-    enabled:!htmlRule.classList.contains("rule-disabled")
-  };
+function hasUnsavedChanges() {
+  return document.querySelectorAll(".rule-changed") == null && ruleDeletions.length == 0;
 }
 
 function createHTMLLint(jsonLint, type, primaryLink=true) {
@@ -223,67 +72,47 @@ function createHTMLLint(jsonLint, type, primaryLink=true) {
 }
 
 function setLints(lintset) {
-  for (let i=0; i < repRulesListEl.childNodes.length; i++) {
-    let lintsEl = repRulesListEl.childNodes[i].querySelector(".lints");
-    if (lintsEl == null) { continue; }
-    lintsEl.innerHTML = "";
+  // for (let i=0; i < repRulesListEl.childNodes.length; i++) {
+  //   let lintsEl = repRulesListEl.childNodes[i].querySelector(".lints");
+  //   if (lintsEl == null) { continue; }
+  //   lintsEl.innerHTML = "";
+  //
+  //   for (let lint of lintset.rep_lints) {
+  //     if (lint.affected_rule == i) {
+  //       lintsEl.appendChild(createHTMLLint(lint, type=rule.REP, primaryLink=false));
+  //     }
+  //   }
+  // }
+  // for (let i=0; i < rulesListEl.childNodes.length; i++) {
+  //   let lintsEl = rulesListEl.childNodes[i].querySelector(".lints");
+  //   if (lintsEl == null) { continue; }
+  //   lintsEl.innerHTML = "";
+  //
+  //   for (let lint of lintset.match_lints) {
+  //     if (lint.affected_rule == i) {
+  //       lintsEl.appendChild(createHTMLLint(lint, type=rule.MATCH, primaryLink=false));
+  //     }
+  //   }
+  // }
 
-    if (lintset == null) { continue; }
-
-    for (let lint of lintset.rep_lints) {
-      if (lint.affected_rule == i) {
-        lintsEl.appendChild(createHTMLLint(lint, type=REP_RULE, primaryLink=false));
-      }
-    }
+  lintsEl.innerHTML = "";
+  currentLintset = lintset;
+  if (lintset.rep_lints.length == 0 || lintset.match_lints.length == 0){
+    showlintsBtn.disabled=true;
+    showlintsBtn2.disabled=true;
+    return;
   }
-  for (let i=0; i < rulesListEl.childNodes.length; i++) {
-    let lintsEl = rulesListEl.childNodes[i].querySelector(".lints");
-    if (lintsEl == null) { continue; }
-    lintsEl.innerHTML = "";
-
-    if (lintset == null) { continue; }
-
-    for (let lint of lintset.match_lints) {
-      if (lint.affected_rule == i) {
-        lintsEl.appendChild(createHTMLLint(lint, type=MATCH_RULE, primaryLink=false));
-      }
-    }
-  }
-  saveLintsEl.innerHTML = "";
-  document.getElementById("lints-section").style.display = (lintset != null && (lintset.rep_lints.length > 0 || lintset.match_lints.length > 0)) ? "block" : "none";
-
-  if (lintset == null) { return; }
+  showlintsBtn.disabled=false;
+  showlintsBtn2.disabled=false;
 
   for (let lint of lintset.rep_lints) {
-    saveLintsEl.appendChild(createHTMLLint(lint, type=REP_RULE));
+    lintsEl.appendChild(createHTMLLint(lint, type=rule.REP));
   }
   for (let lint of lintset.match_lints) {
-    saveLintsEl.appendChild(createHTMLLint(lint, type=MATCH_RULE));
+    lintsEl.appendChild(createHTMLLint(lint, type=rule.MATCH));
   }
-
-  currentLintset = lintset;
 }
 
-function setRules(ruleset) {
-  repRulesListEl.innerHTML = "";
-  for (let i=0; i < ruleset.rep_rules.length; i++) {
-    let rule = ruleset.rep_rules[i];
-    let delay = 0;
-    if (i < 10) {
-      delay = i*0.05
-    }
-
-   createHTMLRule(rule, REP_RULE, delay);
-  }
-
-  rulesListEl.innerHTML = "";
-  for (let rule of ruleset.match_rules) {
-    createHTMLRule(rule, MATCH_RULE, 0)
-  }
-
-  currentRuleset = ruleset;
-  localStorage.setItem("last_rule_update_time", new Date().getTime());
-}
 
 function prepHTMLRulesAndGenerateJson() {
   let repRulesJson = [];
@@ -303,8 +132,8 @@ function prepHTMLRulesAndGenerateJson() {
     let matchInput = htmlRule.querySelector(".match-input");
     let repInput = htmlRule.querySelector(".replace-input");
     repRulesJson.push({
-      match_chars: syntaxhi.getContent(matchInput),
-      replace_tg: stringToTokens(syntaxhi.getContent(repInput)),
+      match_chars: syntax.getContent(matchInput),
+      replace_tg: syntax.stringToTokens(syntax.getContent(repInput)),
       enabled:!htmlRule.classList.contains("rule-disabled")
     });
   }
@@ -332,7 +161,7 @@ function prepHTMLRulesAndGenerateJson() {
 
     matchRulesJson.push({
       flags:flags,
-      tokens: stringToTokens(syntaxhi.getContent(tokenInput)),
+      tokens: syntax.stringToTokens(syntax.getContent(tokenInput)),
       enabled:!htmlRule.classList.contains("rule-disabled")
     });
   }
@@ -340,89 +169,110 @@ function prepHTMLRulesAndGenerateJson() {
   return {match_rules:matchRulesJson, rep_rules:repRulesJson };
 }
 
-async function postRuleset(rulesetJsonString) {
-  const response = await fetch(ROOT_URL+"/admin/prof/ruleset", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body:rulesetJsonString,
-  });
-  if (response.status == 200) {
-    let lints;
-    try{
-      lints = await response.json();
-    }catch(e) {
-      console.error("Failed to parse json in ok response: "+e);
-    return [null, "Error while parsing json from server."];
-    }
-    return [lints, ""];
-  } else if (response.status = 422) {
-    let errJson;
-    try {
-      errJson = await response.json();
-    } catch(e) {
-      console.error("Failed to parse json in response: "+e);
-      return [null, "Got "+response.status+" while connecting to server"];
-    }
-    return [errJson.lints, errJson.message];
+async function apiCall(changes) {
+  let response;
+  try {
+    response = await fetch(ROOT_URL+"/api/admin/prof/ruleset", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body:JSON.stringify(changes),
+    });
 
-  } else {
-    return [null, "Got "+response.status+" while connecting to server"];
+    if (response.status !== 200) {
+      return "Got "+response.status+" from server";
+    }
+  } catch(e) {
+    return e.toString();
   }
+  let responseJson;
+  try{
+    responseJson = await response.json();
+  }catch(e) {
+    console.error("Failed to parse json response: "+e);
+    return "Failed to pares json from server.";
+  }
+  return responseJson;
 }
 
-async function saveChangesToServer() {
+/// Push changes to the server and apply new rules returned from the server
+async function syncChanges(loadOnly=false) {
   loadingDialog.showModal();
-  let json = prepHTMLRulesAndGenerateJson();
-
-  let [lints, errMsg] = await postRuleset(JSON.stringify(json));
-
-  if (errMsg != ""){
-    saveDialogTitle.innerText = errMsg;
-    saveDialogTitle.style = "color: var(--color-error)";
-  }else {
-    saveDialogTitle.innerText = "Rules have been saved succesfuly";
-    saveDialogTitle.style = "";
-
-    restoreChanges();
+  let changes = {
+    rep_additions: [],
+    match_additions: [],
+    rep_deletions: [],
+    match_deletions: []
   }
-  SetHTMLLints(lints);
+  if (!loadOnly) {
+    changes.rep_deletions = rule.repDeletions;
+    changes.match_deletions = rule.matchDeletions;
+    for (let htmlRule of document.querySelectorAll(".rule-changes.rep-rule:not(.rule-deleted)")) {
+      console.log("r");
+      changes.rep_additions.push(rule.getJson(htmlRule));
+    }
+    for (let htmlRule of document.querySelectorAll(".rule-changes.match-rule:not(.rule-deleted)")) {
+      console.log("m");
+      changes.match_additions.push(rule.getJson(htmlRule));
+    }
+  }
+  console.log("changes:",changes);
+
+  let response = await apiCall(changes);
+  let titleEl = document.getElementById("save-dialog-title");
+  let messageEl = document.getElementById("save-dialog-message");
+  let error = false;
+  if (typeof response == "string") {
+    error = true;
+    if (loadOnly) {
+      titleEl.innerText="Failed to load rules";
+    }else {
+      titleEl.innerText="Failed to save rules";
+    }
+    titleEl.classList.add("save-error");
+    messageEl.innerText=response;
+  }else {
+    titleEl.innerText="Saved succesfuly";
+    titleEl.classList.remove("save-error");
+    messageEl.innerText="";
+    rule.setRules(response.rules);
+    setLints(response.lints);
+  }
 
   loadingDialog.close();
-  saveDialog.showModal();
-
+  if (error || !loadOnly) {
+    saveDialog.showModal();
+  }
 }
-
-saveOkBtn.addEventListener("click", (e)=>{
-  saveDialog.close();
-})
 
 
 ruleAddBtn.addEventListener("click", (e)=> {
-  createHTMLRule({enabled:true, tokens:[], flags:[] }, type=MATCH_RULE, anDelay=0, insertTop=true);
+  rule.createHTMLRule({enabled:true, tokens:[], flags:[] }, type=rule.MATCH, anDelay=0, insertTop=true, userCreated=true);
 });
 
 repRuleAddBtn.addEventListener("click", (e)=> {
-  createHTMLRule({enabled:true, match_chars: "", replace_tg:[] }, type=REP_RULE, anDelay=0, insertTop=true);
+  rule.createHTMLRule({enabled:true, match_chars: "", replace_tg:[] }, type=rule.REP, anDelay=0, insertTop=true, userCreated=true);
 })
 
-saveBtn.addEventListener("click", saveChangesToServer);
+saveBtn.addEventListener("click", (e) => { syncChanges() });
 
 window.addEventListener("keydown", (e) => {
   if (e.key === 's' && e.ctrlKey) {
-    saveChangesToServer();
+    syncChanges();
     e.preventDefault();
   }
   if (e.key === 'e' && e.ctrlKey) {
-    saveDialog.showModal();
+    lintsDialog.showModal();
     e.preventDefault();
   }
 })
 
 showlintsBtn.addEventListener("click", (e) => {
-  saveDialog.showModal();
+  lintsDialog.showModal();
+});
+showlintsBtn2.addEventListener("click", (e) => {
+  lintsDialog.showModal();
 });
 
-setRules(currentRuleset);
-setLints(currentLintset);
+syncChanges(loadOnly=true);

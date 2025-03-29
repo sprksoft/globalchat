@@ -3,11 +3,9 @@ body {
   color: var(--color-text);
 }
 
-
 .header-title{
   margin: 0px;
 }
-
 
 main {
   margin-left: auto;
@@ -23,6 +21,7 @@ main {
   }
 }
 .view {
+  flex-grow: 1;
   overflow: auto;
   display: flex;
   flex-direction: column;
@@ -242,11 +241,16 @@ main {
   content:"error: ";
   color: var(--color-error);
 }
-#error-dialog {
-  display:flex;
-  flex-direction: column;
+
+#save-dialog-title {
+  color: var(--color-ok);
 }
-#error-message {
+
+#save-dialog-title.save-error {
+  color: var(--color-error);
+}
+
+#save-dialog-message {
   text-align: center;
   font-weight: bold;
   color: var(--color-error);
@@ -261,4 +265,16 @@ main {
 .role {
   font-weight: bold;
   color: var(--color-accent);
+}
+
+.changes-text {
+  opacity: 0;
+  font-size: 0.9em;
+  transition: opacity 1s;
+}
+.rule-changes {
+  border-color: var(--color-text);
+}
+.rule-changes .changes-text {
+  opacity: 1;
 }

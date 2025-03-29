@@ -1,5 +1,4 @@
 use std::path::PathBuf;
-use std::sync::Mutex;
 
 use log::*;
 use profanity::ProfanityFilter;
@@ -67,21 +66,21 @@ pub enum RulesetError {
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(crate = "rocket::serde")]
-#[serde(tag = "type")]
-pub enum RuleChange {
-    Match(rules::MatchRule),
-    Rep(rules::RepRule),
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-#[serde(crate = "rocket::serde")]
 pub struct RulesetChanges {
-    additions: Vec<RuleChange>,
-    changes: Vec<RuleChange>,
-    deletions: Vec<Uuid>,
+    match_additions: Vec<rules::MatchRule>,
+    match_deletions: Vec<rules::MatchRule>,
+    rep_additions: Vec<rules::RepRule>,
+    rep_deletions: Vec<rules::RepRule>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]
+#[derive(Serialize, Debug)]
+#[serde(crate = "rocket::serde")]
+pub struct RuleLintSet {
+    pub rules: ProfRuleset,
+    pub lints: LintSet,
+}
+
+#[derive(Clone, Serialize, Deserialize, Debug, Eq, PartialEq)]
 #[serde(crate = "rocket::serde")]
 pub struct ProfRuleset {
     #[serde(skip)]
@@ -103,38 +102,35 @@ impl ProfRuleset {
         self.match_rules.sort();
     }
     pub fn apply(&mut self, changes: RulesetChanges) {
-        for addition in changes.additions {
-            match addition {
-                RuleChange::Rep(r) => {
-                    if let None = self.rep_rules.iter_mut().find(|rule| rule.id == r.id) {
-                        self.rep_rules.push(r)
-                    }
-                }
-                RuleChange::Match(r) => {
-                    if let None = self.rep_rules.iter_mut().find(|rule| rule.id == r.id) {
-                        self.rep_rules.push(r)
-                    }
-                }
+        self.rep_rules
+            .retain(|rule| !changes.rep_deletions.contains(rule));
+        for rep_add in changes.rep_additions {
+            if let None = self.rep_rules.iter().find(|rule| **rule == rep_add) {
+                self.rep_rules.push(rep_add);
             }
         }
-        for change in changes.changes {
-            match change {
-                RuleChange::Rep(mut r) => {
-                    if let Some(rule) = self.rep_rules.iter_mut().find(|rule| rule.id == r.id) {
-                        let _ = std::mem::swap(rule, &mut r);
-                    }
-                }
-                RuleChange::Match(mut r) => {
-                    if let Some(rule) = self.match_rules.iter_mut().find(|rule| rule.id == r.id) {
-                        let _ = std::mem::swap(rule, &mut r);
-                    }
-                }
+
+        self.match_rules
+            .retain(|rule| !changes.match_deletions.contains(rule));
+        for match_add in changes.match_additions {
+            if let None = self.match_rules.iter().find(|rule| **rule == match_add) {
+                self.match_rules.push(match_add);
             }
         }
     }
     pub fn append(&mut self, other: &mut ProfRuleset) {
         self.rep_rules.append(&mut other.rep_rules);
         self.match_rules.append(&mut other.match_rules);
+    }
+    pub fn disable_match(&mut self, index: usize) {
+        if let Some(r) = self.match_rules.get_mut(index) {
+            r.enabled = false;
+        }
+    }
+    pub fn disable_rep(&mut self, index: usize) {
+        if let Some(r) = self.rep_rules.get_mut(index) {
+            r.enabled = false;
+        }
     }
 
     pub fn parse_from_str(str: &str) -> Result<Self, ParseError> {
@@ -388,8 +384,8 @@ pub fn stage() -> AdHoc {
         let ruleset = ProfRuleset::new(config.prof_filter_file)
             .expect("Failed to load profanity filter rules");
         let filter = ruleset.build_filter();
-        r.manage(std::sync::RwLock::new(filter))
-            .manage(Mutex::new(ruleset))
+        r.manage(tokio::sync::RwLock::new(filter))
+            .manage(tokio::sync::Mutex::new(ruleset))
     })
 }
 

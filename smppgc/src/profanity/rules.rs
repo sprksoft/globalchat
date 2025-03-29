@@ -12,7 +12,6 @@ pub trait Rule {
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, PartialOrd, Ord)]
 #[serde(crate = "rocket::serde")]
 pub struct MatchRule {
-    pub id: Uuid,
     pub enabled: bool,
 
     #[serde(flatten)]
@@ -38,7 +37,6 @@ impl Rule for MatchRule {
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 #[serde(crate = "rocket::serde")]
 pub struct RepRule {
-    pub id: Uuid,
     pub enabled: bool,
     #[serde(flatten)]
     pub inner: profanity::RepRule,
