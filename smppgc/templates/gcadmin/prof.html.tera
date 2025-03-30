@@ -21,7 +21,7 @@
 {% endmacro ruleBase %}
 
 {% macro insertRuleBtn(id) %}
-<div id="{{ id }}" class="insert-rule"><div></div><button>{% include "svg/plus" %}</button><div></div></div>
+<div class="insert-rule"><div></div><button id="{{ id }}">{% include "svg/plus" %}</button><div></div></div>
 {% endmacro insertRuleBtn %}
 
 {% block title %}
@@ -46,20 +46,26 @@ Profanity filter - GC Admin
 <dialog id="save-dialog">
   <h1 id="save-dialog-title" class="center-title"></h1>
   <p id="save-dialog-message"></p>
+
   <p class="hints">
   <b>Hint:</b> Press <kbd>ctrl</kbd> + <kbd>s</kbd> to save changes.
   </p>
-  <div class="flex-row">
+
+  <div class="button-row">
     <button id="show-lints-btn2" class="dangerbtn pillbtn" disabled>Show problems</button>
     <button autofocus onclick="document.getElementById('save-dialog').close()" class="pillbtn">Continue editing</button>
   </div>
 </dialog>
 
-<dialog id="lints-dialog" class="linst-section">
-  <h2>Problems</h2>
+<dialog id="lints-dialog">
+  <h2 class="center-title">Problems</h2>
   <div id="lints"></div>
-  <b>Hint:</b> Press <kbd>ctrl</kbd> + <kbd>e</kbd> to show this menu again.
-  <div class="flex-row">
+
+  <p class="hints">
+    <b>Hint:</b> Press <kbd>ctrl</kbd> + <kbd>e</kbd> to show this menu again.
+  </p>
+
+  <div class="button-row">
     <button autofocus onclick="document.getElementById('lints-dialog').close()" class="pillbtn">Ok</button>
   </div>
 </dialog>
@@ -102,11 +108,9 @@ Profanity filter - GC Admin
   </div>
 </main>
 </div>
-<div class="toolbar">
-  <div class="right-tools">
+<div class="toolbar button-row">
   <button class="pillbtn dangerbtn" id="show-lints-btn" disabled>Show problems</button>
   <button class="pillbtn" id="save-btn">Save rules</button>
-  </div>
 </div>
 
 {% endblock content %}

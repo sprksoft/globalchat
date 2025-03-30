@@ -26,8 +26,10 @@
       <p id="disclaimer-countdown-text">Je kunt accepteren binnen <time id="disclaimer-countdown"></time></p>
     </div>
   </div>
-
   <a href="#" class="center-link" style="margin-top:1em" target="_blank">Open global chat in een nieuwe tab</a>
+  {% if is_mod %}
+  <label for="show-mod-badge"><input id="show-mod-badge" type="checkbox"> Moderator badge</label>
+  {% endif %}
   <span id="err-mesg" class="err"></span>
   <div class="container">
     <input autofocus maxlength="{{max_username_len}}" id="name-input" type="text" placeholder="({{placeholder}})" data-default_username="{{placeholder}}">

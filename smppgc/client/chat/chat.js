@@ -4,6 +4,7 @@ import * as mk from './mkels.js';
 import * as disclaimer from './disclaimer.js';
 import * as general from './../general.js';
 import * as sflake from './snowflake.js';
+import { Message, createMessage } from './mesg.js';
 
 import './../general.css'
 import './../buttons.css'
@@ -15,6 +16,7 @@ const sendinput = document.getElementById("send-input");
 const username_field = document.getElementById("name-input");
 const leavebtn = document.getElementById("leavebtn");
 const sendbtn = document.getElementById("sendbtn");
+const showModBadgeCheck = document.getElementById("show-mod-badge");
 const connectbtn = document.getElementById("connectbtn");
 const constatus = document.getElementById("connection-status");
 const err_mesg = document.getElementById("err-mesg");
@@ -25,7 +27,7 @@ const profaneMessageOk = document.getElementById("profane-message-ok");
 const profaneMessageCountdown = document.getElementById("profane-message-countdown");
 const profaneMessageBadWord = document.getElementById("badword");
 
-const messageTemplate = document.getElementById("message-template");
+
 
 disclaimer.checkbox.addEventListener("change", (e) => {
   connectbtn.disabled = !e.target.checked;
@@ -37,33 +39,8 @@ let profanityCoolDownInterval;
 
 let socketmgr = new proto.SocketMgr();
 
-function createMessage(message, sender, snowflake, highlight=null, profanity=false) {
-  const msgFrag = messageTemplate.content.cloneNode(true);
-  let msgEl = msgFrag.querySelector(".message");
-  if (profanity) {
-    msgEl.classList.add("prof-message");
-  }
-
-  msgEl.dataset.username = sender;
-  msgEl.dataset.snowflake = snowflake;
-  msgEl.querySelector(".user").innerText = sender;
-  msgEl.querySelector(".timestamp").innerText = sflake.into_time_str(snowflake);
-  let delbtnEl = msgEl.querySelector(".delbtn");
-  if (delbtnEl) {
-    delbtnEl.addEventListener("click", ()=>{
-      socketmgr.deleteMessage(snowflake);
-    });
-  }
-  mk.mkcontent(message, highlight, msgEl.querySelector(".content"));
-
-  return msgEl;
-}
-
-function add_message(message, sender, snowflake, scroll=false, profanity=false) {
-  if (!snowflake) {
-    snowflake = sflake.now();
-  }
-  let msgEl = createMessage(message, sender, snowflake, null, profanity);
+function add_message(message, scroll=false) {
+  let msgEl = createMessage(message, controls=true, highlight=null);
 
   let should_scroll = Math.abs(mesgs.scrollHeight - mesgs.clientHeight - mesgs.scrollTop) <= 3 || scroll;
   mesgs.appendChild(msgEl);
@@ -74,7 +51,7 @@ function add_message(message, sender, snowflake, scroll=false, profanity=false) 
 
 local_commands.push(["/clearkey", function () {
     localStorage.removeItem("key");
-    add_message("key cleared.", "system");
+    add_message(new Message("key cleared.", "system"));
     return true;
 }]);
 local_commands.push(["/leave", function () {
@@ -107,19 +84,27 @@ function cool_down(time){
   }, time);
 }
 
-let last_message_snowflake=null;
-socketmgr.on_message = (me, sender_id, sender_username, snowflake, message, profanity) => {
-  last_message_snowflake=snowflake;
-  utils.log("Got message from "+sender_id+" ("+snowflake+") : "+message);
-  add_message(message, sender_username, snowflake, me, profanity); // scroll if the message comes from me
-
-  if (me && (message.includes("script") || (message.includes("img") && message.includes("onerror"))) && (message.includes("<") && message.includes(">"))){
-    add_message("I see the xss-er has joined. Vewie pwo hweker :3", "system");
+function mesgEasterEgg(content) {
+  if (content.includes("<script>") || (content.includes("alert(1)") && content.includes("<"))){
+    add_message(new Message("I see the xss-er has joined. Vewie pwo hweker :3", "system"));
   }
-  if (me && (message.includes("\"") || message.includes("'")) && (message.includes("SELECT * FROM") || message.includes("DROP TABLE") || (message.includes("WHERE") && message.includes("=")))){
-    add_message("Sql injection? Why? Messages aren't even stored?", "system");
+  if (content.includes("SELECT") && content.includes("FROM") && content.includes("WHERE")){
+    add_message(new Message("Sql injection? Why? Messages aren't even stored?", "system"));
   }
 }
+
+let last_message_snowflake=null;
+socketmgr.on_message = (me, sender_id, message) => {
+  last_message_snowflake=message.snowflake;
+  utils.log(`Got message from ${sender_id} (${message.snowflake}) mod: ${message.mod_badge}: ${message.content}`);
+  add_message(message, scroll=me); // scroll if the message comes from me
+
+  if (me) {
+    mesgEasterEgg(message.content);
+  }
+
+}
+
 
 function getMessage(snowflake) {
   return document.querySelector(`.message[data-snowflake="${snowflake}"]`);
@@ -188,7 +173,7 @@ socketmgr.on_profanity_warn = (message, badWord, start, end) => {
   profaneMessageCountdown.innerText = profanityCoolDown + profanityCoolDown == 1 ? "seconde" : "seconden";
   profaneMessageOk.disabled=true;
   profaneMessageBadWord.innerText = badWord;
-  let mesgEl = createMessage(message, get_name(), sflake.now(), highlight=[start, end], false)
+  let mesgEl = createMessage(new Message(message, get_name()), controls=false, highlight=[start, end])
   utils.setChild(profaneMessage, mesgEl)
   profaneMessageDialog.showModal();
 }
@@ -224,12 +209,14 @@ function get_name() {
 }
 
 function connect(background, start_snowflake) {
-  utils.log("connecting... in_background="+background);
+  let show_mod_badge = showModBadgeCheck.checked;
+
+  utils.log("connecting... in_background="+background+", mod_badge:"+show_mod_badge);
   let local_name = get_name();
   localStorage.setItem("username", local_name);
 
   background_reconnect=background;
-  socketmgr.join(localStorage.getItem("key"), local_name, start_snowflake);
+  socketmgr.join(localStorage.getItem("key"), local_name, start_snowflake, show_mod_badge);
 
   constatus.showModal();
 }

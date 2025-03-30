@@ -4,6 +4,7 @@ use crate::users::UserSid;
 
 #[derive(Clone, Debug, Hash)]
 pub struct UserInfo {
+    pub mod_badge: bool,
     pub username: Arc<str>,
     pub id: u16,
     pub static_id: UserSid,

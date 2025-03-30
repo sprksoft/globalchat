@@ -3,8 +3,8 @@ import * as syntax from './syntax.js'
 const ruleTemplate = document.getElementById("rule-template");
 const repRuleTemplate = document.getElementById("replace-rule-template");
 
-const rulesListEl = document.getElementById("rules-list");
-const repRulesListEl = document.getElementById("replace-rules-list");
+export const rulesListEl = document.getElementById("rules-list");
+export const repRulesListEl = document.getElementById("replace-rules-list");
 
 export const REP="rep";
 export const MATCH="match";
@@ -17,10 +17,11 @@ function onChanges(rule) {
   if (!rule.classList.contains("rule-changes")) {
     rule.classList.add("rule-changes");
     if (rule.dataset.origIndex) {
-      let origRule = rules[Number(rule.dataset.origIndex)];
       if (rule.classList.contains("rep-rule")) {
+        let origRule = rules.rep_rules[Number(rule.dataset.origIndex)];
         repDeletions.push(origRule);
       }else if (rule.classList.contains("match-rule")) {
+        let origRule = rules.match_rules[Number(rule.dataset.origIndex)];
         matchDeletions.push(origRule);
       }
     }
@@ -60,22 +61,22 @@ export function createHTMLRule(jsonRule, type, anDelay=0, origIndex=-1, insertTo
     rule.classList.add("rule-changes");
   }
 
+  let matchInput = rule.querySelector(".match-input");
   let parent;
   if (type == MATCH) {
     rule.classList.add("match-rule");
-    let ruleInput = rule.querySelector(".rule-input");
-    syntax.createEditor(ruleInput);
-    syntax.setContent(ruleInput, syntax.tokensToString(jsonRule.tokens));
+    syntax.createEditor(matchInput);
+    syntax.setContent(matchInput, syntax.tokensToString(jsonRule.tokens));
 
     for (let flag of jsonRule.flags) {
       rule.querySelector(`.rule-option[data-flagname="${flag}"]`).classList.add("checked");
     }
+    rule.querySelector(".rule-options").addEventListener("click", (e)=> {onChanges(rule)});
 
     rule.id = "matchrule-"+rulesListEl.childElementCount;
     parent = rulesListEl;
   } else if (type == REP) {
     rule.classList.add("rep-rule");
-    let matchInput = rule.querySelector(".match-input");
     syntax.createEditor(matchInput);
     syntax.setContent(matchInput, jsonRule.match_chars);
 
@@ -91,6 +92,11 @@ export function createHTMLRule(jsonRule, type, anDelay=0, origIndex=-1, insertTo
     parent.insertBefore(rule, parent.firstChild);
   } else {
     parent.appendChild(rule);
+  }
+
+  if (userCreated) {
+    console.log("focus input");
+    syntax.focus(matchInput);
   }
 
 
