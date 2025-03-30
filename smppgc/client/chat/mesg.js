@@ -1,5 +1,6 @@
 import * as mk from './mkels.js';
 import * as sflake from './snowflake.js';
+import * as chat from './chat.js';
 
 const messageTemplate = document.getElementById("message-template");
 
@@ -49,7 +50,7 @@ export function createMessage(message, controls=true, highlight=null) {
   if (delbtnEl) {
     if (controls) {
       delbtnEl.addEventListener("click", ()=>{
-        socketmgr.deleteMessage(message.snowflake);
+        chat.socketmgr.deleteMessage(message.snowflake);
       });
     } else {
       delbtnEl.remove();

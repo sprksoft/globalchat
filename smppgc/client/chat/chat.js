@@ -37,7 +37,7 @@ connectbtn.disabled=!disclaimer.checkbox.checked;
 let profanityCoolDown = 0;
 let profanityCoolDownInterval;
 
-let socketmgr = new proto.SocketMgr();
+export let socketmgr = new proto.SocketMgr();
 
 function add_message(message, scroll=false) {
   let msgEl = createMessage(message, controls=true, highlight=null);
@@ -209,7 +209,7 @@ function get_name() {
 }
 
 function connect(background, start_snowflake) {
-  let show_mod_badge = showModBadgeCheck.checked;
+  let show_mod_badge = showModBadgeCheck?.checked;
 
   utils.log("connecting... in_background="+background+", mod_badge:"+show_mod_badge);
   let local_name = get_name();
