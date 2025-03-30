@@ -68,6 +68,7 @@ export function mksticker(name, parent_el) {
     if (name == "404") {
       let link = document.createElement("a");
       link.appendChild(img);
+      link.target="_blank";
       link.classList.add("notfound");
       link.href="https://www.youtube.com/watch?v=dQw4w9WgXcQ";
       el = link;
