@@ -23,7 +23,7 @@ GC Admin
   </span>
 </header>
 <main class="button-list">
-  <a class="button" href=".."><img class="btnicon" src="{{ url(path="/static/logo.webp")}}"><span>Chat</span></a>
+  <a class="button" href="../gc"><img class="btnicon" src="{{ url(path="/static/logo.webp")}}"><span>Chat</span></a>
   {% if role == "Admin" %}
   <a class="button" href="admin/prof">Profanity filter</a>
   {% endif %}
