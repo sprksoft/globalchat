@@ -66,7 +66,9 @@ impl ProfanityFilter {
     pub fn insert_rep_rule(&mut self, new_rule: RepRule) {
         for token in new_rule.match_chars.chars() {
             self.char_to_token_map
-                .insert(token, new_rule.replace_tg.clone());
+                .entry(token)
+                .and_modify(|tg| tg.extend(&new_rule.replace_tg))
+                .or_insert_with(|| new_rule.replace_tg.clone());
         }
     }
 
@@ -124,7 +126,7 @@ impl ProfanityFilter {
         let mut tg = TokenGroup::from_char(char);
         if let Some(tgroup) = self.char_to_token_map.get(&char).cloned() {
             if let Some(tg) = tg.as_mut() {
-                tg.extend(tgroup);
+                tg.extend(&tgroup);
             } else {
                 tg = Some(tgroup);
             }

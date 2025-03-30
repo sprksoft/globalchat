@@ -27,30 +27,11 @@ main {
   flex-direction: column;
 }
 .toolbar {
-  display: flex;
-  flex-direction: row;
-  flex-wrap: wrap;
-  justify-content: end;
   background: var(--color-base01);
   border-top: solid var(--color-base02) var(--border-size);
   padding: 0.5em;
 
 }
-.left-tools * {
-  margin-left: auto;
-}
-.left-tools {
-  display: flex;
-  flex-direction: row;
-  flex-wrap: wrap;
-}
-.right-tools {
-  display: flex;
-  flex-direction: row;
-  flex-wrap: wrap;
-  margin-left: auto;
-}
-
 
 .rules-list {
   display:flex;
@@ -199,12 +180,6 @@ main {
   flex-direction: column;
 }
 
-.lint-section {
-  padding-top: 0px;
-  margin-bottom: 2em;
-  overflow: scroll;
-}
-
 .lint {
   font-family: "JetBrains Mono", monospace;
   margin-bottom: 0.5em;
@@ -220,26 +195,33 @@ main {
 }
 .lint-links {
   margin-left: auto;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
 }
 .lint-links a {
+  white-space: pre;
   margin: 0em 0.5em 0em 0.5em;
 }
 .lint span {
-  margin-right: 4em;
+  margin-right: 0.5em;
 }
 
-.lint-notify:before
-{
-  content:"nofity: ";
-  color: var(--color-ok);
-}
 
 .lint-error {
   color: var(--color-error);
 }
-.lint-error:before {
-  content:"error: ";
-  color: var(--color-error);
+
+@media (min-width: 450px) {
+  .lint-notify:before
+  {
+    content:"nofity: ";
+    color: var(--color-ok);
+  }
+  .lint-error:before {
+    content:"error: ";
+    color: var(--color-error);
+  }
 }
 
 #save-dialog-title {

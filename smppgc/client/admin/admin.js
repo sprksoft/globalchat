@@ -30,7 +30,7 @@ window.addEventListener('beforeunload', (e) => {
 });
 
 function hasUnsavedChanges() {
-  return document.querySelectorAll(".rule-changed") == null && ruleDeletions.length == 0;
+  return !(document.querySelectorAll(".rule-changes").length == 0 && rule.matchDeletions.length == 0 && rule.repDeletions.length == 0);
 }
 
 function createHTMLLint(jsonLint, type, primaryLink=true) {
@@ -72,36 +72,37 @@ function createHTMLLint(jsonLint, type, primaryLink=true) {
 }
 
 function setLints(lintset) {
-  // for (let i=0; i < repRulesListEl.childNodes.length; i++) {
-  //   let lintsEl = repRulesListEl.childNodes[i].querySelector(".lints");
-  //   if (lintsEl == null) { continue; }
-  //   lintsEl.innerHTML = "";
-  //
-  //   for (let lint of lintset.rep_lints) {
-  //     if (lint.affected_rule == i) {
-  //       lintsEl.appendChild(createHTMLLint(lint, type=rule.REP, primaryLink=false));
-  //     }
-  //   }
-  // }
-  // for (let i=0; i < rulesListEl.childNodes.length; i++) {
-  //   let lintsEl = rulesListEl.childNodes[i].querySelector(".lints");
-  //   if (lintsEl == null) { continue; }
-  //   lintsEl.innerHTML = "";
-  //
-  //   for (let lint of lintset.match_lints) {
-  //     if (lint.affected_rule == i) {
-  //       lintsEl.appendChild(createHTMLLint(lint, type=rule.MATCH, primaryLink=false));
-  //     }
-  //   }
-  // }
+  for (let i=0; i < rule.repRulesListEl.childNodes.length; i++) {
+    let lintsEl = rule.repRulesListEl.childNodes[i].querySelector(".lints");
+    if (lintsEl == null) { continue; }
+    lintsEl.innerHTML = "";
+
+    for (let lint of lintset.rep_lints) {
+      if (lint.affected_rule == i) {
+        lintsEl.appendChild(createHTMLLint(lint, type=rule.REP, primaryLink=false));
+      }
+    }
+  }
+  for (let i=0; i < rule.rulesListEl.childNodes.length; i++) {
+    let lintsEl = rule.rulesListEl.childNodes[i].querySelector(".lints");
+    if (lintsEl == null) { continue; }
+    lintsEl.innerHTML = "";
+
+    for (let lint of lintset.match_lints) {
+      if (lint.affected_rule == i) {
+        lintsEl.appendChild(createHTMLLint(lint, type=rule.MATCH, primaryLink=false));
+      }
+    }
+  }
 
   lintsEl.innerHTML = "";
   currentLintset = lintset;
-  if (lintset.rep_lints.length == 0 || lintset.match_lints.length == 0){
+  if (lintset.rep_lints.length == 0 && lintset.match_lints.length == 0){
     showlintsBtn.disabled=true;
     showlintsBtn2.disabled=true;
     return;
   }
+  console.log(lintset);
   showlintsBtn.disabled=false;
   showlintsBtn2.disabled=false;
 
@@ -112,6 +113,7 @@ function setLints(lintset) {
     lintsEl.appendChild(createHTMLLint(lint, type=rule.MATCH));
   }
 }
+
 
 
 function prepHTMLRulesAndGenerateJson() {
@@ -209,17 +211,20 @@ async function syncChanges(loadOnly=false) {
     changes.rep_deletions = rule.repDeletions;
     changes.match_deletions = rule.matchDeletions;
     for (let htmlRule of document.querySelectorAll(".rule-changes.rep-rule:not(.rule-deleted)")) {
-      console.log("r");
       changes.rep_additions.push(rule.getJson(htmlRule));
     }
     for (let htmlRule of document.querySelectorAll(".rule-changes.match-rule:not(.rule-deleted)")) {
-      console.log("m");
       changes.match_additions.push(rule.getJson(htmlRule));
     }
   }
-  console.log("changes:",changes);
 
-  let response = await apiCall(changes);
+  let response;
+  if (document.querySelectorAll(".rule:not(.rule-deleted) .rule-input[data-syntaxerror=true]").length != 0) {
+    response = "Ruleset contains syntax errors";
+  }else {
+    response = await apiCall(changes);
+  }
+
   let titleEl = document.getElementById("save-dialog-title");
   let messageEl = document.getElementById("save-dialog-message");
   let error = false;
@@ -235,7 +240,8 @@ async function syncChanges(loadOnly=false) {
   }else {
     titleEl.innerText="Saved succesfuly";
     titleEl.classList.remove("save-error");
-    messageEl.innerText="";
+    messageEl.innerText=response.lints.rep_lints.length == 0 && response.lints.match_lints.length == 0 ? "" : "But there are problems.";
+    console.log("lints", response.lints);
     rule.setRules(response.rules);
     setLints(response.lints);
   }
@@ -248,11 +254,11 @@ async function syncChanges(loadOnly=false) {
 
 
 ruleAddBtn.addEventListener("click", (e)=> {
-  rule.createHTMLRule({enabled:true, tokens:[], flags:[] }, type=rule.MATCH, anDelay=0, insertTop=true, userCreated=true);
+  rule.createHTMLRule({enabled:true, tokens:[], flags:[] }, type=rule.MATCH, anDelay=0, origIndex=-1, insertTop=true, userCreated=true);
 });
 
 repRuleAddBtn.addEventListener("click", (e)=> {
-  rule.createHTMLRule({enabled:true, match_chars: "", replace_tg:[] }, type=rule.REP, anDelay=0, insertTop=true, userCreated=true);
+  rule.createHTMLRule({enabled:true, match_chars: "", replace_tg:[] }, type=rule.REP, anDelay=0, origIndex=-1, insertTop=true, userCreated=true);
 })
 
 saveBtn.addEventListener("click", (e) => { syncChanges() });

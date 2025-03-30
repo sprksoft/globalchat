@@ -225,20 +225,20 @@ impl ProfRuleset {
                 })
             }
 
-            for (ii, other_rule) in self.rep_rules().iter().enumerate() {
-                if ii == i {
-                    continue;
-                }
-                if other_rule.inner.matches(rule.inner.match_chars.chars()) {
-                    rep_lints.push(Lint {
-                        affected_rule: i,
-                        second_affected_rule: Some(ii),
-                        message: "Found 2 replace rules that replace the same character",
-                        importance: LintImportance::Error,
-                    });
-                    has_errors = true;
-                }
-            }
+            // for (ii, other_rule) in self.rep_rules().iter().enumerate() {
+            //     if ii == i {
+            //         continue;
+            //     }
+            //     if other_rule.inner.matches(rule.inner.match_chars.chars()) {
+            //         rep_lints.push(Lint {
+            //             affected_rule: i,
+            //             second_affected_rule: Some(ii),
+            //             message: "Found 2 replace rules that replace the same character",
+            //             importance: LintImportance::Error,
+            //         });
+            //         has_errors = true;
+            //     }
+            // }
         }
 
         let mut match_lints = Vec::new();

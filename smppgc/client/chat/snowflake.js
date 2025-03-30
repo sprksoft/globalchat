@@ -9,6 +9,9 @@ export function now() {
 }
 
 export function into_time_str(snowflake) {
+  if (snowflake == null || snowflake == undefined || snowflake == 0) {
+    console.error("invalid snowflake id: "+snowflake);
+  }
   return new Date(Number(snowflake >> 22n)+SMPPGC_EPOCH).toLocaleString(undefined, {
     dateStyle:"short",
     timeStyle:"short",

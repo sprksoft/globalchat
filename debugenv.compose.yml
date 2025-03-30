@@ -11,6 +11,10 @@ services:
           target: /build/smppgc/client
 
         - action: sync+restart
+          path: smppgc/www
+          target: /app/www
+
+        - action: sync+restart
           path: smppgc/templates
           target: /app/templates
 

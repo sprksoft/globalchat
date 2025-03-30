@@ -121,14 +121,14 @@ a:hover {
   filter: blur(5px);
   transition: filter 0.4s;
 }
-.prof-message:hover .content {
+.prof-message-show .content {
   filter: blur(0px);
 }
-.message_top{
+.message_top {
   display:flex;
   flex-direction: row;
 }
-.timestamp{
+.timestamp {
   margin-left: auto;
   padding-left: 0.6rem;
   font-weight: bold;
@@ -146,6 +146,12 @@ a:hover {
   font-weight: bold;
   font-size: 0.8em;
   margin-bottom: 2px;
+}
+.mod-badge:after{
+  content: " MOD";
+  font-size: 1em;
+  color: var(--color-accent);
+  font-family:inherit;
 }
 .user_content {
   margin-top:-5px; /* To offset the space taken up by the arrow */
@@ -176,3 +182,21 @@ a:hover {
   flex-direction: column;
 }
 
+@keyframes notfound-anim{
+
+  0% {
+    transform: rotate(10deg)
+  }
+
+  50% {
+    transform: rotate(-10deg)
+  }
+
+  100% {
+    transform: rotate(10deg)
+  }
+
+}
+.notfound img:hover {
+  animation: notfound-anim 0.2s ease infinite;
+}

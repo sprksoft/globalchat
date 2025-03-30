@@ -170,6 +170,9 @@ impl MatchRule {
 
     #[inline]
     pub fn filter(&self, other: &TokenizedMessage) -> Option<Range<usize>> {
+        if self.tokens.len() == 0 {
+            return None;
+        }
         //println!("{:?}", self);
         let mut prev_char_check = None;
         let mut match_index = 0;

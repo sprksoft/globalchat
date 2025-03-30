@@ -168,6 +168,7 @@ impl Chat {
         &self,
         static_id: UserSid,
         leased_name: ClaimedName,
+        mod_badge: bool,
     ) -> Result<ChatClient, NewClientError> {
         if self.config.max_users != 0
             && self.config.max_users <= self.users.lock().await.len() as u16
@@ -177,6 +178,7 @@ impl Chat {
 
         let id = self.client_ids.new_id();
         let user_info = UserInfo {
+            mod_badge,
             username: leased_name.into(),
             static_id,
             id,

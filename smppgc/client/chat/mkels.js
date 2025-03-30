@@ -1,4 +1,4 @@
-const STICKERS=["404", "arch", "tux", "smpp", "gc", "fire"]; // avail stickers (used to prevent unneeded 404s to the server)
+const STICKERS=["smpp", "smppoud", "smpplite", "gc", "fire", "404", "arch", "tux", "ferris", "gopher"]; // avail stickers (used to prevent unneeded 404s to the server)
 
 export function mkProfHighlighted(message, start, end, parent_el) {
   let span = document.createElement("span");
@@ -57,12 +57,29 @@ export function mka(link, parent_el) {
     a.innerText=link;
     parent_el.appendChild(a);
 }
+
 export function mksticker(name, parent_el) {
+  let el;
+  if (STICKERS.includes(name)) {
     let img = document.createElement("img");
     img.width=50;
     img.dataset.sticker=name
     img.src=ROOT_URL+"/static/stickies/"+name+".webp";
-    parent_el.appendChild(img);
+    if (name == "404") {
+      let link = document.createElement("a");
+      link.appendChild(img);
+      link.classList.add("notfound");
+      link.href="https://www.youtube.com/watch?v=dQw4w9WgXcQ";
+      el = link;
+    }else{
+      el = img;
+    }
+  }
+
+  if (el) {
+    parent_el.appendChild(el);
+  }
+  return el;
 }
 
 // Parse the string message and generate html elements for stickers, links,...
@@ -88,3 +105,4 @@ export function mkcontent(message, highlight, parent_el) {
     mkspan(message.substring(last_index), parent_el);
   }
 }
+

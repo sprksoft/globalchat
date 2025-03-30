@@ -89,3 +89,10 @@ button {
   padding-top: 2em;
   padding-bottom: 2em;
 }
+
+.button-row {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content:end;
+}

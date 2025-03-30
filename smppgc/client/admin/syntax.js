@@ -17,6 +17,7 @@ function invalidTokenWrap(text) {
 }
 
 function parse_tokengroup_syntax(str) {
+  let synErr=false;
   str = str.replace("\n", "");
   let parsed = "";
   let escape = false;
@@ -32,6 +33,7 @@ function parse_tokengroup_syntax(str) {
         let desc = entry[1];
         parsed+=`<i class="special-token" title="${desc}">&#47;${char}</i>`
       } else {
+        synErr=true;
         parsed+=errWrap(`&#47;${char}`, "Invalid escape code");
       }
     } else {
@@ -39,6 +41,7 @@ function parse_tokengroup_syntax(str) {
       if (cCode >= 97 && cCode <= 122) {
         parsed+=char;
       }else {
+        synErr=true;
         parsed+=invalidTokenWrap(char);
       }
     }
@@ -47,18 +50,22 @@ function parse_tokengroup_syntax(str) {
   if (escape) {
     parsed+=invalidTokenWrap(`&#47;`);
   }
-  return parsed;
+  return [parsed, synErr];
 }
 
 function parse(input) {
   let lang = input.parentElement.dataset.lang;
+  let synErr=false;
   if (lang == "tokengroup") {
-    input.previousElementSibling.innerHTML = parse_tokengroup_syntax(input.innerText);
+    let [parsed, hasErr] = parse_tokengroup_syntax(input.innerText);
+    synErr = hasErr;
+    input.previousElementSibling.innerHTML = parsed;
   } else if (lang == "none") {
     input.previousElementSibling.innerHTML = input.innerText.replace("\n", "");
   }else{
     return;
   }
+  input.parentElement.dataset.syntaxerror=synErr;
   if (input.innerText.includes("\n")) {
     input.innerText = input.innerText.replace("\n", "");
   }
@@ -82,6 +89,9 @@ export function setContent(editorEl, content) {
 export function getContent(editorEl) {
   let input = editorEl.querySelector(".editor_input")
   return input.innerText;
+}
+export function focus(editorEl) {
+  editorEl.querySelector(".editor_input").focus();
 }
 
 export function createEditor(parent) {
@@ -138,7 +148,11 @@ export function stringToTokens(string) {
       continue;
     }
     if (escape) {
-      tokens.push(str_to_token[char][0]);
+      let result = str_to_token[char];
+      if (!result) {
+        return [];
+      }
+      tokens.push(result[0]);
       escape=false;
     } else {
       tokens.push(char.charCodeAt(0));

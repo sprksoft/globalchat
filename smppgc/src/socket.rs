@@ -45,11 +45,12 @@ metrics! {
     pub counter new_users("Total count of new sid's being generated");
 }
 
-#[get("/socket/v1?<username>&<key>&<start_time>")]
+#[get("/socket/v1?<username>&<key>&<start_time>&<mod_badge>")]
 pub async fn socket_v1<'a>(
     username: &str,
     key: Option<&str>,
     start_time: Option<Snowflake>,
+    mod_badge: Option<bool>,
     ws: WebSocket,
     mesg_limits: &State<MessageConfig>,
     user_config: &State<UserConfig>,
@@ -104,7 +105,8 @@ pub async fn socket_v1<'a>(
         }
     };
 
-    let mut chat_client = match chat.new_client(sid.clone(), name_lease).await {
+    let mod_badge = gcmod.is_some() && mod_badge.unwrap_or(false);
+    let mut chat_client = match chat.new_client(sid.clone(), name_lease, mod_badge).await {
         Ok(c) => c,
         Err(e) => {
             info!("Closing connection: {:?}", e);
@@ -209,7 +211,7 @@ pub async fn socket_v1<'a>(
                     mesg = chat_client.message_receiver.recv() => {
                         match mesg{
                             Ok(mesg) => {
-                                if mesg.sender.id() != chat_client.user_info().id(){
+                                if mesg.sender.id() != chat_client.user_info().id() {
                                     if gcmod.is_some() || !mesg.profanity {
                                         wsclient.forward(&mesg).await?;
                                     }
