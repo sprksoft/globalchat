@@ -1,13 +1,14 @@
 import * as utils from './../utils.js';
+import { Message } from './mesg.js';
 
 
-const PACKET_SETUP = 0;
-const PACKET_MESSAGE = 1;
-const PACKET_USERJOIN = 2;
-const PACKET_PROFANITY_WARN = 3;
-const PACKET_PROFANITY_MESSAGE = 4;
-const PACKET_MESSAGE_DEL = 5;
-const PACKET_MESSAGE_CENSOR = 6;
+// Range 0-3 is for message packets
+const PACKET_SETUP = 4;
+const PACKET_USERJOIN = 5;
+const PACKET_PROFANITY_WARN = 6;
+const PACKET_MESSAGE_DEL = 7;
+const PACKET_MESSAGE_CENSOR = 8;
+
 
 const CLOSED=3;
 const KEY_LENGTH=33;
@@ -118,6 +119,21 @@ export class SocketMgr {
     this.users={};
   }
   #on_packet(packetId, reader) {
+    //utils.log("Got packet "+packetId);
+    if (packetId >= 0 && packetId < 4) { // Message packet
+      let mod_badge = (packetId >> 1) & 0b0000_0001;
+      let contains_prof = packetId & 0b0000_0001;
+      const sender_id = reader.getUint16(0);
+      const snowflake = reader.getSnowflake(0);
+      let content = reader.getString(0);
+      let sender_username = this.users[sender_id];
+      let message = new Message(content, sender_username, snowflake);
+      message.profanity = contains_prof;
+      message.mod_badge = mod_badge;
+      this.on_message(this.local_id == sender_id, sender_id, message);
+      return;
+    }
+
     switch(packetId) {
       case PACKET_SETUP:
         this.on_join();
@@ -159,25 +175,15 @@ export class SocketMgr {
         this.on_message_censor(message_id);
         break;
 
-      case PACKET_PROFANITY_MESSAGE:
-      case PACKET_MESSAGE:
-
-        const sender_id = reader.getUint16(0);
-        const snowflake = reader.getSnowflake(0);
-        let mesg = reader.getString(0);
-        let sender_username = this.users[sender_id];
-        this.on_message(this.local_id == sender_id, sender_id, sender_username, snowflake, mesg, packetId==PACKET_PROFANITY_MESSAGE);
-        break;
-
       default:
-        console.error("PROTOCOL_ERROR: Invalid subid ("+sub_id+") packet recieved");
+        console.error("PROTOCOL_ERROR: Invalid subid ("+packetId+") packet recieved");
         break;
     }
 
   }
 
 
-  async join(key, username, start_snowflake){
+  async join(key, username, start_snowflake, show_admin_badge){
     this.user_wants_leave=false;
     this.username = username;
     if (this.ws !== undefined){
@@ -190,6 +196,9 @@ export class SocketMgr {
     }
     if (start_snowflake !== undefined && start_snowflake !== null){
       query+="&start_time="+start_snowflake;
+    }
+    if (show_admin_badge) {
+      query+="&mod_badge=true";
     }
     let fullurl = WEBSOCKET_URL+"?"+query;
     utils.log("creating socket: "+fullurl);

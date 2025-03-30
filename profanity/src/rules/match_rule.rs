@@ -107,6 +107,16 @@ pub struct MatchRule {
     pub tokens: Vec<crate::Token>,
     pub flags: RuleFlags,
 }
+impl Ord for MatchRule {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.tokens.cmp(&other.tokens)
+    }
+}
+impl PartialOrd for MatchRule {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.tokens.partial_cmp(&other.tokens)
+    }
+}
 impl MatchRule {
     pub fn from_match_str(str: &str) -> Result<Self, MatchRuleParseError> {
         Ok(Self {
@@ -160,6 +170,9 @@ impl MatchRule {
 
     #[inline]
     pub fn filter(&self, other: &TokenizedMessage) -> Option<Range<usize>> {
+        if self.tokens.len() == 0 {
+            return None;
+        }
         //println!("{:?}", self);
         let mut prev_char_check = None;
         let mut match_index = 0;

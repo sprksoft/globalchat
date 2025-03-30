@@ -6,6 +6,7 @@ html {
   --border-size: 3px;
   --dialog-border-radius: 30px;
   height:100%;
+  font-size: 10px;
 }
 body {
   color: var(--color-text);
@@ -17,6 +18,37 @@ body {
   display: flex;
   flex-direction:column;
   scroll-behavior: smooth;
+}
+svg {
+  display: block;
+}
+
+header {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+
+  background: var(--color-base01);
+  border-bottom: solid var(--color-base02) var(--border-size);
+  padding: 1em 1em 1em 2em;
+}
+.slim-header {
+  padding:0px;
+}
+.header-title {
+  flex-grow: 1;
+}
+.v-sep-base02 {
+  border-left: solid var(--color-base02) var(--border-size);
+  width: 0px;
+  margin-left: 0.5em;
+  margin-right: 0.5em;
+}
+
+@media (max-width: 500px) {
+  header {
+    padding: 0.5em 0.5em 0.5em 1em;
+  }
 }
 
 input[type=checkbox] {
@@ -65,6 +97,7 @@ ul {
 }
 ul li {
   margin-top: 1em;
+  font-size: 1em;
 }
 b {
   color: var(--color-accent);
@@ -76,7 +109,7 @@ a {
   cursor: pointer;
 }
 a:hover {
-  text-decoration: underline;
+  text-decoration: underline 2px;
 }
 
 kbd {
@@ -90,21 +123,6 @@ kbd {
 
 input[type=checkbox]:checked::after {
   transform: scale(0.7);
-}
-button {
-  font-weight: bold;
-  font-family: inherit;
-
-  border-radius:var(--border-radius);
-  margin:3px;
-  background-color: var(--color-base02);
-  border: none;
-  color: inherit;
-  cursor: pointer;
-  transition: color 0.5s, background-color 0.5s;
-}
-button:hover {
-  background-color: var(--color-base03);
 }
 
 ::selection{
@@ -151,14 +169,13 @@ dialog {
     opacity: 0;
   }
 }
+.center-link {
+  text-align: center;
+}
 .center-title {
   text-align: center;
 }
 
-.flex-row {
-  display: flex;
-  flex-direction: row;
-}
 .flex-col {
   display: flex;
   flex-direction: row;
@@ -166,42 +183,10 @@ dialog {
 
 .layered-section {
   margin-top: 3em;
-  padding: 2em;
+  padding: 1.5em;
   background: var(--color-base01);
   border: solid var(--color-base02) var(--border-size);
   border-radius: var(--border-radius);
-}
-
-.unimportantbtn {
-  background: transparent;
-  color: var(--color-accent);
-  text-decoration: none;
-}
-.unimportantbtn:hover {
-  color: var(--color-accent);
-  text-decoration: var(--color-accent) underline 2px;
-}
-
-.pillbtn {
-  background: var(--color-base02);
-  border: solid var(--color-base03) var(--border-size);
-  border-radius: 10000px;
-  padding: 4px 10px 5px 10px;
-
-  cursor:pointer;
-  color: var(--color-accent);
-}
-.pillbtn[disabled] {
-  opacity: 0.5;
-  cursor: auto;
-  color: var(--color-base03);
-}
-.pillbtn[disabled]:hover {
-  background-color:var(--color-base02);
-}
-
-.dangerbtn {
-  color: var(--color-error);
 }
 
 

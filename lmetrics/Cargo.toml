@@ -1,6 +1,6 @@
 [package]
 name = "lmetrics"
-version="2025.3.7"
+version="2025.3.8"
 authors.workspace = true
 edition.workspace = true
 

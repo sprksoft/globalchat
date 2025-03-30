@@ -3,41 +3,34 @@ body {
   color: var(--color-text);
 }
 
-header {
-  align-items: center;
-  background: var(--color-base01);
-  display: flex;
-  flex-direction: row;
-
-  border-bottom: solid var(--color-base02) var(--border-size);
-}
-.header-btns {
-  margin-right: 1em;
-}
-
-header > h1 {
-  flex-grow: 10;
-  margin: 0.5em 1em 0.5em 1em
+.header-title{
+  margin: 0px;
 }
 
 main {
   margin-left: auto;
   margin-right: auto;
-  padding: 3em;
+  padding: 0.5em;
   min-width: 100em;
-  overflow:auto;
 }
 
-@media (max-width: 100em) {
-  main {
-    min-width:none;
-  }
-}
-@media screen and (max-width: 100em) {
+@media screen and (max-width: 100rem) {
   main {
     min-width: auto;
     margin: 0px;
   }
+}
+.view {
+  flex-grow: 1;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+}
+.toolbar {
+  background: var(--color-base01);
+  border-top: solid var(--color-base02) var(--border-size);
+  padding: 0.5em;
+
 }
 
 .rules-list {
@@ -65,7 +58,7 @@ main {
   background: var(--color-base01);
   border: solid var(--color-base02) var(--border-size);
   border-radius: var(--border-radius);
-  margin: 2em;
+  margin-top: 2em;
   padding: 1em;
 
   display:flex;
@@ -82,6 +75,27 @@ main {
   flex-direction: row;
 }
 
+.insert-rule {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+.insert-rule div {
+  margin-left: 1em;
+  margin-right: 1em;
+  flex-grow: 1;
+  border-radius: 1000px;
+  background: var(--color-base03);
+  height: var(--border-size);
+}
+.insert-rule button {
+  color: var(--color-base00);
+  background: var(--color-accent);
+  border-radius: 10000px;
+  padding: 5px;
+  display:block;
+}
+
 .replace-arrow {
   margin: calc(5px + var(--border-size)) 1em 1em 1em;
   font-family: "JetBrains Mono", monospace;
@@ -94,7 +108,6 @@ main {
   font-family: "JetBrains Mono", monospace;
   background: var(--color-base02);
   border: solid var(--color-base03) var(--border-size);
-  border-radius: 100px;
   color: var(--color-text);
   margin: 0em 0em 1em 0em;
 }
@@ -105,10 +118,16 @@ main {
 .rule-options {
   display:flex;
   flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
 }
 .rule-buttons {
   display: flex;
   flex-direction: row;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+.rule-buttons * {
   margin-left: auto;
 }
 
@@ -123,6 +142,8 @@ main {
   color: var(--color-text);
   background-color: var(--color-base02);
   transition: background-color 0.5s, border-color 0.5s, color 0.5s;
+
+  padding: 4px 10px 5px 10px;
 }
 .checked {
   border-color: var(--color-accent);
@@ -159,12 +180,6 @@ main {
   flex-direction: column;
 }
 
-.lint-section {
-  padding-top: 0px;
-  margin-bottom: 2em;
-  overflow: scroll;
-}
-
 .lint {
   font-family: "JetBrains Mono", monospace;
   margin-bottom: 0.5em;
@@ -180,32 +195,44 @@ main {
 }
 .lint-links {
   margin-left: auto;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
 }
 .lint-links a {
+  white-space: pre;
   margin: 0em 0.5em 0em 0.5em;
 }
 .lint span {
-  margin-right: 4em;
+  margin-right: 0.5em;
 }
 
-.lint-notify:before
-{
-  content:"nofity: ";
-  color: var(--color-ok);
-}
 
 .lint-error {
   color: var(--color-error);
 }
-.lint-error:before {
-  content:"error: ";
+
+@media (min-width: 450px) {
+  .lint-notify:before
+  {
+    content:"nofity: ";
+    color: var(--color-ok);
+  }
+  .lint-error:before {
+    content:"error: ";
+    color: var(--color-error);
+  }
+}
+
+#save-dialog-title {
+  color: var(--color-ok);
+}
+
+#save-dialog-title.save-error {
   color: var(--color-error);
 }
-#error-dialog {
-  display:flex;
-  flex-direction: column;
-}
-#error-message {
+
+#save-dialog-message {
   text-align: center;
   font-weight: bold;
   color: var(--color-error);
@@ -215,4 +242,21 @@ main {
 .hints {
   margin-left: 0.5em;
   opacity: 0.8;
+}
+
+.role {
+  font-weight: bold;
+  color: var(--color-accent);
+}
+
+.changes-text {
+  opacity: 0;
+  font-size: 0.9em;
+  transition: opacity 1s;
+}
+.rule-changes {
+  border-color: var(--color-text);
+}
+.rule-changes .changes-text {
+  opacity: 1;
 }

@@ -6,7 +6,7 @@
   {% if rule_flags %}
   <div class="rule-options">
     {% for flag in flagsinfo %}
-    <button class="rule-option" data-flagname="{{ flag.0 }}" title="{{ flag.2 }}" onclick="if (this.classList.contains('checked')){ this.classList.remove('checked'); }else{ this.classList.add('checked'); }">{{ flag.0 }}</button>
+    <button class="pillbtn rule-option" data-flagname="{{ flag.0 }}" title="{{ flag.2 }}" onclick="if (this.classList.contains('checked')){ this.classList.remove('checked'); }else{ this.classList.add('checked'); }">{{ flag.0 }}</button>
     {% endfor %}
   </div>
   {% endif %}
@@ -17,10 +17,15 @@
 </div>
 <div class="lints">
 </div>
+<span class="changes-text">Unsaved changes *</span>
 {% endmacro ruleBase %}
 
+{% macro insertRuleBtn(id) %}
+<div class="insert-rule"><div></div><button id="{{ id }}">{% include "svg/plus" %}</button><div></div></div>
+{% endmacro insertRuleBtn %}
+
 {% block title %}
-Global Chat Admin
+Profanity filter - GC Admin
 {% endblock title %}
 
 {% block head %}
@@ -40,23 +45,35 @@ Global Chat Admin
 
 <dialog id="save-dialog">
   <h1 id="save-dialog-title" class="center-title"></h1>
-  <p id="error-message"></p>
-  <div class="lint-section layered-section">
-    <h2>Lints</h2>
-    <div id="lints"></div>
-  </div>
+  <p id="save-dialog-message"></p>
+
   <p class="hints">
-  <b>Hint:</b> Press <kbd>ctrl</kbd> + <kbd>e</kbd> to show this menu again and <kbd>ctrl</kbd> + <kbd>s</kbd> to save.
+  <b>Hint:</b> Press <kbd>ctrl</kbd> + <kbd>s</kbd> to save changes.
   </p>
-  <div class="flex-row">
-    <button autofocus id="ok-btn" class="pillbtn">Continue editing</button>
+
+  <div class="button-row">
+    <button id="show-lints-btn2" class="dangerbtn pillbtn" disabled>Show problems</button>
+    <button autofocus onclick="document.getElementById('save-dialog').close()" class="pillbtn">Continue editing</button>
+  </div>
+</dialog>
+
+<dialog id="lints-dialog">
+  <h2 class="center-title">Problems</h2>
+  <div id="lints"></div>
+
+  <p class="hints">
+    <b>Hint:</b> Press <kbd>ctrl</kbd> + <kbd>e</kbd> to show this menu again.
+  </p>
+
+  <div class="button-row">
+    <button autofocus onclick="document.getElementById('lints-dialog').close()" class="pillbtn">Ok</button>
   </div>
 </dialog>
 
 <template id="rule-template">
   <div class="rule">
     <div class="top-row">
-      <div data-lang="tokengroup" class="rule-input" type="text"></div>
+      <div data-lang="tokengroup" class="match-input rule-input" type="text"></div>
     </div>
     {{ self::ruleBase(rule_flags=true) }}
   </div>
@@ -73,35 +90,32 @@ Global Chat Admin
   </div>
 </template>
 
-<header>
-  <h1>Profanity filter</h1>
-  <div class="header-btns">
-    <button class="pillbtn" id="show-lints-btn">Show lints</button>
-    <button class="pillbtn" id="save-btn">Save rules</button>
-  </div>
+<div class="view">
+<header class="slim-header">
+  <a href="../admin" class="button">
+    {% include "svg/arrow_l" %}
+  </a>
+  <h1 class="header-title">Profanity filter</h1>
 </header>
 <main>
   <h2>Replace Rules</h2>
+  {{ self::insertRuleBtn(id="replace-rule-add-btn") }}
   <div id="replace-rules-list">
-
   </div>
-  <button class="pillbtn" id="replace-rule-add-btn">Add rule</button>
   <h2>Match Rules</h2>
+  {{ self::insertRuleBtn(id="rule-add-btn") }}
   <div id="rules-list">
   </div>
-  <button class="pillbtn" id="rule-add-btn">Add rule</button>
-
 </main>
+</div>
+<div class="toolbar button-row">
+  <button class="pillbtn dangerbtn" id="show-lints-btn" disabled>Show problems</button>
+  <button class="pillbtn" id="save-btn">Save rules</button>
+</div>
 
 {% endblock content %}
 
 {% block scripts %}
-<script id="jsonRuleset" type="application/json">
-  {{ ruleset | json_encode | safe }}
-</script>
-<script id="jsonLints" type="application/json">
-  {{ lints | json_encode | safe }}
-</script>
 <script id="tokenInfo" type="application/json">
   {{ tokeninfo | json_encode | safe }}
 </script>

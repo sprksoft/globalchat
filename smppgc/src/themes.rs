@@ -1,7 +1,6 @@
 use lazy_static::lazy_static;
 use log::*;
 use rocket::{
-    async_trait,
     http::Status,
     request::{FromRequest, Outcome},
     serde::{de::Visitor, ser::SerializeMap, Deserialize, Serialize},
@@ -143,8 +142,8 @@ impl<'a> Theme<'a> {
 struct ThemeVisitor;
 impl<'de> Visitor<'de> for ThemeVisitor {
     type Value = Theme<'de>;
-    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        formatter.write_str("a theme")
+    fn expecting(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+        fmt.write_str("a theme")
     }
 
     fn visit_map<M>(self, mut map: M) -> Result<Self::Value, M::Error>

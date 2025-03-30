@@ -1,1 +1,1 @@
-import './chat/v1.js';
+import './chat/chat.js';

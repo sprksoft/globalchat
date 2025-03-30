@@ -3,12 +3,9 @@ use dashmap::DashMap;
 use log::*;
 use profanity::{ProfanityFilter, TokenizedMessage};
 use rocket::{fairing::AdHoc, serde::Deserialize};
-use std::{
-    collections::VecDeque,
-    ops::Deref,
-    sync::{Arc, RwLock},
-};
+use std::{collections::VecDeque, ops::Deref, sync::Arc};
 use thiserror::Error;
+use tokio::sync::RwLock;
 
 use crate::wsprotocol::KickReason;
 
@@ -41,8 +38,8 @@ struct NameSlot {
 
 pub struct UsernameManager {
     max_reserved: u16,
-    names: DashMap<TokenizedMessage, NameSlot>,
-    claims: DashMap<UserSid, VecDeque<TokenizedMessage>>,
+    names: DashMap<Box<str>, NameSlot>,
+    claims: DashMap<UserSid, VecDeque<Box<str>>>,
 }
 impl UsernameManager {
     pub fn new(max_reserved: u16) -> Self {
@@ -53,6 +50,18 @@ impl UsernameManager {
         }
     }
 
+    fn tokenized_to_normalized(tm: TokenizedMessage) -> String {
+        let mut str = String::with_capacity(tm.len());
+        for tg in tm.tokens() {
+            for token in tg.iter() {
+                if let Some(char) = token.to_char() {
+                    str.push(char)
+                }
+            }
+        }
+        str
+    }
+
     pub async fn claim_name(
         &self,
         name: &str,
@@ -60,19 +69,21 @@ impl UsernameManager {
         max_name_len: usize,
         prof_filter: &RwLock<ProfanityFilter>,
     ) -> Result<ClaimedName, NameClaimError> {
+        let name = name.trim();
         if name.len() > max_name_len || name.len() < 2 {
             return Err(NameClaimError::Length);
         }
-        let (name, tokenized_name) = {
-            let lock = prof_filter
-                .read()
-                .expect("Profanity filter lock has been poisoned");
+        let (name, normalized_name) = {
+            let lock = prof_filter.read().await;
 
             let (tokenized_name, name) = lock.tokenize(name);
             if lock.check(&tokenized_name).is_some() {
                 return Err(NameClaimError::Profanity);
             }
-            (Arc::<str>::from(name), tokenized_name)
+            (
+                Arc::<str>::from(name),
+                Box::<str>::from(Self::tokenized_to_normalized(tokenized_name)),
+            )
         };
 
         if name.len() > max_name_len || name.len() < 2 {
@@ -82,7 +93,7 @@ impl UsernameManager {
         {
             let mut slot = self
                 .names
-                .entry(tokenized_name.clone())
+                .entry(normalized_name.clone())
                 .or_insert_with(|| NameSlot {
                     owner: Some(user_id.clone()),
                     name: name.clone(),
@@ -101,12 +112,12 @@ impl UsernameManager {
 
         if claimed_names.len() == self.max_reserved as usize {
             if let Some(name) = claimed_names.pop_back() {
-                if name != tokenized_name {
+                if name != normalized_name {
                     self.names.remove(&name);
                 }
             }
         }
-        claimed_names.push_front(tokenized_name);
+        claimed_names.push_front(normalized_name);
 
         Ok(ClaimedName(name))
     }

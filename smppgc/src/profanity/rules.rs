@@ -1,6 +1,5 @@
 use profanity::Token;
 use rocket::serde::{Deserialize, Serialize};
-use thiserror::Error;
 
 use super::LintImportance;
 
@@ -8,14 +7,14 @@ pub trait Rule {
     fn lint(&self) -> Vec<(LintImportance, &'static str)>;
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, PartialOrd, Ord)]
 #[serde(crate = "rocket::serde")]
 pub struct MatchRule {
     pub enabled: bool,
+
     #[serde(flatten)]
     pub inner: profanity::MatchRule,
 }
-
 impl Rule for MatchRule {
     fn lint(&self) -> Vec<(LintImportance, &'static str)> {
         let mut lints = Vec::new();
@@ -24,9 +23,22 @@ impl Rule for MatchRule {
             Token::from_char('n').unwrap(),
         ]) {
             lints.push((
-                LintImportance::Error,
+                LintImportance::Notify,
                 "Rule ends in -en. Ex. 'aaien' will not match 'aaie'. (Replace -en suffix with -e)",
             ));
+        }
+        if !self.inner.flags.contains(profanity::RuleFlags::NO_DEDUP) {
+            let mut prev_token = None;
+            for token in self.inner.tokens.iter() {
+                if Some(token) == prev_token {
+                    lints.push((
+                        LintImportance::Error,
+                        "Rule matches duplicated characters but no_dedup is turned off. This causes the rule to never match. (turn no_dedup on or remove duplicated character)",
+                    ));
+                    break;
+                }
+                prev_token = Some(token)
+            }
         }
         lints
     }

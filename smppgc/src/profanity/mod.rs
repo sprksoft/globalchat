@@ -1,11 +1,11 @@
 use std::path::PathBuf;
-use std::sync::Mutex;
 
 use log::*;
 use profanity::ProfanityFilter;
 use rocket::fairing::AdHoc;
 use rocket::serde::{Deserialize, Serialize};
 use thiserror::Error;
+use uuid::Uuid;
 
 mod rules;
 pub use rules::*;
@@ -64,7 +64,23 @@ pub enum RulesetError {
     NoFilterPath,
 }
 
-#[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(crate = "rocket::serde")]
+pub struct RulesetChanges {
+    match_additions: Vec<rules::MatchRule>,
+    match_deletions: Vec<rules::MatchRule>,
+    rep_additions: Vec<rules::RepRule>,
+    rep_deletions: Vec<rules::RepRule>,
+}
+
+#[derive(Serialize, Debug)]
+#[serde(crate = "rocket::serde")]
+pub struct RuleLintSet {
+    pub rules: ProfRuleset,
+    pub lints: LintSet,
+}
+
+#[derive(Clone, Serialize, Deserialize, Debug, Eq, PartialEq)]
 #[serde(crate = "rocket::serde")]
 pub struct ProfRuleset {
     #[serde(skip)]
@@ -80,6 +96,41 @@ impl ProfRuleset {
         me.filter_path = Some(filter_path);
 
         Ok(me)
+    }
+
+    pub fn sort(&mut self) {
+        self.match_rules.sort();
+    }
+    pub fn apply(&mut self, changes: RulesetChanges) {
+        self.rep_rules
+            .retain(|rule| !changes.rep_deletions.contains(rule));
+        for rep_add in changes.rep_additions {
+            if let None = self.rep_rules.iter().find(|rule| **rule == rep_add) {
+                self.rep_rules.push(rep_add);
+            }
+        }
+
+        self.match_rules
+            .retain(|rule| !changes.match_deletions.contains(rule));
+        for match_add in changes.match_additions {
+            if let None = self.match_rules.iter().find(|rule| **rule == match_add) {
+                self.match_rules.push(match_add);
+            }
+        }
+    }
+    pub fn append(&mut self, other: &mut ProfRuleset) {
+        self.rep_rules.append(&mut other.rep_rules);
+        self.match_rules.append(&mut other.match_rules);
+    }
+    pub fn disable_match(&mut self, index: usize) {
+        if let Some(r) = self.match_rules.get_mut(index) {
+            r.enabled = false;
+        }
+    }
+    pub fn disable_rep(&mut self, index: usize) {
+        if let Some(r) = self.rep_rules.get_mut(index) {
+            r.enabled = false;
+        }
     }
 
     pub fn parse_from_str(str: &str) -> Result<Self, ParseError> {
@@ -174,20 +225,20 @@ impl ProfRuleset {
                 })
             }
 
-            for (ii, other_rule) in self.rep_rules().iter().enumerate() {
-                if ii == i {
-                    continue;
-                }
-                if other_rule.inner.matches(rule.inner.match_chars.chars()) {
-                    rep_lints.push(Lint {
-                        affected_rule: i,
-                        second_affected_rule: Some(ii),
-                        message: "Found 2 replace rules that replace the same character",
-                        importance: LintImportance::Error,
-                    });
-                    has_errors = true;
-                }
-            }
+            // for (ii, other_rule) in self.rep_rules().iter().enumerate() {
+            //     if ii == i {
+            //         continue;
+            //     }
+            //     if other_rule.inner.matches(rule.inner.match_chars.chars()) {
+            //         rep_lints.push(Lint {
+            //             affected_rule: i,
+            //             second_affected_rule: Some(ii),
+            //             message: "Found 2 replace rules that replace the same character",
+            //             importance: LintImportance::Error,
+            //         });
+            //         has_errors = true;
+            //     }
+            // }
         }
 
         let mut match_lints = Vec::new();
@@ -333,8 +384,8 @@ pub fn stage() -> AdHoc {
         let ruleset = ProfRuleset::new(config.prof_filter_file)
             .expect("Failed to load profanity filter rules");
         let filter = ruleset.build_filter();
-        r.manage(std::sync::RwLock::new(filter))
-            .manage(Mutex::new(ruleset))
+        r.manage(tokio::sync::RwLock::new(filter))
+            .manage(tokio::sync::Mutex::new(ruleset))
     })
 }
 

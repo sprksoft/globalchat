@@ -5,7 +5,8 @@ use rocket::{
     request::{FromRequest, Outcome},
     Request, Responder, Shutdown, State,
 };
-use std::{convert::Infallible, net::IpAddr, sync::RwLock};
+use std::{convert::Infallible, net::IpAddr};
+use tokio::sync::RwLock;
 
 use log::*;
 use rocket_ws::{Channel, WebSocket};
@@ -44,11 +45,12 @@ metrics! {
     pub counter new_users("Total count of new sid's being generated");
 }
 
-#[get("/socket/v1?<username>&<key>&<start_time>")]
+#[get("/socket/v1?<username>&<key>&<start_time>&<mod_badge>")]
 pub async fn socket_v1<'a>(
     username: &str,
     key: Option<&str>,
     start_time: Option<Snowflake>,
+    mod_badge: Option<bool>,
     ws: WebSocket,
     mesg_limits: &State<MessageConfig>,
     user_config: &State<UserConfig>,
@@ -103,7 +105,8 @@ pub async fn socket_v1<'a>(
         }
     };
 
-    let mut chat_client = match chat.new_client(sid.clone(), name_lease).await {
+    let mod_badge = gcmod.is_some() && mod_badge.unwrap_or(false);
+    let mut chat_client = match chat.new_client(sid.clone(), name_lease, mod_badge).await {
         Ok(c) => c,
         Err(e) => {
             info!("Closing connection: {:?}", e);
@@ -135,6 +138,26 @@ pub async fn socket_v1<'a>(
                     }
                     mesg = wsclient.try_recv() => {
                         let Some(mesg) = mesg? else { continue; };
+
+                        if gcmod.is_some() {
+                            match parse_admin_cmd(&mesg.content) {
+                                Some(AdminCmd::DelMsg(snowflake)) => {
+                                    chat.delete_message(snowflake).await;
+                                    continue;
+                                },
+                                Some(AdminCmd::Invalid) => {
+                                    continue;
+                                    //TODO: notify client of invalid command
+                                }
+                                Some(AdminCmd::UnknownCmd) => {
+                                    continue;
+                                    //TODO: notify client of unknown command
+                                }
+                                None => {},
+                            }
+
+                        }
+
                         if mesg.len() > mesg_limits.max_message_len as usize || mesg.len() < mesg_limits.min_message_len as usize{
                             messages_blocked::inc("size");
                             continue;
@@ -161,28 +184,10 @@ pub async fn socket_v1<'a>(
                             continue;
                         }
 
-                        if gcmod.is_some() {
-                            match parse_admin_cmd(&mesg.content) {
-                                Some(AdminCmd::DelMsg(snowflake)) => {
-                                    chat.delete_message(snowflake).await;
-                                    continue;
-                                },
-                                Some(AdminCmd::Invalid) => {
-                                    continue;
-                                    //TODO: notify client of invalid command
-                                }
-                                Some(AdminCmd::UnknownCmd) => {
-                                    continue;
-                                    //TODO: notify client of unknown command
-                                }
-                                None => {},
-                            }
-
-                        }
 
                         let (prof_span, content) = {
-                            let lock = prof_filter.read().expect("Profanity filter lock poisoned");
-                            let (tokenized_mesg, content) = lock.tokenize(&mesg.content);
+                            let lock = prof_filter.read().await;
+                            let (tokenized_mesg, content) = lock.tokenize(&mesg.content.trim());
 
                             (lock.check(&tokenized_mesg).map(|m|(m.span, m.rule.to_string_friendly())), content)
                         };
@@ -206,7 +211,7 @@ pub async fn socket_v1<'a>(
                     mesg = chat_client.message_receiver.recv() => {
                         match mesg{
                             Ok(mesg) => {
-                                if mesg.sender.id() != chat_client.user_info().id(){
+                                if mesg.sender.id() != chat_client.user_info().id() {
                                     if gcmod.is_some() || !mesg.profanity {
                                         wsclient.forward(&mesg).await?;
                                     }
@@ -239,9 +244,9 @@ pub async fn socket_v1<'a>(
                     joined_client = chat_client.join_receiver.recv() => {
                         match joined_client{
                             Ok(joined_client) => {
-                                dbg!("join", &joined_client, &chat_client.user_info());
+                                //dbg!("join", &joined_client, &chat_client.user_info());
                                 if joined_client.id() != chat_client.user_info().id() {
-                                    dbg!("forwarding", &joined_client);
+                                    //dbg!("forwarding", &joined_client);
                                     wsclient.forward_client(&joined_client).await?;
                                 }
                             },

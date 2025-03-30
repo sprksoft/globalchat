@@ -66,7 +66,9 @@ impl ProfanityFilter {
     pub fn insert_rep_rule(&mut self, new_rule: RepRule) {
         for token in new_rule.match_chars.chars() {
             self.char_to_token_map
-                .insert(token, new_rule.replace_tg.clone());
+                .entry(token)
+                .and_modify(|tg| tg.extend(&new_rule.replace_tg))
+                .or_insert_with(|| new_rule.replace_tg.clone());
         }
     }
 
@@ -121,11 +123,15 @@ impl ProfanityFilter {
     }
 
     fn char_to_token(&self, char: char) -> Option<TokenGroup> {
-        let mut tg = TokenGroup::from_char(char)?;
+        let mut tg = TokenGroup::from_char(char);
         if let Some(tgroup) = self.char_to_token_map.get(&char).cloned() {
-            tg.extend(tgroup);
+            if let Some(tg) = tg.as_mut() {
+                tg.extend(&tgroup);
+            } else {
+                tg = Some(tgroup);
+            }
         }
-        Some(tg)
+        tg
     }
 }
 
@@ -141,6 +147,36 @@ mod test {
             filter.char_to_token_map.get(&'i'),
             Some(TokenGroup::parse_from_str("ij").unwrap()).as_ref()
         )
+    }
+
+    #[test]
+    fn char_to_token() {
+        let mut filter = ProfanityFilter::empty();
+        filter.insert_rep_rule(RepRule {
+            match_chars: ",.?".to_string(),
+            replace_tg: TokenGroup::parse_from_str("/k/w").unwrap(),
+        });
+        filter.insert_rep_rule(RepRule {
+            match_chars: "a".to_string(),
+            replace_tg: TokenGroup::parse_from_str("/0").unwrap(),
+        });
+
+        assert_eq!(
+            filter.char_to_token('.'),
+            Some(TokenGroup::parse_from_str("/k/w").unwrap())
+        );
+        assert_eq!(
+            filter.char_to_token('a'),
+            Some(TokenGroup::parse_from_str("a/k/0").unwrap())
+        );
+        assert_eq!(
+            filter.char_to_token('e'),
+            Some(TokenGroup::parse_from_str("e/k").unwrap())
+        );
+        assert_eq!(
+            filter.char_to_token('b'),
+            Some(TokenGroup::parse_from_str("b").unwrap())
+        );
     }
 
     #[test]

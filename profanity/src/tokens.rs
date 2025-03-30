@@ -70,7 +70,7 @@ special_tokens! {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Token(NonZeroU8);
 impl Token {
     pub fn parse_multiple(str: &str, dedup: bool) -> Result<Vec<Self>, TokenParseError> {
@@ -101,13 +101,16 @@ impl Token {
         }
         Ok(vec)
     }
-    pub fn to_friendly_char(&self) -> Option<char> {
+    pub fn to_friendly_char(self) -> Option<char> {
         if self.is_number() {
             return Some('9');
         };
         if self.is_vowel() {
             return Some('a');
         };
+        self.to_char()
+    }
+    pub fn to_char(self) -> Option<char> {
         if self.to_u8().is_ascii() && !self.to_u8().is_ascii_control() {
             Some(self.to_u8() as char)
         } else {
@@ -139,16 +142,16 @@ impl Token {
     pub fn new_unknown() -> Token {
         Token(unsafe { NonZeroU8::new_unchecked(2) })
     }
-    pub fn is_whitespace(&self) -> bool {
+    pub fn is_whitespace(self) -> bool {
         self.0.get() == ' ' as u8
     }
-    pub fn is_number(&self) -> bool {
+    pub fn is_number(self) -> bool {
         self.0.get() == 1
     }
-    pub fn is_vowel(&self) -> bool {
+    pub fn is_vowel(self) -> bool {
         self.0.get() == 3
     }
-    pub fn is_unknown(&self) -> bool {
+    pub fn is_unknown(self) -> bool {
         self.0.get() == 2
     }
     pub fn to_u8(self) -> u8 {
@@ -268,7 +271,7 @@ impl TokenGroup {
             _ => false,
         }
     }
-    pub fn extend(&mut self, other: TokenGroup) {
+    pub fn extend(&mut self, other: &TokenGroup) {
         for token in other.iter() {
             self.push(*token);
         }

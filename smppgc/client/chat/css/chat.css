@@ -4,19 +4,20 @@ main {
   flex-direction:column;
 }
 
-#topbar,#botbar{
+a {
+  color: var(--color-accent);
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
+
+#botbar{
   background: var(--color-base01);
   display: flex;
   flex-direction: row;
-}
-#botbar{
+
   border-top: solid var(--color-base02) var(--border-size);
-}
-#topbar{
-  border-bottom: solid var(--color-base02) var(--border-size);
-}
-#topbar > *{
-  padding-right: 2em;
 }
 
 
@@ -37,33 +38,8 @@ main {
   max-height:300px;
 }
 
-
 .chat-name {
-  flex-grow: 10;
-  margin-top: 0.5em;
-  margin-bottom: 0.5em;
-}
-
-.button {
-  border-radius:var(--border-radius);
-  margin:3px;
-  background-color: var(--color-base01);
-  border: none;
-  color: var(--color-accent);
-
-  padding: 0.7em 2em 0.7em 2em;
-  cursor: pointer;
-}
-.button:hover {
-  background-color:var(--color-base02) ;
-}
-.button[disabled]:hover {
-  cursor:unset;
-  background-color:inherit;
-}
-.button[disabled] {
-  cursor: unset;
-  color: var(--color-base03);
+  margin: 0px;
 }
 
 
@@ -81,14 +57,6 @@ main {
   border-radius: 1000px;
 }
 
-
-a {
-  color: var(--color-accent);
-  text-decoration: none;
-}
-a:hover {
-  text-decoration: underline;
-}
 
 
 #err-mesg {
@@ -139,7 +107,7 @@ a:hover {
   border-radius: 10px;
   border-top-left-radius: 0px;
   margin: 10px;
-  margin-left: 20px;
+  margin-left: 10px;
   margin-right: 20px;
   align-self: start;
   max-width: -moz-available;
@@ -153,14 +121,14 @@ a:hover {
   filter: blur(5px);
   transition: filter 0.4s;
 }
-.prof-message:hover .content {
+.prof-message-show .content {
   filter: blur(0px);
 }
-.message_top{
+.message_top {
   display:flex;
   flex-direction: row;
 }
-.timestamp{
+.timestamp {
   margin-left: auto;
   padding-left: 0.6rem;
   font-weight: bold;
@@ -178,6 +146,12 @@ a:hover {
   font-weight: bold;
   font-size: 0.8em;
   margin-bottom: 2px;
+}
+.mod-badge:after{
+  content: " MOD";
+  font-size: 1em;
+  color: var(--color-accent);
+  font-family:inherit;
 }
 .user_content {
   margin-top:-5px; /* To offset the space taken up by the arrow */
@@ -208,3 +182,21 @@ a:hover {
   flex-direction: column;
 }
 
+@keyframes notfound-anim{
+
+  0% {
+    transform: rotate(10deg)
+  }
+
+  50% {
+    transform: rotate(-10deg)
+  }
+
+  100% {
+    transform: rotate(10deg)
+  }
+
+}
+.notfound img:hover {
+  animation: notfound-anim 0.2s ease infinite;
+}

@@ -7,14 +7,12 @@ use crate::{
     users::{UserInfo, UserSid},
     Snowflake,
 };
-
-pub const PACKET_SETUP: u8 = 0;
-pub const PACKET_MESSAGE: u8 = 1;
-pub const PACKET_USERJOIN: u8 = 2;
-pub const PACKET_PROFANITY_WARN: u8 = 3;
-pub const PACKET_PROFANITY_MESSAGE: u8 = 4;
-pub const PACKET_MESSAGE_DEL: u8 = 5;
-pub const PACKET_MESSAGE_CENSOR: u8 = 6;
+// Range 0-3 is for message packets
+pub const PACKET_SETUP: u8 = 4;
+pub const PACKET_USERJOIN: u8 = 5;
+pub const PACKET_PROFANITY_WARN: u8 = 6;
+pub const PACKET_MESSAGE_DEL: u8 = 7;
+pub const PACKET_MESSAGE_CENSOR: u8 = 8;
 
 pub fn new_setup<'a, 'b>(sid: UserSid, id: u16) -> tokio_tungstenite::tungstenite::Message {
     //|    u8    | const PACKET_SETUP
@@ -85,7 +83,8 @@ pub fn new_message_change(
 }
 
 pub fn new_message(mesg: &Message) -> tokio_tungstenite::tungstenite::Message {
-    //|  u8  | const PACKET_MESSAGE, const PACKET_PROFANITY_MESSAGE
+    //|  u8  | 0b0000 0000
+    //                  ^^  show mod badge, contains profanity
     //|  u16 | sender id
     //| Snowflake | message id
     //| [u8] | content bytes
@@ -93,11 +92,15 @@ pub fn new_message(mesg: &Message) -> tokio_tungstenite::tungstenite::Message {
     let content_bytes = mesg.content.as_bytes();
     let mut data =
         Vec::with_capacity(1 + size_of::<u16>() + size_of::<Snowflake>() + content_bytes.len());
-    if mesg.profanity {
-        data.push(PACKET_PROFANITY_MESSAGE)
-    } else {
-        data.push(PACKET_MESSAGE)
+
+    let mut id = 0;
+    if mesg.sender.mod_badge {
+        id |= 0b0000_0010;
     }
+    if mesg.profanity {
+        id |= 0b0000_0001;
+    }
+    data.push(id);
     data.extend_from_slice(&mesg.sender.id().to_be_bytes());
     data.extend_from_slice(&mesg.id().to_be_bytes());
     data.extend_from_slice(content_bytes);
