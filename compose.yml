@@ -2,21 +2,34 @@ services:
   smppgc:
     build:
       dockerfile: Dockerfile
+      target: dev
     networks:
-      - ldeveuorg_gc
-      - gc
+      - main
+    ports:
+      - 80:8080
     volumes:
       - proffilter:/var/proffilter
       - auth:/var/auth
+    develop:
+      watch:
+        - action: sync
+          path: smppgc/client
+          target: /client
 
-    expose:
-      - 8080
+        - action: sync+restart
+          path: smppgc/www
+          target: /app/www
+
+        - action: sync+restart
+          path: smppgc/templates
+          target: /app/templates
+
+        - action: rebuild
+          path: smppgc/src
 
 volumes:
   proffilter:
   auth:
 
 networks:
-  gc:
-  ldeveuorg_gc:
-    external: true
+  main:

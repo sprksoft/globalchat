@@ -1,7 +1,7 @@
 <!-- vim: set ft=html: -->
 <!-- vim: set spelllang=nl: -->
 <section>
-  <h2 class="warning">⚠️ Belangrijke regels ⚠️</h2>
+  <h3 class="warning">⚠️ Belangrijke regels ⚠️</h3>
   <ul>
     <li><b>Hou het proper</b>, geen racisme, seksisme of andere foute ismes.</li>
     <li>Dit is <b>geen</b> plaats om <b>politieke discussies</b> te houden.</li>

@@ -1,3 +1,4 @@
+set -e
 DOCKER="docker"
 DOCKER_COMPOSE="docker compose"
 
@@ -11,11 +12,4 @@ if ! $DOCKER_COMPOSE version ; then
   exit 0
 fi
 
-echo "Creating network..."
-$DOCKET network create ldeveuorg_gc &> /dev/null
-
-if [[ $* == *--nodbgenv* ]] ; then
-$DOCKER_COMPOSE -f compose.yml up || exit 1
-else
-$DOCKER_COMPOSE -f compose.yml -f debugenv.compose.yml watch || exit 1
-fi
+$DOCKER_COMPOSE -f compose.yml watch

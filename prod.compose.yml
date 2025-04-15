@@ -1,4 +1,0 @@
-services:
-  smppgc:
-    image: "smppserver_smppgc:prod"
-    restart: always

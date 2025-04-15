@@ -6,13 +6,12 @@ html {
   --border-size: 3px;
   --dialog-border-radius: 30px;
   height:100%;
-  font-size: 10px;
+  font-size: 15px;
 }
 body {
   color: var(--color-text);
   background: var(--color-base00);
   font-family: "Montserrat", "Open Sans", helvetica, sans-serif;
-  font-size:15px;
   margin:0px;
   height:100%;
   display: flex;
@@ -187,6 +186,9 @@ dialog {
   background: var(--color-base01);
   border: solid var(--color-base02) var(--border-size);
   border-radius: var(--border-radius);
+}
+.layered-section p {
+  margin-bottom: 0px;
 }
 
 

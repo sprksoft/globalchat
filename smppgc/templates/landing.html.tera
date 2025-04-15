@@ -1,0 +1,34 @@
+{% extends "base" %}
+
+<!-- vim: set ft=html: -->
+
+{% block head %}
+<style type="text/css">
+{{theme_css}}
+</style>
+
+<link rel="stylesheet" href="{{ url(path="/static/landing.css") }}" />
+{% endblock head %}
+
+{% block content %}
+<main>
+  <div class="logo">
+    {% include "svg/gclogo" %}
+  </div>
+  <div id="disclaimer" data-disclaimer-ver="0">
+    {% include "disclaimer" %}
+    <div class="layered-section">
+      <label for="disclaimer-check">
+        <input id="disclaimer-check" type="checkbox" disabled>
+        Ik heb alles gelezen en ga er mee akkoord</label>
+      <p id="disclaimer-countdown-text">Je kunt accepteren binnen <time id="disclaimer-countdown"></time></p>
+    </div>
+    <button class="smlogin-btn">Aanmelden met smartschool</button>
+  </div>
+</main>
+
+{% endblock content %}
+
+{% block scripts %}
+<script defer type="text/javascript" src="{{ url(path="/static/landing.js") }}"></script>
+{% endblock scripts %}

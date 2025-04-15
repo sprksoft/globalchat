@@ -1,7 +1,6 @@
 import * as proto from './protocol.js';
 import * as utils from './../utils.js';
 import * as mk from './mkels.js';
-import * as disclaimer from './disclaimer.js';
 import * as general from './../general.js';
 import * as sflake from './snowflake.js';
 import { Message, createMessage } from './mesg.js';
@@ -26,13 +25,6 @@ const profaneMessage = document.getElementById("profane-message");
 const profaneMessageOk = document.getElementById("profane-message-ok");
 const profaneMessageCountdown = document.getElementById("profane-message-countdown");
 const profaneMessageBadWord = document.getElementById("badword");
-
-
-
-disclaimer.checkbox.addEventListener("change", (e) => {
-  connectbtn.disabled = !e.target.checked;
-});
-connectbtn.disabled=!disclaimer.checkbox.checked;
 
 let profanityCoolDown = 0;
 let profanityCoolDownInterval;
