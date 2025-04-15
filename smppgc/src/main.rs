@@ -14,6 +14,7 @@ mod auth;
 mod chat;
 mod csp;
 mod ipcountry;
+mod oauth;
 mod pages;
 mod profanity;
 mod ratelimit;
@@ -90,6 +91,7 @@ fn rocket() -> _ {
         .attach(pages::stage())
         .attach(users::stage())
         .attach(auth::stage())
+        .attach(oauth::stage())
         .attach(AdHoc::on_ignite("chat", |r| async {
             let config = r
                 .figment()

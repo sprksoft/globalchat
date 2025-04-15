@@ -11,9 +11,13 @@ use rocket::{
 };
 use rocket_dyn_templates::{context, tera, Template};
 
-use crate::{auth::GcMod, csp::CSPFrameAncestors, themes::Theme, users::UserConfig, MessageConfig};
+use crate::{
+    auth::GcMod, csp::CSPFrameAncestors, oauth, themes::Theme, users::UserConfig, MessageConfig,
+};
 
 mod admin;
+
+const DISCLAIMER_VER: usize = 1;
 
 #[derive(Responder)]
 enum GcPageResponder {
@@ -22,29 +26,40 @@ enum GcPageResponder {
         inner: Template,
         csp: CSPFrameAncestors,
     },
+    Redirect(Redirect),
 }
 
 #[get("/v1")]
-fn landing_page(theme: Theme) -> GcPageResponder {
+fn landing_page(
+    theme: Theme,
+    oauth_config: &State<oauth::OAuthConfig>,
+    cookiejar: &CookieJar<'_>,
+) -> GcPageResponder {
+    let accepted_disclaimer: usize = cookiejar
+        .get("accepted_disclaimer")
+        .map(|c| c.value_trimmed().parse().unwrap_or(0))
+        .unwrap_or(0);
+
     GcPageResponder::Ok {
-        inner: Template::render("landing", context! { theme_css:theme.css() }),
+        inner: Template::render(
+            "landing",
+            context! { theme_css:theme.css(), accepted_disclaimer:accepted_disclaimer, disclaimer_ver:DISCLAIMER_VER, oauth_url:oauth::get_auth_url(&oauth_config)},
+        ),
         csp: CSPFrameAncestors {
             frame_ancestors: "*.smartschool.be".to_string(),
         },
     }
 }
 
-//TODO: change so that when a code is supplied it will go to here
-#[get("/chat?<placeholder>")]
+#[get("/chat?<code>")]
 fn chat(
     theme: Theme,
-    placeholder: Option<&str>,
+    code: &str,
     message_config: &State<MessageConfig>,
     user_config: &State<UserConfig>,
     gcmod: Option<GcMod>,
     cookiejar: &CookieJar<'_>,
 ) -> GcPageResponder {
-    let placeholder = placeholder.unwrap_or("");
     let theme_string = serde_json::to_string(&theme).expect("Failed to convert theme to json");
     cookiejar.add(
         Cookie::build(("smpptheme", theme_string))
@@ -52,11 +67,13 @@ fn chat(
             .expires(OffsetDateTime::now_utc() + Duration::hours(100_000)),
     );
 
+    let fullname = "";
+
     GcPageResponder::Ok {
         inner: Template::render(
             "chat",
             context! (theme_css:theme.css(),
-            placeholder:placeholder,
+            placeholder:fullname,
             is_mod: gcmod.is_some(),
             max_username_len: user_config.max_username_len,
             max_message_len: message_config.max_message_len,
