@@ -3,7 +3,7 @@ use rocket::{
     get,
     http::{hyper::Uri, Cookie, CookieJar, Header, SameSite, Status},
     request::{self, FromRequest},
-    response::Responder,
+    response::{Redirect, Responder},
     routes,
     serde::Deserialize,
     time::{Duration, OffsetDateTime},
@@ -24,8 +24,19 @@ enum GcPageResponder {
     },
 }
 
-#[get("/v1?<placeholder>")]
-fn v1(
+#[get("/v1")]
+fn landing_page(theme: Theme) -> GcPageResponder {
+    GcPageResponder::Ok {
+        inner: Template::render("landing", context! { theme_css:theme.css() }),
+        csp: CSPFrameAncestors {
+            frame_ancestors: "*.smartschool.be".to_string(),
+        },
+    }
+}
+
+//TODO: change so that when a code is supplied it will go to here
+#[get("/chat?<placeholder>")]
+fn chat(
     theme: Theme,
     placeholder: Option<&str>,
     message_config: &State<MessageConfig>,
@@ -43,7 +54,7 @@ fn v1(
 
     GcPageResponder::Ok {
         inner: Template::render(
-            "v1",
+            "chat",
             context! (theme_css:theme.css(),
             placeholder:placeholder,
             is_mod: gcmod.is_some(),
@@ -75,16 +86,28 @@ impl tera::Function for UrlFunction {
             return Ok(tera::Value::String(self.root_url.clone()));
         }
         let ver_int: u16 = *crate::VERSION_INT;
+
+        let static_res = match args.get("static") {
+            Some(tera::Value::Bool(true)) => Ok(true),
+            Some(tera::Value::Bool(false)) => Ok(false),
+            None => Ok(true),
+            _ => Err("Invalid value for static parameter"),
+        }?;
+
         match args.get("path") {
             Some(tera::Value::String(url)) => {
                 let mut url: &str = url;
                 if url.starts_with("/") {
                     url = &url[1..];
                 }
-                Ok(tera::Value::String(format!(
-                    "{}/{}?ckey={}",
-                    self.root_url, url, ver_int
-                )))
+                if static_res {
+                    Ok(tera::Value::String(format!(
+                        "{}/{}?ckey={}",
+                        self.root_url, url, ver_int
+                    )))
+                } else {
+                    Ok(tera::Value::String(format!("{}/{}", self.root_url, url)))
+                }
             }
             _ => Err("url filter requires a parameter 'path' of type string.".into()),
         }
@@ -107,7 +130,7 @@ pub fn stage() -> AdHoc {
             .extract::<RootUrl>()
             .expect("No root_url field found in config");
 
-        r.mount("/", routes![v1])
+        r.mount("/", routes![landing_page, chat])
             .attach(admin::stage())
             .attach(Template::custom(move |engines| {
                 let tera = &mut engines.tera;

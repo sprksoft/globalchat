@@ -97,6 +97,13 @@ impl ProfRuleset {
 
         Ok(me)
     }
+    pub fn empty() -> Self {
+        Self {
+            filter_path: None,
+            rep_rules: Vec::new(),
+            match_rules: Vec::new(),
+        }
+    }
 
     pub fn sort(&mut self) {
         self.match_rules.sort();
@@ -381,8 +388,13 @@ pub fn stage() -> AdHoc {
             .extract::<ProfConfig>()
             .expect("No profanity config found");
 
-        let ruleset = ProfRuleset::new(config.prof_filter_file)
-            .expect("Failed to load profanity filter rules");
+        let ruleset = match ProfRuleset::new(config.prof_filter_file) {
+            Ok(r) => r,
+            Err(RulesetError::IO(err)) if err.kind() == std::io::ErrorKind::NotFound => {
+                ProfRuleset::empty()
+            }
+            Err(e) => panic!("Failed to load profanity filter rules: {}", e),
+        };
         let filter = ruleset.build_filter();
         r.manage(tokio::sync::RwLock::new(filter))
             .manage(tokio::sync::Mutex::new(ruleset))

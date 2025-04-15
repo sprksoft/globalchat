@@ -1,0 +1,44 @@
+[default]
+address = "0.0.0.0"
+port = 8080
+ip_header="CF-Connecting-IP"
+
+root_url=""
+auth_file="/var/auth/authfile.txt"
+prof_filter_file="/var/proffilter/rules.txt"
+static_dir="/app/www"
+template_dir="/app/templates"
+
+max_stored_messages=30
+max_users=1000
+
+max_username_len=30
+max_reserved_names=2
+
+
+max_same_message_streak=3
+same_message_penalty=6
+
+small_message_len=150
+max_message_len=300
+min_message_len=2
+large_message_penalty=2
+
+mesg_rate={timeframe=6,amount=3}
+
+xx_penalty=2
+not_be_penalty=4
+mesg_ip_rate={timeframe=60,amount=300}
+new_user_ip_rate={timeframe=120, amount=50} # 2 minuten
+
+
+
+[debug]
+debug=true
+log_level="normal"
+
+[release]
+debug=false
+root_url="/smpp/gc"
+log_level = "critical"
+

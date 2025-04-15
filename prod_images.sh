@@ -16,7 +16,6 @@ RUSTUP="rustup"
 SSH="ssh"
 DOCKER="docker"
 PROD_SERVER_DOCKER="sudo docker"
-ESBUILD="esbuild"
 
 
 setup ()
@@ -45,33 +44,22 @@ build ()
   export RUSTUP_TOOLCHAIN=stable
   export RUSTFLAGS="-Clink-self-contained=yes -Clinker=rust-lld"
 
-  for image in "${RUST_IMAGES[@]}" ; do
+  cross build --target $RUSTTARGET --release --locked
+  mkdir -p .artifacts
+  cp -rf target/$RUSTTARGET/release/smppgc .artifacts/smppgc # Copy artifacts because target/ is in .dockerignore
 
-    echo "Building $image using cross..."
-    cross build --target $RUSTTARGET --release --bin $image
+  $DOCKER buildx build --platform $DOCKERTARGET --build-arg BINARY_SOURCE=artifact -f smppgc/Dockerfile -t "smppserver_smppgc:prod" .
 
-    mkdir -p $IMAGES_DIR
-    mkdir -p $IMAGES_DIR/$image
-    cp -f $image/Rocket.toml $IMAGES_DIR/$image/Rocket.toml
-    cp -rf $image/templates/* $IMAGES_DIR/$image/templates || true
-    cp -rf $image/www/* $IMAGES_DIR/$image/www || true
+}
 
-    if ls $image/client > /dev/null ; then
-      $ESBUILD --bundle --minify --sourcemap --outdir=$IMAGES_DIR/$image/www/ $image/client/v1.js $image/client/admin.js
-    fi
-
-    cp ./target/$RUSTTARGET/release/$image $IMAGES_DIR/$image/app
-    $DOCKER buildx build --platform $DOCKERTARGET --build-arg APP=./$IMAGES_DIR/$image -t "${PROJECT}_$image:prod" -f prod.Dockerfile .
-
-  done
+push_image () {
+  echo "Sending $1 image to $2..."
+  $DOCKER save $1 | $SSH $2 $PROD_SERVER_DOCKER load
 }
 
 push ()
 {
-  for image in ${RUST_IMAGES[@]} ; do
-    echo "Sending $image image to $1..."
-    $DOCKER save ${PROJECT}_$image:prod | $SSH $1 $PROD_SERVER_DOCKER load
-  done
+  push_image smppserver_smppgc:prod $1
 }
 
 USAGE="Usage: $0 <cmd>
