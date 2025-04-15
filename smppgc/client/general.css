@@ -1,4 +1,5 @@
 html {
+  --color-accent-shadow: color-mix(in oklab, #000 6%, var(--color-accent));
   --color-shadow: var(--color-base00);
   --color-error: #c03010;
   --color-ok: #6faa50;
@@ -181,7 +182,7 @@ dialog {
 }
 
 .layered-section {
-  margin-top: 3em;
+  margin-top: 2em;
   padding: 1.5em;
   background: var(--color-base01);
   border: solid var(--color-base02) var(--border-size);

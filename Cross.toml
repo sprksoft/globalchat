@@ -1,0 +1,7 @@
+[build.env]
+passthrough = [
+  "RUSTFLAGS",
+  "SQLX_OFFLINE",
+  "RUSTUP_TOOLCHAIN"
+]
+

@@ -9,6 +9,10 @@ prof_filter_file="/var/proffilter/rules.txt"
 static_dir="/app/www"
 template_dir="/app/templates"
 
+# oauth
+oauth_redirect_uri="https://ldev.eu.org/smpp/gc/chat"
+
+# limits and rate limiting
 max_stored_messages=30
 max_users=1000
 

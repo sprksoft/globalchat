@@ -7,6 +7,8 @@ main {
   margin-left: auto;
   margin-right: auto;
   max-width: 700px;
+  display: flex;
+  flex-direction: column;
 }
 
 .warning {
@@ -20,12 +22,28 @@ main {
 }
 
 .logo svg {
-  max-width: 900px;
+  max-width: 800px;
   margin: 2rem;
   color: var(--color-accent);
 }
 
-.smlogin-btn {
+#sm-login-btn {
+  font-size: 1rem;
+  font-weight: bold;
+  font-family: inherit;
+  color: #ffffffff;
+  background: linear-gradient(#ff760e, #f20900, #f20900);
+  border-radius: var(--border-radius);
+
+  margin: 2rem 0rem 1rem 0rem;
   padding: 1rem;
-  font-size: 2rem;
+  transition: transform 0.3s;
+}
+#sm-login-btn:not(:disabled):hover {
+ transform: scaleX(1.05) scaleY(0.95);
+}
+
+#sm-login-btn:disabled {
+  cursor: default;
+  filter: brightness(50%);
 }

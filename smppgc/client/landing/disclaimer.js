@@ -1,26 +1,10 @@
 const disclaimerEl = document.getElementById("disclaimer");
-export const checkbox = document.getElementById("disclaimer-check");
+const checkbox = document.getElementById("disclaimer-check");
+const smLoginBtn = document.getElementById("sm-login-btn");
 const countdownEl = document.getElementById("disclaimer-countdown");
 const countdownTextEl = document.getElementById("disclaimer-countdown-text");
 
 let disclaimerCountdown = 15;
-let disclaimerInterval;
-if (localStorage.getItem("accepted_disclaimer") == disclaimerEl.dataset.disclaimerVer) {
-  checkEnable();
-  checkbox.checked = true;
-} else {
-  checkbox.disabled = true;
-  checkbox.checked = false;
-  countdownEl.innerText = disclaimerCountdown + (disclaimerCountdown == 1 ? " seconde" : " seconden");
-  disclaimerInterval = setInterval(() => {
-    disclaimerCountdown--;
-    countdownEl.innerText = disclaimerCountdown + (disclaimerCountdown == 1 ? " seconde" : " seconden");
-
-    if (disclaimerCountdown <= 0) {
-      checkEnable();
-    }
-  }, 1000);
-}
 
 function checkEnable() {
   if (disclaimerInterval)
@@ -30,12 +14,36 @@ function checkEnable() {
   countdownTextEl.innerText="Ga akkoord met de regels om op global chat te kunnen chatten.";
 }
 
+function updateCountdown(count) {
+  countdownEl.innerText = count + (count == 1 ? " seconde" : " seconden");
+}
+
+let disclaimerInterval;
+if (ENABLE_CHECK) {
+  checkEnable();
+  checkbox.checked = true;
+  smLoginBtn.disabled = false;
+} else {
+  smLoginBtn.disabled = true;
+  checkbox.checked = false;
+  updateCountdown(disclaimerCountdown);
+  disclaimerInterval = setInterval(() => {
+    disclaimerCountdown--;
+    updateCountdown(disclaimerCountdown);
+
+    if (disclaimerCountdown <= 0) {
+      checkEnable();
+    }
+  }, 1000);
+}
 
 checkbox.addEventListener("change", (e) => {
   if (e.target.checked) {
-    localStorage.setItem("accepted_disclaimer", disclaimerEl.dataset.disclaimerVer);
+    smLoginBtn.disabled = false;
+    document.cookie = "accepted_disclaimer="+disclaimerEl.dataset.disclaimerVer+" ;expires=Wed, 20 May 2026 15:06:13 GMT";
   } else {
-    localStorage.setItem("accepted_disclaimer", -1);
+    smLoginBtn.disabled = true;
+    document.cookie = "accepted_disclaimer=0 ;expires=Wed, 20 May 2026 15:06:13 GMT";
   }
 });
 
