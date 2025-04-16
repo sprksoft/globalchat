@@ -1,6 +1,6 @@
 import * as mk from './mkels.js';
 import * as sflake from './snowflake.js';
-import * as chat from './chat.js';
+import * as chat from './../chat.js';
 
 const messageTemplate = document.getElementById("message-template");
 

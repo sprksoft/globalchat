@@ -1,0 +1,37 @@
+{% extends "base" %}
+
+<!-- vim: set ft=html: -->
+
+{% block head %}
+<style type="text/css">
+{{theme_css}}
+</style>
+
+<link rel="stylesheet" href="{{ url(path="/static/index.css") }}" />
+{% endblock head %}
+
+{% block content %}
+<div class="view">
+  <main>
+    {% include "logo_header" %}
+    <div id="disclaimer" data-disclaimer-ver="{{ disclaimer_ver }}">
+      {% include "disclaimer" %}
+      <div class="layered-section">
+        <label for="disclaimer-check">
+          <input id="disclaimer-check" type="checkbox" >
+          Ik heb alles gelezen en ga er mee akkoord</label>
+        <p id="disclaimer-countdown-text">Je kunt accepteren binnen <time id="disclaimer-countdown"></time></p>
+      </div>
+    </div>
+    <button id="sm-login-btn" onclick="location.href='{{ oauth_url }}'">Aanmelden met Samrtshlatrookoolschol</button>
+  </main>
+</div>
+
+{% endblock content %}
+
+{% block scripts %}
+<script>
+  const ENABLE_CHECK={{ accepted_disclaimer == disclaimer_ver }};
+</script>
+<script defer type="text/javascript" src="{{ url(path="/static/index.js") }}"></script>
+{% endblock scripts %}

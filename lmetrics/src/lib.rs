@@ -1,11 +1,9 @@
 #[cfg(feature = "rocket")]
 mod httpmetrics;
+#[cfg(feature = "nanohttp")]
+mod nanohttp;
 #[cfg(feature = "rocket")]
 mod rocket;
-
-mod nanohttp;
-
-use std::{io::Write, net::TcpStream};
 
 pub use once_cell;
 use prometheus::{core::Collector, IntCounter, IntCounterVec, Opts, Registry, TextEncoder};
@@ -98,14 +96,10 @@ impl Metric {
 }
 
 #[derive(Clone)]
-pub struct LMetrics<F>
-where
-    F: Fn() + Send + Sync + Clone,
-{
+pub struct LMetrics {
     pub registry: Registry,
-    before_handle: Option<F>,
 }
-impl<F: Fn() + Send + Sync + Clone> LMetrics<F> {
+impl LMetrics {
     pub fn new(metrics: &[&Metric]) -> Self {
         let me = Self::default();
         for met in metrics {
@@ -119,44 +113,17 @@ impl<F: Fn() + Send + Sync + Clone> LMetrics<F> {
     pub fn register_metric(&self, metric: &Metric) {
         self.register(metric.clone().into_collector());
     }
-    pub fn on_before_handle(&mut self, f: F) {
-        self.before_handle = Some(f);
-    }
 
-    pub fn process_http_request(&self, mut stream: TcpStream) -> std::io::Result<()> {
-        let request = nanohttp::read_request(&mut stream)?;
-        if request.starts_with("GET /metrics") {
-            self.before_handle.as_ref().map(|e| e());
-            let data = self.respond_metrics().unwrap();
-            stream.write(data.as_bytes())?;
-        } else {
-            stream.write(nanohttp::respond_404().as_bytes())?;
-        }
-        Ok(())
-    }
-
-    pub fn accept(&self, listener: &mut std::net::TcpListener) -> std::io::Result<()> {
-        match listener.accept() {
-            Err(err) => match err.kind() {
-                std::io::ErrorKind::WouldBlock => return Ok(()),
-                _ => return Err(err),
-            },
-            Ok((stream, _)) => self.process_http_request(stream)?,
-        }
-
-        Ok(())
-    }
-    fn respond_metrics(&self) -> prometheus::Result<String> {
+    pub fn encode_metrics(&self) -> prometheus::Result<String> {
         let text_encoder = TextEncoder::new();
         let encoded = text_encoder.encode_to_string(&self.registry.gather())?;
-        Ok(nanohttp::respond_200(encoded))
+        Ok(encoded)
     }
 }
-impl<F: Fn() + Send + Sync + Clone> Default for LMetrics<F> {
+impl Default for LMetrics {
     fn default() -> Self {
         Self {
             registry: Registry::default(),
-            before_handle: None,
         }
     }
 }

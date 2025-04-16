@@ -1,8 +1,8 @@
-use prometheus::TextEncoder;
-
 use crate::LMetrics;
 use rocket::{
     http::Method,
+    outcome::IntoOutcome,
+    response::Responder,
     route::{Handler, Outcome},
     Request, Route,
 };
@@ -10,19 +10,21 @@ use rocket::{
 pub use rocket_prometheus;
 
 #[rocket::async_trait]
-impl<F: Fn() + Send + Sync + Clone + 'static> Handler for LMetrics<F> {
+impl Handler for LMetrics {
     async fn handle<'r>(&self, req: &'r Request<'_>, _: rocket::Data<'r>) -> Outcome<'r> {
-        self.before_handle.as_ref().map(|e| e());
-        let encoder = TextEncoder::new();
-        let mut buf = String::new();
-        encoder
-            .encode_utf8(&self.registry.gather(), &mut buf)
-            .expect("Failed to encode metrics");
-        Outcome::from(req, buf)
+        self.respond_to(req).or_error(())
     }
 }
-impl<F: Fn() + Send + Sync + Clone + 'static> From<LMetrics<F>> for Vec<Route> {
-    fn from(other: LMetrics<F>) -> Self {
+impl From<LMetrics> for Vec<Route> {
+    fn from(other: LMetrics) -> Self {
         vec![Route::new(Method::Get, "/", other)]
+    }
+}
+
+impl<'r> Responder<'r, 'static> for &LMetrics {
+    fn respond_to(self, req: &'r Request<'_>) -> rocket::response::Result<'static> {
+        self.encode_metrics()
+            .map_err(|e| rocket::response::Debug(e))
+            .respond_to(req)
     }
 }

@@ -1,11 +1,7 @@
 use lmetrics::metrics;
 use profanity::ProfanityFilter;
-use rocket::{
-    get,
-    request::{FromRequest, Outcome},
-    Request, Responder, Shutdown, State,
-};
-use std::{convert::Infallible, net::IpAddr};
+use rocket::{get, Responder, Shutdown, State};
+use std::net::IpAddr;
 use tokio::sync::RwLock;
 
 use log::*;
@@ -14,25 +10,25 @@ use tokio::sync::broadcast::error::RecvError;
 
 use crate::{
     auth::GcMod,
-    chat::{Chat, Message, MessageChange, MessageChangeType, NewClientError},
-    ipcountry::IpCountry,
+    chat::{Chat, MessageChange, MessageChangeType, NewClientError},
     ratelimit::RateLimitIpPenalty,
     ratelimit::{MesgIpRateLimiters, MesgRateLimiters, NewUserIpRateLimiters},
     users::{UserConfig, UserSid, UsernameManager},
+    utils::IpCountry,
     wsprotocol::{KickReason, WsClient},
     MessageConfig, Snowflake,
 };
 
 #[derive(Responder)]
-pub enum SocketV1Responder<'a> {
+pub enum ChatSocketResponder<'a> {
     #[response(status = 500)]
     Error(&'static str),
     #[response(status = 200)]
     Channel(Channel<'a>),
 }
-impl<'a> SocketV1Responder<'a> {
-    pub fn ws_close(ws: WebSocket, reason: KickReason) -> SocketV1Responder<'a> {
-        SocketV1Responder::Channel(ws.channel(move |mut stream| {
+impl<'a> ChatSocketResponder<'a> {
+    pub fn ws_close(ws: WebSocket, reason: KickReason) -> ChatSocketResponder<'a> {
+        ChatSocketResponder::Channel(ws.channel(move |mut stream| {
             Box::pin(async move { stream.close(Some(reason.into_close_frame())).await })
         }))
     }
@@ -45,10 +41,10 @@ metrics! {
     pub counter new_users("Total count of new sid's being generated");
 }
 
-#[get("/socket/v1?<username>&<key>&<start_time>&<mod_badge>")]
-pub async fn socket_v1<'a>(
-    username: &str,
+#[get("/socket/chat?<key>&<username>&<start_time>&<mod_badge>")]
+pub async fn chat_socket<'a>(
     key: Option<&str>,
+    username: &str,
     start_time: Option<Snowflake>,
     mod_badge: Option<bool>,
     ws: WebSocket,
@@ -65,9 +61,9 @@ pub async fn socket_v1<'a>(
     addr: IpAddr,
     country: IpCountry,
     gcmod: Option<GcMod>,
-) -> SocketV1Responder<'a> {
+) -> ChatSocketResponder<'a> {
     if !ip_ratelimiters.0.update(addr, 0) {
-        return SocketV1Responder::ws_close(ws, KickReason::IpRateLimit);
+        return ChatSocketResponder::ws_close(ws, KickReason::IpRateLimit);
     }
     let ip_penalty_multiplier = if country.is_be() {
         1
@@ -85,7 +81,7 @@ pub async fn socket_v1<'a>(
     if new_user {
         if !user_ratelimiting.0.update(addr, ip_penalty_multiplier) {
             blocked_newusers::inc();
-            return SocketV1Responder::ws_close(ws, KickReason::TooManyUsers);
+            return ChatSocketResponder::ws_close(ws, KickReason::TooManyUsers);
         }
         new_users::inc();
     }
@@ -101,7 +97,7 @@ pub async fn socket_v1<'a>(
     {
         Ok(name_lease) => name_lease,
         Err(e) => {
-            return SocketV1Responder::ws_close(ws, e.into_kickreason());
+            return ChatSocketResponder::ws_close(ws, e.into_kickreason());
         }
     };
 
@@ -112,13 +108,13 @@ pub async fn socket_v1<'a>(
             info!("Closing connection: {:?}", e);
             match e {
                 NewClientError::MaxConcurrentUserCount => {
-                    return SocketV1Responder::ws_close(ws, KickReason::ChatFull)
+                    return ChatSocketResponder::ws_close(ws, KickReason::ChatFull)
                 }
             }
         }
     };
     let mesg_limits = mesg_limits.inner().clone();
-    SocketV1Responder::Channel(ws.channel(move |stream| {
+    ChatSocketResponder::Channel(ws.channel(move |stream| {
         Box::pin(async move {
             let chat_hist = chat.history(start_time, gcmod.is_some()).await;
             let mut wsclient = WsClient::new(

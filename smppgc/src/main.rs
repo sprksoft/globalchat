@@ -1,19 +1,14 @@
-use std::ops::Deref;
-
 use chat::Chat;
 use lmetrics::LMetrics;
-use pages::RootUrl;
-use rocket::response::Redirect;
+use rocket::get;
 use rocket::routes;
 use rocket::serde::Deserialize;
 use rocket::{fairing::AdHoc, launch};
-use rocket::{get, State};
 use utils::static_routing;
 
 mod auth;
 mod chat;
-mod csp;
-mod ipcountry;
+mod disclaimer;
 mod oauth;
 mod pages;
 mod profanity;
@@ -52,20 +47,10 @@ pub struct MessageConfig {
 }
 
 #[get("/version")]
-fn server_version(root_url: &State<RootUrl>) -> String {
+fn server_version() -> String {
     let ver_str = concat!(env!("CARGO_PKG_NAME"), "-", env!("CARGO_PKG_VERSION"));
 
-    format!(
-        "{} debug_assertions: {} root_url: {} ",
-        ver_str,
-        cfg!(debug_assertions),
-        root_url.root_url
-    )
-}
-
-#[get("/")]
-fn index() -> Redirect {
-    Redirect::permanent("v1")
+    format!("{} debug_assertions: {} ", ver_str, cfg!(debug_assertions),)
 }
 
 #[launch]
@@ -81,9 +66,8 @@ fn rocket() -> _ {
         &lmetrics::http_errors_total::METRIC,
         &lmetrics::http_req_total::METRIC,
     ]);
-    metrics.on_before_handle(|| {});
     rocket::build()
-        .mount("/", routes![index, server_version])
+        .mount("/", routes![server_version])
         .mount("/metrics", metrics)
         .attach(AdHoc::config::<MessageConfig>())
         .attach(ratelimit::stage())
@@ -98,9 +82,8 @@ fn rocket() -> _ {
                 .extract::<ChatConfig>()
                 .expect("No chat config found");
 
-            r.mount("/", routes![socket::socket_v1])
+            r.mount("/", routes![socket::chat_socket])
                 .manage(Chat::new(config))
         }))
         .attach(profanity::stage())
-        .attach(AdHoc::config::<RootUrl>())
 }

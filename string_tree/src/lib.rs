@@ -189,12 +189,3 @@ macro_rules! string_tree {
         StringTree::new_node($str.into(), vec![$(string_tree!($node$(:$children)?)),*])
     };
 }
-
-fn contains_naive(target: &str, tree: &Vec<String>) -> bool {
-    for item in tree.iter() {
-        if *item == target {
-            return true;
-        }
-    }
-    false
-}

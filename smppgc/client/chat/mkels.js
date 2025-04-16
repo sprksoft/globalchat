@@ -1,4 +1,4 @@
-const STICKERS=["smpp", "smppoud", "smpplite", "gc", "fire", "404", "arch", "tux", "ferris", "gopher"]; // avail stickers (used to prevent unneeded 404s to the server)
+const STICKERS=["birb", "smpp", "smppoud", "smpplite", "gc", "fire", "404", "arch", "tux", "ferris", "gopher"]; // avail stickers (used to prevent unneeded 404s to the server)
 
 export function mkProfHighlighted(message, start, end, parent_el) {
   let span = document.createElement("span");
@@ -64,7 +64,7 @@ export function mksticker(name, parent_el) {
     let img = document.createElement("img");
     img.width=50;
     img.dataset.sticker=name
-    img.src=ROOT_URL+"/static/stickies/"+name+".webp";
+    img.src="/static/stickies/"+name+".webp";
     if (name == "404") {
       let link = document.createElement("a");
       link.appendChild(img);
