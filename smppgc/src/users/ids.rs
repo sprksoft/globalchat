@@ -2,6 +2,39 @@ use std::{fmt::Display, ops::Deref};
 
 use uuid::Uuid;
 
+#[derive(Debug, Eq, PartialEq, PartialOrd, Ord, Hash, Clone)]
+pub struct SmId(String);
+
+#[derive(Debug, Eq, PartialEq, Hash, Clone)]
+pub struct SesId(Uuid);
+
+impl SesId {
+    pub fn new() -> Self {
+        Self(Uuid::new_v4())
+    }
+    pub fn parse_str(string: &str) -> Option<Self> {
+        if string.len() != 32 {
+            return None;
+        }
+        let uuid = Uuid::parse_str(&string).ok()?;
+        Some(Self(uuid))
+    }
+    pub fn inner(&self) -> Uuid {
+        self.0
+    }
+}
+impl Deref for SesId {
+    type Target = Uuid;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl Display for SesId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.as_simple().fmt(f)
+    }
+}
+
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct UserSid(Uuid);
 

@@ -9,7 +9,6 @@ let disclaimerCountdown = 15;
 function checkEnable() {
   if (disclaimerInterval)
     clearInterval(disclaimerInterval);
-  checkbox.checked = false;
   checkbox.disabled = false;
   countdownTextEl.innerText="Ga akkoord met de regels om op global chat te kunnen chatten.";
 }
@@ -24,6 +23,7 @@ if (ENABLE_CHECK) {
   checkbox.checked = true;
   smLoginBtn.disabled = false;
 } else {
+  checkbox.disabled = true;
   smLoginBtn.disabled = true;
   checkbox.checked = false;
   updateCountdown(disclaimerCountdown);

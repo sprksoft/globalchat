@@ -1,11 +1,15 @@
+mod ids;
 mod names;
-mod userid;
+mod session;
 mod userinfo;
+pub use ids::*;
 pub use names::*;
 use rocket::fairing::AdHoc;
-pub use userid::*;
+pub use session::*;
 pub use userinfo::*;
 
 pub fn stage() -> AdHoc {
-    names::stage()
+    AdHoc::on_ignite("users", |r| async {
+        r.attach(names::stage()).attach(session::stage())
+    })
 }

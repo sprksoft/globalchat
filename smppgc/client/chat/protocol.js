@@ -1,4 +1,4 @@
-import * as utils from './../utils.js';
+import { log } from './../common/utils.js';
 import { Message } from './mesg.js';
 
 
@@ -119,7 +119,7 @@ export class SocketMgr {
     this.users={};
   }
   #on_packet(packetId, reader) {
-    //utils.log("Got packet "+packetId);
+    //log("Got packet "+packetId);
     if (packetId >= 0 && packetId < 4) { // Message packet
       let mod_badge = (packetId >> 1) & 0b0000_0001;
       let contains_prof = packetId & 0b0000_0001;
@@ -138,7 +138,7 @@ export class SocketMgr {
       case PACKET_SETUP:
         this.on_join();
         let version = reader.getUint16(0);
-        utils.log("Protocol version: "+version+ " My version: "+VERSION_INT);
+        log("Protocol version: "+version+ " My version: "+VERSION_INT);
         handle_version_check(version, VERSION_INT);
 
         this.local_id = reader.getUint16();
@@ -147,13 +147,13 @@ export class SocketMgr {
         this.local_key = reader.getString(0, KEY_LENGTH);
         this.on_keychange(this.local_key);
 
-        utils.log("Setup packet "+this.local_id+" "+this.local_key);
+        log("Setup packet "+this.local_id+" "+this.local_key);
         break;
 
       case PACKET_USERJOIN:
         let id = reader.getUint16(0);
         let username = reader.getString(0)
-        utils.log("user join: "+username+" ("+id+")");
+        log("user join: "+username+" ("+id+")");
         this.users[id] = username;
         break;
 
@@ -201,7 +201,7 @@ export class SocketMgr {
       query+="&mod_badge=true";
     }
     let fullurl = WEBSOCKET_URL+"?"+query;
-    utils.log("creating socket: "+fullurl);
+    log("creating socket: "+fullurl);
     this.ws = new WebSocket(fullurl);
     this.ws.binaryType = "arraybuffer";
 

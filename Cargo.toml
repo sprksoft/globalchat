@@ -5,3 +5,8 @@ members= ["smppgc", "lmetrics", "string_tree", "profanity"]
 [workspace.package]
 authors=["ldev <ldev@ldev.eu.org>"]
 edition = "2021"
+
+[workspace.metadata.cross.target.armv7-unknown-linux-musleabihf]
+pre-build = [
+  "apk add openssl-dev"
+]

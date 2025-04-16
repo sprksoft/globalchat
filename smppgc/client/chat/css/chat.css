@@ -1,3 +1,7 @@
+html {
+  --logo-animation-delay: 0.2s;
+}
+
 main {
   flex-grow:100;
   display:flex;

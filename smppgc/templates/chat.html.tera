@@ -7,26 +7,13 @@
 {{theme_css}}
 </style>
 
-<link rel="stylesheet" href="{{ url(path="/static/v1.css") }}" />
+<link rel="stylesheet" href="{{ url(path="/static/chat.css") }}" />
 {% endblock head %}
 
 {% block content %}
 
 <dialog id="login">
-  <div id="disclaimer" data-disclaimer-ver="0">
-    <div class="logo">
-      {% include "svg/gclogo" %}
-    </div>
-
-    {% include "disclaimer" %}
-    <div class="layered-section">
-      <label for="disclaimer-check">
-        <input id="disclaimer-check" type="checkbox" disabled>
-        Ik heb alles gelezen en ga er mee akkoord</label>
-      <p id="disclaimer-countdown-text">Je kunt accepteren binnen <time id="disclaimer-countdown"></time></p>
-    </div>
-  </div>
-  <a href="#" class="center-link" style="margin-top:1em" target="_blank">Open global chat in een nieuwe tab</a>
+  {% include "logo_header" %}
   {% if is_mod %}
   <label for="show-mod-badge"><input id="show-mod-badge" type="checkbox"> Moderator badge</label>
   {% endif %}
@@ -98,9 +85,9 @@
     protocol =  "wss://"
   }
   const VERSION_INT = {{ version_int() }}
-  const WEBSOCKET_URL=protocol+location.host+ROOT_URL+"/socket/v1";
+  const WEBSOCKET_URL=protocol+location.host+"/socket/chat";
   const MAX_MESSAGE_LEN="{{max_message_len}}";
   const MIN_MESSAGE_LEN="{{min_message_len}}";
 </script>
-<script defer type="text/javascript" src="{{ url(path="/static/v1.js") }}"></script>
+<script defer type="text/javascript" src="{{ url(path="/static/chat.js") }}"></script>
 {% endblock scripts %}

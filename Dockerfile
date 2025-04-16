@@ -1,4 +1,4 @@
-ARG ESBUILD_CMD="esbuild --bundle --minify --sourcemap --outdir=/app/www/ /client/v1.js /client/admin.js /client/landing.js"
+ARG ESBUILD_CMD="esbuild --bundle --minify --sourcemap --outdir=/app/www/ /client/chat.js /client/admin.js /client/index.js"
 ARG BINARY_SOURCE="builder"
 
 FROM rust:alpine AS builder

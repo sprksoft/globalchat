@@ -1,12 +1,18 @@
+html {
+  --logo-animation-delay: 0s;
+}
 
 main {
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 700px;
+  display: flex;
+  flex-direction: column;
+
   padding: 1rem;
 }
 
 #disclaimer {
-  margin-left: auto;
-  margin-right: auto;
-  max-width: 700px;
   display: flex;
   flex-direction: column;
 }
@@ -15,32 +21,25 @@ main {
   text-align: center;
 }
 
-.logo {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.logo svg {
-  max-width: 800px;
-  margin: 2rem;
-  color: var(--color-accent);
-}
-
 #sm-login-btn {
+  align-self: center;
+
   font-size: 1rem;
   font-weight: bold;
   font-family: inherit;
   color: #ffffffff;
   background: linear-gradient(#ff760e, #f20900, #f20900);
-  border-radius: var(--border-radius);
+  border-radius: 1000px;
+  border: none;
 
   margin: 2rem 0rem 1rem 0rem;
-  padding: 1rem;
+  padding: 1rem 3rem 1rem 3rem;
   transition: transform 0.3s;
+
+  cursor: pointer;
 }
 #sm-login-btn:not(:disabled):hover {
- transform: scaleX(1.05) scaleY(0.95);
+ transform: scaleX(1.1) scaleY(1);
 }
 
 #sm-login-btn:disabled {

@@ -5,7 +5,6 @@ use profanity::ProfanityFilter;
 use rocket::fairing::AdHoc;
 use rocket::serde::{Deserialize, Serialize};
 use thiserror::Error;
-use uuid::Uuid;
 
 mod rules;
 pub use rules::*;

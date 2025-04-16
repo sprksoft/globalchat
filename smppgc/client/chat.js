@@ -1,14 +1,15 @@
-import * as proto from './protocol.js';
-import * as utils from './../utils.js';
-import * as mk from './mkels.js';
-import * as general from './../general.js';
-import * as sflake from './snowflake.js';
-import { Message, createMessage } from './mesg.js';
+import * as utils from './common/utils.js';
+import * as common from './common/common.js';
+import * as proto from './chat/protocol.js';
+import * as mk from './chat/mkels.js';
+import * as sflake from './chat/snowflake.js';
+import { Message, createMessage } from './chat/mesg.js';
 
-import './../general.css'
-import './../buttons.css'
-import './css/chat.css'
-import './css/login_popup.css'
+import './common/common.css'
+import './common/buttons.css'
+import './common/logo.css'
+import './chat/css/chat.css'
+import './chat/css/login_popup.css'
 
 const mesgs = document.getElementById("mesgs");
 const sendinput = document.getElementById("send-input");
