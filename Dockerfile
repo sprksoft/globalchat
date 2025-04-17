@@ -2,7 +2,7 @@ ARG ESBUILD_CMD="esbuild --bundle --minify --sourcemap --outdir=/app/www/ /clien
 ARG BINARY_SOURCE="builder"
 
 FROM rust:alpine AS builder
-  RUN apk update && apk add esbuild openssl musl-dev
+  RUN apk update && apk add esbuild pkgconf openssl-dev openssl-libs-static musl-dev
 
   ENV SQLX_OFFLINE=true
   ENV RUSTUP_TOOLCHAIN=stable
