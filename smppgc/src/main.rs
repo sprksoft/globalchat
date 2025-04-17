@@ -8,6 +8,7 @@ use utils::static_routing;
 
 mod auth;
 mod chat;
+mod db;
 mod disclaimer;
 mod oauth;
 mod pages;
@@ -69,6 +70,7 @@ fn rocket() -> _ {
     rocket::build()
         .mount("/", routes![server_version])
         .mount("/metrics", metrics)
+        .attach(db::stage())
         .attach(AdHoc::config::<MessageConfig>())
         .attach(ratelimit::stage())
         .attach(static_routing::stage())

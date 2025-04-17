@@ -1,15 +1,20 @@
-use std::{fmt::Display, ops::Deref};
+use std::{convert::Infallible, fmt::Display, ops::Deref, sync::Arc};
 
 use uuid::Uuid;
 
 #[derive(Debug, Eq, PartialEq, PartialOrd, Ord, Hash, Clone)]
-pub struct SmId(String);
+pub struct SmId(Arc<str>);
+impl SmId {
+    pub fn from_string(str: String) -> Self {
+        Self(str.into())
+    }
+}
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct SesId(Uuid);
 
 impl SesId {
-    pub fn new() -> Self {
+    pub(super) fn new() -> Self {
         Self(Uuid::new_v4())
     }
     pub fn parse_str(string: &str) -> Option<Self> {
@@ -35,6 +40,7 @@ impl Display for SesId {
     }
 }
 
+#[deprecated(note = "Use smids now")]
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct UserSid(Uuid);
 

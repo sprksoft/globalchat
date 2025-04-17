@@ -1,5 +1,6 @@
 mod ids;
 mod names;
+pub mod role;
 mod session;
 mod userinfo;
 pub use ids::*;

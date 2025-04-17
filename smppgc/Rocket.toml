@@ -34,12 +34,12 @@ new_user_ip_rate={timeframe=120, amount=50} # 2 minuten
 
 [default.oauth]
 debug=true
-redirect_uri="/oauthlogin?code=oauthdebug"
+redirect_uri="/oauth/return?code=oauthdebug"
 client_id="debug"
 client_secret_file="/debug_client_secret"
 
 [default.databases.sqlx]
-url="postgres://smpp:smpppasswd@db/smpp"
+url="postgres://postgres:smpppasswd@db/postgres"
 
 
 [debug]
@@ -51,4 +51,8 @@ debug=false
 root_url="/smpp/gc"
 log_level = "critical"
 
+[release.oauth]
+debug=false
 
+[release.databases.sqlx]
+url="postgres://smpp:smpppasswd@db/smpp"

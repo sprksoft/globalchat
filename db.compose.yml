@@ -1,0 +1,13 @@
+services:
+  db:
+    image: postgres
+    user: postgres
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_PASSWORD=smpppasswd
+    ports:
+      - 5432:5432
+
+volumes:
+  db-data:

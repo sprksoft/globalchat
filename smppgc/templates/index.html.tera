@@ -23,7 +23,7 @@
         <p id="disclaimer-countdown-text">Je kunt accepteren binnen <time id="disclaimer-countdown"></time></p>
       </div>
     </div>
-    <button id="sm-login-btn" onclick="location.href='{{ oauth_url }}'">Aanmelden met Samrtshlatrookoolschol</button>
+    <button id="sm-login-btn" onclick="location.href='/oauth/start?ret=chat'">Aanmelden met Samrtshlatrookoolschol</button>
   </main>
 </div>
 
