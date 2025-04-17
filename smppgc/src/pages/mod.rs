@@ -2,7 +2,7 @@ use rocket::{
     fairing::AdHoc,
     get,
     http::{Cookie, CookieJar, SameSite},
-    response::{Redirect, Responder},
+    response::{self, Redirect, Responder},
     routes,
     time::{Duration, OffsetDateTime},
     State,
@@ -10,7 +10,7 @@ use rocket::{
 use rocket_dyn_templates::{context, tera, Template};
 
 use crate::{
-    auth::GcMod, disclaimer::DisclaimerVer, oauth::OAuth, themes::Theme, users::UserConfig,
+    auth::GcMod, disclaimer::DisclaimerVer, themes::Theme, users::UserConfig,
     utils::CSPFrameAncestors, MessageConfig,
 };
 
@@ -26,20 +26,21 @@ enum GcPageResponder {
     Redirect(Redirect),
 }
 
-#[get("/")]
+#[get("/?<ret>")]
 fn index(
     theme: Theme,
-    oauth: &State<OAuth>,
+    ret: Option<&str>,
+    cookiejar: &CookieJar<'_>,
     accepted_disclaimer: DisclaimerVer,
 ) -> GcPageResponder {
     GcPageResponder::Ok {
         inner: Template::render(
             "index",
             context! {
-            theme_css:theme.css(),
-            accepted_disclaimer:accepted_disclaimer,
-            disclaimer_ver:DisclaimerVer::LATEST,
-            oauth_url:oauth.get_auth_url()},
+                theme_css:theme.css(),
+                accepted_disclaimer:accepted_disclaimer,
+                disclaimer_ver:DisclaimerVer::LATEST
+            },
         ),
         csp: CSPFrameAncestors::SMARTSCHOOL_PLAT,
     }

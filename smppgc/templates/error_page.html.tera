@@ -1,0 +1,29 @@
+{% extends "base" %}
+
+<!-- vim: set ft=html: -->
+
+{% block head %}
+<style type="text/css">
+{{theme_css}}
+</style>
+
+<link rel="stylesheet" href="{{ url(path="/static/index.css") }}" />
+{% endblock head %}
+
+{% block content %}
+<div class="view">
+  <main>
+    {% include "logo_header" %}
+    <h1>Oei!</h1>
+    <p>Er is iets mis gelopen</p>
+    <a href="/">Ga terug naar inlog pagina</a>
+    <code>
+      {{ error }}
+    </code>
+  </main>
+</div>
+
+{% endblock content %}
+
+{% block scripts %}
+{% endblock scripts %}
