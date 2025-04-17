@@ -34,7 +34,7 @@ new_user_ip_rate={timeframe=120, amount=50} # 2 minuten
 
 [default.oauth]
 debug=true
-redirect_uri="/oauth/return?code=oauthdebug"
+redirect_uri="http://localhost/oauth/return?code=oauthdebug"
 client_id="debug"
 client_secret_file="/debug_client_secret"
 

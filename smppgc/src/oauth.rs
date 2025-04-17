@@ -56,9 +56,13 @@ impl OAuth {
     pub const STATE_COOKIE_NAME: &'static str = "oauth_state";
 
     pub fn get_auth_url(&self, ret: &str) -> Result<(Url, String), OAuthError> {
-        ret.chars()
+        if ret
+            .chars()
             .find(|char| !char.is_ascii_alphanumeric())
-            .ok_or(OAuthError::InvalidCharsInRet)?;
+            .is_some()
+        {
+            return Err(OAuthError::InvalidCharsInRet);
+        }
         let state = format!("{}+ret:{}", Uuid::new_v4().as_simple(), ret);
 
         let config = &self.config;
@@ -88,6 +92,10 @@ impl OAuth {
         client: &reqwest::Client,
         code: &str,
     ) -> Result<String, OAuthError> {
+        if self.config.debug {
+            return Ok("debug_access_token".to_string());
+        }
+
         let url = Url::parse_with_params(
             "https://oauth.smartschool.be/OAuth/index/token",
             &[
@@ -107,6 +115,9 @@ impl OAuth {
         client: &reqwest::Client,
         access_token: &str,
     ) -> Result<SmUserInfo, OAuthError> {
+        if self.config.debug {
+            return Ok(SmUserInfo { user_id: "debug_sm_user_id" name: "Jan", surname: "Jansens" })
+        }
         let res = client
             .get(Url::parse_with_params(
                 "https://oauth.smartschool.be/Api/V1/userinfo",
