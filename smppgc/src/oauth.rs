@@ -116,7 +116,9 @@ impl OAuth {
         access_token: &str,
     ) -> Result<SmUserInfo, OAuthError> {
         if self.config.debug {
-            return Ok(SmUserInfo { user_id: "debug_sm_user_id" name: "Jan", surname: "Jansens" })
+            let mut debug_smid =Uuid::new_v4().as_simple().to_string();
+            debug_smid.push_str("_debugsmid");
+            return Ok(SmUserInfo { user_id: debug_smid name: "Jan", surname: "Jansens" })
         }
         let res = client
             .get(Url::parse_with_params(
