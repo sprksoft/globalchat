@@ -12,8 +12,8 @@ use crate::{
     auth::GcMod,
     chat::{Chat, MessageChange, MessageChangeType, NewClientError},
     ratelimit::RateLimitIpPenalty,
-    ratelimit::{MesgIpRateLimiters, MesgRateLimiters, NewUserIpRateLimiters},
-    users::{UserConfig, UserSid, UsernameManager},
+    ratelimit::{MesgIpRateLimiters, MesgRateLimiters},
+    users::{SesId, Session, SessionMgr, UserConfig, UserSid, UsernameManager},
     utils::IpCountry,
     wsprotocol::{KickReason, WsClient},
     MessageConfig, Snowflake,
@@ -37,13 +37,10 @@ impl<'a> ChatSocketResponder<'a> {
 metrics! {
     pub counter messages_total("Total count of sent messages");
     pub counter messages_blocked("Total count of blocked messages", [reason]);
-    pub counter blocked_newusers("Total amount of blocked new user creation requests");
-    pub counter new_users("Total count of new sid's being generated");
 }
 
-#[get("/socket/chat?<key>&<username>&<start_time>&<mod_badge>")]
+#[get("/socket/chat?<username>&<start_time>&<mod_badge>")]
 pub async fn chat_socket<'a>(
-    key: Option<&str>,
     username: &str,
     start_time: Option<Snowflake>,
     mod_badge: Option<bool>,
@@ -53,13 +50,14 @@ pub async fn chat_socket<'a>(
     ip_limits: &State<RateLimitIpPenalty>,
     mesg_ratelimiters: &'a State<MesgRateLimiters>,
     ip_ratelimiters: &'a State<MesgIpRateLimiters>,
-    user_ratelimiting: &State<NewUserIpRateLimiters>,
     prof_filter: &'a State<RwLock<ProfanityFilter>>,
     chat: &'a State<Chat>,
     usrnamemgr: &State<UsernameManager>,
     mut shutdown: Shutdown,
     addr: IpAddr,
     country: IpCountry,
+    ses_id: Option<SesId>,
+    session_mgr: &'a State<SessionMgr>,
     gcmod: Option<GcMod>,
 ) -> ChatSocketResponder<'a> {
     if !ip_ratelimiters.0.update(addr, 0) {
@@ -72,19 +70,17 @@ pub async fn chat_socket<'a>(
     } else {
         ip_limits.not_be_penalty
     };
+
+    let Some(ses_id) = ses_id else {
+        return ChatSocketResponder::ws_close(ws, KickReason::NoSession);
+    };
+    let Some(session_lock) = session_mgr.chat_lock_session(ses_id) else {
+        return ChatSocketResponder::ws_close(ws, KickReason::AlreadyInChat);
+    };
+
+    //TODO: Fix this: workaround because not all code is written yet
+    let sid = UserSid::from_smid(session_lock.user_info.smid.clone());
     let start_time = start_time.unwrap_or(Snowflake::ZERO);
-    let (new_user, sid) = key
-        .map(|sid| UserSid::parse_str(sid))
-        .flatten()
-        .map(|sid| (false, sid))
-        .unwrap_or_else(|| (true, UserSid::new()));
-    if new_user {
-        if !user_ratelimiting.0.update(addr, ip_penalty_multiplier) {
-            blocked_newusers::inc();
-            return ChatSocketResponder::ws_close(ws, KickReason::TooManyUsers);
-        }
-        new_users::inc();
-    }
 
     let name_lease = match usrnamemgr
         .claim_name(
@@ -107,16 +103,21 @@ pub async fn chat_socket<'a>(
         Err(e) => {
             info!("Closing connection: {:?}", e);
             match e {
+                NewClientError::AlreadyInChat => {
+                    return ChatSocketResponder::ws_close(ws, KickReason::AlreadyInChat)
+                }
                 NewClientError::MaxConcurrentUserCount => {
                     return ChatSocketResponder::ws_close(ws, KickReason::ChatFull)
                 }
             }
         }
     };
+
     let mesg_limits = mesg_limits.inner().clone();
     ChatSocketResponder::Channel(ws.channel(move |stream| {
         Box::pin(async move {
             let chat_hist = chat.history(start_time, gcmod.is_some()).await;
+
             let mut wsclient = WsClient::new(
                 stream,
                 chat_client.user_info(),
@@ -130,6 +131,7 @@ pub async fn chat_socket<'a>(
             loop {
                 tokio::select! {
                     _ = &mut shutdown => {
+                        drop(session_lock);
                         return wsclient.kick(KickReason::ServerShutdown).await;
                     }
                     mesg = wsclient.try_recv() => {

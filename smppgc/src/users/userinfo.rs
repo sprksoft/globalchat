@@ -1,6 +1,8 @@
-use std::sync::Arc;
+use std::{sync::Arc, time::SystemTime};
 
 use crate::users::UserSid;
+
+use super::{role::Role, SmId};
 
 #[derive(Clone, Debug, Hash)]
 pub struct UserInfo {
@@ -28,5 +30,18 @@ impl PartialEq for UserInfo {
     }
     fn ne(&self, other: &Self) -> bool {
         other.id != self.id
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct UserInfo2 {
+    pub role: Role,
+    pub smid: SmId,
+    pub irl_name: Box<str>,
+    pub ban_end_timestamp: SystemTime,
+}
+impl UserInfo2 {
+    pub fn is_banned(&self, now: SystemTime) -> bool {
+        now.duration_since(self.ban_end_timestamp).is_ok()
     }
 }

@@ -19,7 +19,7 @@
   {% endif %}
   <span id="err-mesg" class="err"></span>
   <div class="container">
-    <input autofocus maxlength="{{max_username_len}}" id="name-input" type="text" placeholder="({{placeholder}})" data-default_username="{{placeholder}}">
+    <input autofocus maxlength="{{max_username_len}}" id="name-input" type="text" placeholder="({{ irl_name }})" data-default_username="{{ irl_name }}">
     <button id="connectbtn" class="button">
       {% include "svg/arrow_r" %}
     </button>

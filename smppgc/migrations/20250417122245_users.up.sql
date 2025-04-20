@@ -3,6 +3,7 @@
 CREATE TABLE users (
   id SERIAL PRIMARY KEY,
   smid VARCHAR NOT NULL UNIQUE,
+  irl_name VARCHAR NOT NULL,
   role INTEGER NOT NULL DEFAULT 0,
   ban_release_timestamp INTEGER NOT NULL DEFAULT 0 -- NULL means not banned
 );

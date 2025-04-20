@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "INSERT INTO users (smid) VALUES ($1) ON CONFLICT DO NOTHING RETURNING *;",
+  "query": "INSERT INTO users (smid, irl_name) VALUES ($1, $2) ON CONFLICT (smid) DO UPDATE SET irl_name = $2 RETURNING *;",
   "describe": {
     "columns": [
       {
@@ -15,17 +15,23 @@
       },
       {
         "ordinal": 2,
+        "name": "irl_name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
         "name": "role",
         "type_info": "Int4"
       },
       {
-        "ordinal": 3,
+        "ordinal": 4,
         "name": "ban_release_timestamp",
         "type_info": "Int4"
       }
     ],
     "parameters": {
       "Left": [
+        "Varchar",
         "Varchar"
       ]
     },
@@ -33,8 +39,9 @@
       false,
       false,
       false,
+      false,
       false
     ]
   },
-  "hash": "16418e6819598990c643286fe5502892275c43d7b9a3a8077314725ada15bb53"
+  "hash": "eaf8254428e5489185ea237c23ac06ef220db8ea831f3168ba639c99a7ba7996"
 }

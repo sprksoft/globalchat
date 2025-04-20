@@ -123,13 +123,13 @@ socketmgr.on_leave = (code, protoerr, user_wants_leave) => {
 
   error = proto.human_err(protoerr);
   time = 1000;
-  if (user_wants_leave || code == 1000){ // Normal Closure or the user wants to leave
+  if (user_wants_leave || code == 1000) { // Normal Closure or the user wants to leave
     error="";
-  }else if (protoerr == "err_ratelimit"){
+  } else if (protoerr == "err_ratelimit") {
     time=5000;
-  }else if (code == 1006 && protoerr == ""){
+  } else if (code == 1006 && protoerr == "") {
       let now = Date.now();
-      if (last_retry == 0 || now-last_retry > 10_000){ // join again if we should retry
+      if (last_retry == 0 || now-last_retry > 10_000) { // join again if we should retry
         last_retry = now;
         connect(true, last_message_snowflake);
         return;
@@ -145,6 +145,12 @@ socketmgr.on_leave = (code, protoerr, user_wants_leave) => {
   profanityCoolDown = 0;
   clearInterval(profanityCoolDownInterval);
   profaneMessageDialog.close();
+
+  console.log("Got no session error. Redirecting to start page...");
+  if (protoerr == "err_no_session") {
+    location = "/";
+  }
+
 }
 
 socketmgr.on_keychange = (key) => {

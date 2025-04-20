@@ -64,8 +64,9 @@ kick_reason! {
     pub KickReason{
         Hard(Policy,""),
         Cmd(Abnormal,"err_cmd"),
+        NoSession(Policy, "err_no_session"),
+        AlreadyInChat(Policy, "err_already_in_chat"),
         IpRateLimit(Policy, "err_ipratelimit"),
-        TooManyUsers(Policy, "err_toomanyusers"),
         RateLimit(Policy,"err_ratelimit"),
         ServerShutdown(Away,"err_shutdown"),
         ChatFull(Again,"err_full"),

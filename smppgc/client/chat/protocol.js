@@ -18,10 +18,11 @@ const ERRORS = {
   "err_cmd": "Je bent gekicked door een admin.",
   "err_ratelimit":"Te veel berichten. Typ langzamer.\nJe kunt terug joinen binnen een paar seconden",
   "err_ipratelimit":"Er zijn spammers met het zelfde ip als jou.",
-  "err_toomanyusers": "Er worden op dit moment te veel nieuwe gebruikers gemaakt. Dit komt waarschijnlijk door spammers.",
   "err_505": "Stop and wait a sec when you look at me like that my darling what do you expect. In my imagination you're waiting lying on your side with your hands between your theights.",
   "err_full": "De chat zit vol.",
-  "err_shutdown": "Globalchat gaat even offline. Sorry voor het ongemak",
+  "err_shutdown": "Globalchat gaat even offline. Sorry voor het ongemak.",
+  "err_already_in_chat": "Je bent al in de chat op een anderen tab of een ander aparaat.",
+  "err_no_session": "Je bent nog niet gelinked met smartschool. Ga terug naar de start pagina.",
 
   "err_username_invalid":"Gebruikersnaam bevat ongeldige letters.",
   "err_username_length":"Gebruikersnaam is te kort of te lang.",

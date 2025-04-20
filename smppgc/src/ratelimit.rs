@@ -5,7 +5,6 @@ use dashmap::DashMap;
 use log::*;
 use rocket::{fairing::AdHoc, serde::Deserialize};
 
-pub struct NewUserIpRateLimiters(pub RateLimiters<IpAddr>);
 pub struct MesgIpRateLimiters(pub RateLimiters<IpAddr>);
 pub struct MesgRateLimiters(pub RateLimiters<UserSid>);
 
@@ -102,6 +101,5 @@ pub fn stage() -> AdHoc {
         r.attach(AdHoc::config::<RateLimitIpPenalty>())
             .manage(MesgRateLimiters(RateLimiters::new(mesg_rate)))
             .manage(MesgIpRateLimiters(RateLimiters::new(mesg_ip_rate)))
-            .manage(NewUserIpRateLimiters(RateLimiters::new(new_user_ip_rate)))
     })
 }

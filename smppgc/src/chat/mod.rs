@@ -12,7 +12,7 @@ mod message;
 pub use message::*;
 
 use crate::{
-    users::{ClaimedName, UserInfo, UserSid},
+    users::{ClaimedName, SmId, UserInfo, UserSid},
     utils::IdCounter,
     ChatConfig, Snowflake, SnowflakeGenerator,
 };
@@ -29,6 +29,8 @@ metrics! {
 pub enum NewClientError {
     #[error("Max concurrent user count reached")]
     MaxConcurrentUserCount,
+    #[error("User already in chat")]
+    AlreadyInChat,
 }
 
 struct ChatUserInfo {
@@ -174,6 +176,16 @@ impl Chat {
         }
 
         let id = self.client_ids.new_id();
+
+        let mut user_lock = self.users.lock().await;
+        if user_lock
+            .iter()
+            .find(|(_, u)| !u.ghost && static_id == u.user_info.static_id())
+            .is_some()
+        {
+            return Err(NewClientError::AlreadyInChat);
+        }
+
         let user_info = UserInfo {
             mod_badge,
             username: leased_name.into(),
@@ -192,7 +204,7 @@ impl Chat {
 
         let _ = self.join_sender.send(client.user_info()); // throws error when no receivers
 
-        self.users.lock().await.insert(
+        user_lock.insert(
             id,
             ChatUserInfo {
                 message_count: 0,
@@ -241,8 +253,9 @@ impl Chat {
     pub async fn delete_message(&self, snowflake: Snowflake) {
         let mut lock = self.history.lock().await;
         let mut new_messages = CircularQueue::with_capacity(lock.capacity());
+
         // TODO: When my pullrequest gets released on circular_queue use into Vec<T>
-        for mesg in lock.iter().cloned() {
+        for mesg in lock.asc_iter().cloned() {
             if mesg.id() == snowflake {
                 let _ = self.message_change_sender.send(MessageChange {
                     message_id: snowflake,

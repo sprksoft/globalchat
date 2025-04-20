@@ -36,9 +36,6 @@ services:
           path: smppgc/templates
           target: /app/templates
 
-        - action: rebuild
-          path: smppgc/src
-
 volumes:
   db-data:
   proffilter:
