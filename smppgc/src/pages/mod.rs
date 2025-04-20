@@ -1,3 +1,5 @@
+use std::time::SystemTime;
+
 use rocket::{
     fairing::AdHoc,
     get,
@@ -10,8 +12,12 @@ use rocket::{
 use rocket_dyn_templates::{context, tera, Template};
 
 use crate::{
-    auth::GcMod, disclaimer::DisclaimerVer, themes::Theme, users::UserConfig,
-    utils::CSPFrameAncestors, MessageConfig,
+    auth::GcMod,
+    disclaimer::DisclaimerVer,
+    themes::Theme,
+    users::{Session, UserConfig},
+    utils::CSPFrameAncestors,
+    MessageConfig,
 };
 
 mod admin;
@@ -49,9 +55,9 @@ fn index(
 #[get("/chat")]
 fn chat(
     theme: Theme,
+    session: Session,
     message_config: &State<MessageConfig>,
     user_config: &State<UserConfig>,
-    gcmod: Option<GcMod>,
     cookiejar: &CookieJar<'_>,
 ) -> GcPageResponder {
     let theme_string = serde_json::to_string(&theme).expect("Failed to convert theme to json");
@@ -61,20 +67,25 @@ fn chat(
             .expires(OffsetDateTime::now_utc() + Duration::hours(100_000)),
     );
 
-    let fullname = "";
+    let user_info = session.user_info;
 
     GcPageResponder::Ok {
         inner: Template::render(
             "chat",
             context! (theme_css:theme.css(),
-            placeholder:fullname,
-            is_mod: gcmod.is_some(),
+            irl_name: &user_info.irl_name,
+            is_mod: user_info.role.has_mod(),
             max_username_len: user_config.max_username_len,
             max_message_len: message_config.max_message_len,
             min_message_len: message_config.min_message_len),
         ),
         csp: CSPFrameAncestors::SMARTSCHOOL_PLAT,
     }
+}
+
+#[get("/chat", rank = 0)]
+fn chat_noses() -> Redirect {
+    Redirect::to("/")
 }
 
 struct UrlFunction;
@@ -110,7 +121,7 @@ impl tera::Function for VersionIntFunction {
 
 pub fn stage() -> AdHoc {
     AdHoc::on_ignite("templates", |r| async {
-        r.mount("/", routes![index, chat])
+        r.mount("/", routes![index, chat, chat_noses])
             .attach(admin::stage())
             .attach(Template::custom(move |engines| {
                 let tera = &mut engines.tera;

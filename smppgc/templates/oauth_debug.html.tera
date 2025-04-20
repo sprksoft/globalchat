@@ -1,0 +1,37 @@
+{% extends "base" %}
+
+<!-- vim: set ft=html: -->
+
+{% block head %}
+<style type="text/css">
+{{theme_css}}
+</style>
+
+<link rel="stylesheet" href="{{ url(path="/static/index.css") }}" />
+{% endblock head %}
+
+{% block content %}
+<div class="view">
+  <main>
+    {% include "logo_header" %}
+    <h1>Oauth debug</h1>
+    <p>Oauth debugging (werkt niet in release mode dus nee je kunt hier niets mee doen)</p>
+    <form method="POST">
+      <label>smid:</label>
+      <input type="text" name="user_id"><br>
+
+      <label>voornaam:</label>
+      <input type="text" name="name"><br>
+
+      <label>achternaam:</label>
+      <input type="text" name="surname"><br>
+
+      <button type="submit">Continue flow</button>
+    </form>
+  </main>
+</div>
+
+{% endblock content %}
+
+{% block scripts %}
+{% endblock scripts %}

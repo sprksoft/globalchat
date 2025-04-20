@@ -1,4 +1,4 @@
-const STICKERS=["birb", "smpp", "smppoud", "smpplite", "gc", "fire", "404", "arch", "tux", "ferris", "gopher"]; // avail stickers (used to prevent unneeded 404s to the server)
+const STICKERS=["nightmarebirb", "smpp", "smppoud", "smpplite", "gc", "fire", "404", "arch", "tux", "ferris", "gopher"]; // avail stickers (used to prevent unneeded 404s to the server)
 
 export function mkProfHighlighted(message, start, end, parent_el) {
   let span = document.createElement("span");
@@ -94,13 +94,13 @@ export function mkcontent(message, highlight, parent_el) {
     const matches = message.matchAll(findStickerRegex);
     let last_index = 0;
     for (const match of matches) {
-      let skip=false;
       mkspan(message.substring(last_index, match.index), parent_el);
 
+      last_index = match.index;
       let name = match[0].substring(1, match[0].length-1);
       if (STICKERS.includes(name)) {
         mksticker(name, parent_el);
-        last_index = match.index+match[0].length;
+        last_index += match[0].length;
       }
     }
     mkspan(message.substring(last_index), parent_el);

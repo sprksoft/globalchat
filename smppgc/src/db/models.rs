@@ -8,5 +8,6 @@ pub struct User {
     pub id: i32,
     pub smid: String,
     pub role: i32,
+    pub irl_name: String,
     pub ban_release_timestamp: Option<i32>,
 }
