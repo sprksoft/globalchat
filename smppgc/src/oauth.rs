@@ -21,7 +21,7 @@ use url::Url;
 use uuid::Uuid;
 
 use crate::db::{self, Db, DbResult};
-use crate::themes::Theme;
+use crate::themes::{self, Theme};
 
 metrics!(
     pub counter total_started_oauth_flows("Total count of started oauth flows");
@@ -146,7 +146,17 @@ enum OAuthResponse {
     Redirect(Redirect),
 
     #[response(status = 422)]
-    UnprocessableEntity(&'static str),
+    UnprocessableEntity(Template),
+}
+impl OAuthResponse {
+    pub fn fail_flow(internal: &str) -> Self {
+        let dtheme = themes::DEFAULT_THEME.clone();
+        total_failed_oauth_flows::inc(internal);
+        Self::UnprocessableEntity(Template::render(
+            "error_page",
+            context! {title: "422 Unprocessable Entity", theme_css: dtheme.css(), error: "Oei! Er ging iets mis tijdens het inloggen.", internal: internal},
+        ))
+    }
 }
 
 #[get("/oauth/start?<ret>")]
@@ -160,13 +170,12 @@ fn oauth_start(
     let (mut url, state) = match oauth.get_auth_url(ret) {
         Ok(us) => us,
         Err(OAuthError::InvalidCharsInRet) => {
-            total_failed_oauth_flows::inc("Invalid value for ret parameter");
-            return Ok(OAuthResponse::UnprocessableEntity(
-                "Invalid value for ret parameter",
+            return Ok(OAuthResponse::fail_flow(
+                "Invalid value for ret paramater at oauth start",
             ));
         }
         Err(e) => {
-            total_failed_oauth_flows::inc("Oauth error");
+            total_failed_oauth_flows::inc("get_auth_url: OAuth error");
             return Err(response::Debug(e));
         }
     };
@@ -220,9 +229,7 @@ async fn oauth_return(
         .map(|c| c.value_trimmed() == state)
         .unwrap_or(false)
     {
-        total_failed_oauth_flows::inc("state missmatch");
-        error!("OAuth state mismatch (redirecting user back to landing page)");
-        return Ok(OAuthResponse::Redirect(Redirect::to("/")));
+        return Ok(OAuthResponse::fail_flow("state missmatch"));
     }
 
     let user_info = if oauth.config.debug {
@@ -264,12 +271,9 @@ async fn oauth_return(
     match param {
         Some("ret:admin") => Ok(OAuthResponse::Redirect(Redirect::temporary("/admin"))),
         Some("ret:chat") => Ok(OAuthResponse::Redirect(Redirect::temporary("/chat"))),
-        _ => {
-            total_failed_oauth_flows::inc("Invalid ret in state parameter (redirect endpoint)");
-            Ok(OAuthResponse::UnprocessableEntity(
-                "Invalid ret in state parameter",
-            ))
-        }
+        _ => Ok(OAuthResponse::fail_flow(
+            "Invalid ret in state parameter at redirect endpoint",
+        )),
     }
 }
 

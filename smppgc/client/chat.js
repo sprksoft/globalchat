@@ -10,6 +10,7 @@ import './common/buttons.css'
 import './common/logo.css'
 import './chat/css/chat.css'
 import './chat/css/login_popup.css'
+import './chat/css/stickers.css'
 
 const mesgs = document.getElementById("mesgs");
 const sendinput = document.getElementById("send-input");

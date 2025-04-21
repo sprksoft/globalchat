@@ -1,4 +1,5 @@
-const STICKERS=["nightmarebirb", "smpp", "smppoud", "smpplite", "gc", "fire", "404", "arch", "tux", "ferris", "gopher"]; // avail stickers (used to prevent unneeded 404s to the server)
+const STICKERS=["404","spinny"];
+const IMAGE_STICKERS=["nightmarebirb", "smpp", "smppoud", "smpplite", "gc", "fire", "arch", "tux", "ferris", "gopher", "keith", "slonik", "mobydock", ]; // avail stickers (used to prevent unneeded 404s to the server)
 
 export function mkProfHighlighted(message, start, end, parent_el) {
   let span = document.createElement("span");
@@ -37,10 +38,10 @@ export function mktime(time, parent_el) {
   });
   parent_el.appendChild(time_el);
 }
-export function mkspan(innerText, parent_el){
-    let span = document.createElement("span");
-    span.innerText=innerText;
-    parent_el.appendChild(span);
+export function mkspan(innerText){
+  let span = document.createElement("span");
+  span.innerText=innerText;
+  return span;
 }
 export function mkprofmarkspan(innerText, parent_el) {
   let span = document.createElement("span");
@@ -58,25 +59,37 @@ export function mka(link, parent_el) {
     parent_el.appendChild(a);
 }
 
+export function mkimgsticker(name) {
+  let img = document.createElement("img");
+  if (name == "keith") {
+    img.width=55;
+  } else {
+    img.width=50;
+  }
+  img.src="/static/stickies/"+name+".webp";
+  return img;
+}
+
 export function mksticker(name, parent_el) {
   let el;
-  if (STICKERS.includes(name)) {
-    let img = document.createElement("img");
-    img.width=50;
-    img.dataset.sticker=name
-    img.src="/static/stickies/"+name+".webp";
-    if (name == "404") {
-      let link = document.createElement("a");
-      link.appendChild(img);
-      link.target="_blank";
-      link.classList.add("notfound");
-      link.href="https://www.youtube.com/watch?v=dQw4w9WgXcQ";
-      el = link;
-    }else{
-      el = img;
+  if (IMAGE_STICKERS.includes(name)) {
+    el = mkimgsticker(name);
+  }else if (STICKERS.includes(name)) {
+    switch(name) {
+      case "404":
+        let link = document.createElement("a");
+        link.appendChild(mkimgsticker("404"));
+        link.target="_blank";
+        link.href="https://www.youtube.com/watch?v=dQw4w9WgXcQ";
+        el = link;
+        break;
+      case "spinny":
+        el = mkspan("🔃");
+        break;
     }
   }
-
+  el.classList.add("sticker-"+name);
+  el.dataset.sticker=name;
   if (el) {
     parent_el.appendChild(el);
   }
@@ -90,20 +103,20 @@ export function mkcontent(message, highlight, parent_el) {
     mkprofmarkspan(message.substring(highlight[0], highlight[1]), parent_el)
     mkcontent(message.substring(highlight[1], message.length), null, parent_el);
   } else {
-    const findStickerRegex = /:[a-z0-9_-]{1,10}:/g;
+    const findStickerRegex = /:[a-z0-9_-]{1,15}:/g;
     const matches = message.matchAll(findStickerRegex);
     let last_index = 0;
     for (const match of matches) {
-      mkspan(message.substring(last_index, match.index), parent_el);
+      parent_el.appendChild(mkspan(message.substring(last_index, match.index)));
 
       last_index = match.index;
       let name = match[0].substring(1, match[0].length-1);
-      if (STICKERS.includes(name)) {
+      if (IMAGE_STICKERS.includes(name) || STICKERS.includes(name)) {
         mksticker(name, parent_el);
         last_index += match[0].length;
       }
     }
-    mkspan(message.substring(last_index), parent_el);
+    parent_el.appendChild(mkspan(message.substring(last_index)));
   }
 }
 
