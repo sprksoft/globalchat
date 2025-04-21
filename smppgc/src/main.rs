@@ -70,7 +70,7 @@ fn internal_server_error() -> ErrorResponder {
     ErrorResponder {
         inner: Template::render(
             "error_page",
-            context! { title: "500 Internal Server Error", error: "Oei! Er ging iets mis.", theme_css: theme.css()},
+            context! { title: "500 Internal Server Error", error: "Oei! Er ging iets mis.", theme_css: theme.css(), internal:"500",},
         ),
         csp: CSPFrameAncestors::SMARTSCHOOL_PLAT,
     }

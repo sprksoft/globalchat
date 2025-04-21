@@ -75,6 +75,7 @@ pub async fn chat_socket<'a>(
         return ChatSocketResponder::ws_close(ws, KickReason::NoSession);
     };
     let Some(session_lock) = session_mgr.chat_lock_session(ses_id) else {
+        info!("Chat session locked");
         return ChatSocketResponder::ws_close(ws, KickReason::AlreadyInChat);
     };
 

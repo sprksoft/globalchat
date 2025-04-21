@@ -51,24 +51,30 @@ pub struct Session {
     pub user_info: Arc<UserInfo2>,
     chat_locked: bool,
 }
+impl Session {
+    pub fn expired(&self, now: SystemTime) -> bool {
+        now.duration_since(self.created_time)
+            .map(|d| d.as_secs() > 604800)
+            .unwrap_or(true)
+    }
+}
 
 pub struct SessionMgr {
     sessions: Arc<DashMap<SesId, Session>>,
 }
 impl SessionMgr {
     pub async fn get_session(&self, ses_id: SesId) -> Option<Session> {
-        self.sessions.get(&ses_id).map(|s| s.clone())
+        let now = SystemTime::now();
+        self.sessions
+            .get(&ses_id)
+            .filter(|s| !s.expired(now))
+            .map(|s| s.clone())
     }
 
     async fn clean_sessions(&self) {
         let now = SystemTime::now();
-        self.sessions.retain(|_, ses| {
-            ses.chat_locked
-                || now
-                    .duration_since(ses.created_time)
-                    .map(|d| d.as_secs() < 10)
-                    .unwrap_or(false)
-        });
+        self.sessions
+            .retain(|_, ses| ses.chat_locked || !ses.expired(now));
     }
 
     pub fn chat_lock_session<'a>(&'a self, ses_id: SesId) -> Option<SessionLock<'a>> {

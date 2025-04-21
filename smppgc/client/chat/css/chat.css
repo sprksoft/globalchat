@@ -185,22 +185,3 @@ a:hover {
   display: flex;
   flex-direction: column;
 }
-
-@keyframes notfound-anim{
-
-  0% {
-    transform: rotate(10deg)
-  }
-
-  50% {
-    transform: rotate(-10deg)
-  }
-
-  100% {
-    transform: rotate(10deg)
-  }
-
-}
-.notfound img:hover {
-  animation: notfound-anim 0.2s ease infinite;
-}
