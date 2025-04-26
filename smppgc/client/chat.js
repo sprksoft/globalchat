@@ -147,9 +147,9 @@ socketmgr.on_leave = (code, protoerr, user_wants_leave) => {
   clearInterval(profanityCoolDownInterval);
   profaneMessageDialog.close();
 
-  console.log("Got no session error. Redirecting to start page...");
+  console.log("Got no session error. Redirecting to login page...");
   if (protoerr == "err_no_session") {
-    location = "/";
+    location = "/login";
   }
 
 }

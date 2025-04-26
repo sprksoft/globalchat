@@ -153,7 +153,7 @@ impl OAuthResponse {
         let dtheme = themes::DEFAULT_THEME.clone();
         total_failed_oauth_flows::inc(internal);
         Self::UnprocessableEntity(Template::render(
-            "error_page",
+            "pages/error_page",
             context! {title: "422 Unprocessable Entity", theme_css: dtheme.css(), error: "Oei! Er ging iets mis tijdens het inloggen.", internal: internal},
         ))
     }
@@ -199,7 +199,7 @@ fn oauth_start(
 
 #[get("/OAuth")]
 fn oauth_debug(theme: Theme) -> Template {
-    Template::render("oauth_debug", context! {theme_css: theme.css()})
+    Template::render("pages/oauth_debug", context! {theme_css: theme.css()})
 }
 #[post("/OAuth?<redirect_uri>&<state>", data = "<smuserinfo>")]
 fn oauth_debug_post(redirect_uri: &str, state: &str, smuserinfo: Form<SmUserInfo>) -> Redirect {
@@ -269,7 +269,7 @@ async fn oauth_return(
 
     let param = state.split_once('+').map(|(_, param)| param);
     match param {
-        Some("ret:admin") => Ok(OAuthResponse::Redirect(Redirect::temporary("/admin"))),
+        Some("ret:home") => Ok(OAuthResponse::Redirect(Redirect::temporary("/home"))),
         Some("ret:chat") => Ok(OAuthResponse::Redirect(Redirect::temporary("/chat"))),
         _ => Ok(OAuthResponse::fail_flow(
             "Invalid ret in state parameter at redirect endpoint",

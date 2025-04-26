@@ -69,7 +69,7 @@ fn internal_server_error() -> ErrorResponder {
     let theme = themes::DEFAULT_THEME.clone();
     ErrorResponder {
         inner: Template::render(
-            "error_page",
+            "pages/error_page",
             context! { title: "500 Internal Server Error", error: "Oei! Er ging iets mis.", theme_css: theme.css(), internal:"500",},
         ),
         csp: CSPFrameAncestors::SMARTSCHOOL_PLAT,

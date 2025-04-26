@@ -1,12 +1,14 @@
 use tokio::sync::{Mutex, RwLock};
 
 use crate::{
-    auth::GcAdmin,
+    auth::{GcAdmin, GcRole},
     chat::Chat,
     profanity::{ProfRuleset, RuleLintSet, RulesetChanges, RulesetError},
 };
 use profanity::ProfanityFilter;
-use rocket::{fairing::AdHoc, post, response::Debug, routes, serde::json::Json, Responder, State};
+use rocket::{
+    fairing::AdHoc, get, post, response::Debug, routes, serde::json::Json, Responder, State,
+};
 
 #[derive(Responder)]
 enum SyncResponse {
@@ -59,8 +61,18 @@ async fn sync_ruleset(
     })))
 }
 
+#[get("/role")]
+fn role(auth: Option<GcRole>) -> &'static str {
+    match auth {
+        None => "invalid key",
+        Some(GcRole::Mod) => "mod",
+        Some(GcRole::Admin) => "admin",
+        Some(GcRole::User) => "normal user",
+    }
+}
+
 pub fn stage() -> AdHoc {
-    AdHoc::on_ignite("admin api", |r| async {
-        r.mount("/api/admin", routes![sync_ruleset])
+    AdHoc::on_ignite("api", |r| async {
+        r.mount("/api", routes![role, sync_ruleset])
     })
 }

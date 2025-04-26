@@ -2,7 +2,7 @@
 <!-- vim: set ft=html: -->
 
 {% block title %}
-GC Admin
+Home - Global Chat
 {% endblock title %}
 {% block head %}
 
@@ -10,13 +10,13 @@ GC Admin
 {{theme_css}}
 </style>
 
-<link rel="stylesheet" href="{{ url(path="/static/admin.css") }}" />
+<link rel="stylesheet" href="{{ url(path="/static/home.css") }}" />
 {% endblock head %}
 
 {% block content %}
 
 <header>
-  <h1 class="header-title">GC Admin</h1>
+  <h1 class="header-title">Home</h1>
   <span class="role" data-role="{{role}}">
     {{role}}
   </span>
@@ -24,7 +24,7 @@ GC Admin
 <main class="button-list">
   <a class="button" href="/chat"><img class="btnicon" src="{{ url(path="/static/logo.webp")}}"><span>Chat</span></a>
   {% if role == "Admin" %}
-  <a class="button" href="/admin/prof">Profanity filter</a>
+  <a class="button" href="/prof">Profanity filter</a>
   {% endif %}
 </main>
 

@@ -12,7 +12,7 @@ use rocket::{
 use rocket_dyn_templates::{context, tera, Template};
 
 use crate::{
-    auth::GcMod,
+    auth::{GcMod, GcRole},
     disclaimer::DisclaimerVer,
     themes::Theme,
     users::{Session, UserConfig},
@@ -20,7 +20,10 @@ use crate::{
     MessageConfig,
 };
 
-mod admin;
+mod api;
+mod prof;
+mod promote;
+mod templating;
 
 #[derive(Responder)]
 enum GcPageResponder {
@@ -32,16 +35,15 @@ enum GcPageResponder {
     Redirect(Redirect),
 }
 
-#[get("/?<ret>")]
-fn index(
+#[get("/login")]
+fn login(
     theme: Theme,
-    ret: Option<&str>,
     cookiejar: &CookieJar<'_>,
     accepted_disclaimer: DisclaimerVer,
 ) -> GcPageResponder {
     GcPageResponder::Ok {
         inner: Template::render(
-            "index",
+            "pages/login",
             context! {
                 theme_css:theme.css(),
                 accepted_disclaimer:accepted_disclaimer,
@@ -50,6 +52,17 @@ fn index(
         ),
         csp: CSPFrameAncestors::SMARTSCHOOL_PLAT,
     }
+}
+
+#[get("/")]
+fn home(theme: Theme, role: GcRole) -> Template {
+    Template::render(
+        "pages/home",
+        context! {
+            role,
+            theme_css:theme.css()
+        },
+    )
 }
 
 #[get("/chat")]
@@ -71,7 +84,7 @@ fn chat(
 
     GcPageResponder::Ok {
         inner: Template::render(
-            "chat",
+            "pages/chat",
             context! (theme_css:theme.css(),
             irl_name: &user_info.irl_name,
             is_mod: user_info.role.has_mod(),
@@ -85,48 +98,18 @@ fn chat(
 
 #[get("/chat", rank = 0)]
 fn chat_noses() -> Redirect {
-    Redirect::to("/")
-}
-
-struct UrlFunction;
-impl tera::Function for UrlFunction {
-    fn call(
-        &self,
-        args: &std::collections::HashMap<String, tera::Value>,
-    ) -> tera::Result<tera::Value> {
-        let ver_int: u16 = *crate::VERSION_INT;
-
-        match args.get("path") {
-            Some(tera::Value::String(url)) => {
-                let url: &str = url;
-                if url.contains('?') {
-                    Ok(tera::Value::String(format!("{}&ckey={}", url, ver_int)))
-                } else {
-                    Ok(tera::Value::String(format!("{}?ckey={}", url, ver_int)))
-                }
-            }
-            _ => Err("url function requires a parameter 'path' of type string.".into()),
-        }
-    }
-}
-struct VersionIntFunction;
-impl tera::Function for VersionIntFunction {
-    fn call(
-        &self,
-        _: &std::collections::HashMap<String, tera::Value>,
-    ) -> tera::Result<tera::Value> {
-        Ok(tera::Value::String(crate::VERSION_INT.to_string()))
-    }
+    Redirect::to("/login")
 }
 
 pub fn stage() -> AdHoc {
     AdHoc::on_ignite("templates", |r| async {
-        r.mount("/", routes![index, chat, chat_noses])
-            .attach(admin::stage())
-            .attach(Template::custom(move |engines| {
-                let tera = &mut engines.tera;
-                tera.register_function("version_int", VersionIntFunction);
-                tera.register_function("url", UrlFunction);
-            }))
+        r.mount(
+            "/",
+            routes![login, chat, chat_noses, prof::prof, home, promote::promote],
+        )
+        .attach(api::stage())
+        .attach(Template::custom(move |engines| {
+            templating::setup(&mut engines.tera);
+        }))
     })
 }

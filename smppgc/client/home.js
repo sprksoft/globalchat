@@ -1,11 +1,11 @@
 import * as common from './common/common.js'
 import { log } from './common/utils.js'
-import * as syntax from './admin/syntax.js'
-import * as rule from './admin/rule.js'
+import * as syntax from './home/syntax.js'
+import * as rule from './home/rule.js'
 
 import './common/common.css'
 import './common/buttons.css'
-import './admin/css/admin.css'
+import './home/css/home.css'
 
 const loadingDialog = document.getElementById("loading-dialog");
 const saveDialog = document.getElementById("save-dialog");
@@ -174,7 +174,7 @@ function prepHTMLRulesAndGenerateJson() {
 async function apiCall(changes) {
   let response;
   try {
-    response = await fetch("/api/admin/prof/ruleset", {
+    response = await fetch("/api/prof/ruleset", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

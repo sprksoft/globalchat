@@ -56,7 +56,7 @@ pub async fn chat_socket<'a>(
     mut shutdown: Shutdown,
     addr: IpAddr,
     country: IpCountry,
-    ses_id: Option<SesId>,
+    ses: Option<Session>,
     session_mgr: &'a State<SessionMgr>,
     gcmod: Option<GcMod>,
 ) -> ChatSocketResponder<'a> {
@@ -71,16 +71,12 @@ pub async fn chat_socket<'a>(
         ip_limits.not_be_penalty
     };
 
-    let Some(ses_id) = ses_id else {
+    let Some(ses) = ses else {
         return ChatSocketResponder::ws_close(ws, KickReason::NoSession);
-    };
-    let Some(session_lock) = session_mgr.chat_lock_session(ses_id) else {
-        info!("Chat session locked");
-        return ChatSocketResponder::ws_close(ws, KickReason::AlreadyInChat);
     };
 
     //TODO: Fix this: workaround because not all code is written yet
-    let sid = UserSid::from_smid(session_lock.user_info.smid.clone());
+    let sid = UserSid::from_smid(ses.user_info.smid.clone());
     let start_time = start_time.unwrap_or(Snowflake::ZERO);
 
     let name_lease = match usrnamemgr
@@ -132,7 +128,6 @@ pub async fn chat_socket<'a>(
             loop {
                 tokio::select! {
                     _ = &mut shutdown => {
-                        drop(session_lock);
                         return wsclient.kick(KickReason::ServerShutdown).await;
                     }
                     mesg = wsclient.try_recv() => {
