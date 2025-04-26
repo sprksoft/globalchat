@@ -25,7 +25,7 @@
 {% endmacro insertRuleBtn %}
 
 {% block title %}
-Profanity filter - GC Admin
+Profanity filter - Global Chat
 {% endblock title %}
 
 {% block head %}
@@ -34,7 +34,7 @@ Profanity filter - GC Admin
 {{theme_css}}
 </style>
 
-<link rel="stylesheet" href="{{ url(path="/static/admin.css") }}" />
+<link rel="stylesheet" href="{{ url(path="/static/home.css") }}" />
 {% endblock head %}
 
 {% block content %}
@@ -92,7 +92,7 @@ Profanity filter - GC Admin
 
 <div class="view">
 <header class="slim-header">
-  <a href="../admin" class="button">
+  <a href="/home" class="button">
     {% include "svg/arrow_l" %}
   </a>
   <h1 class="header-title">Profanity filter</h1>
@@ -119,5 +119,5 @@ Profanity filter - GC Admin
 <script id="tokenInfo" type="application/json">
   {{ tokeninfo | json_encode | safe }}
 </script>
-<script defer type="text/javascript" src="{{ url(path="/static/admin.js") }}"></script>
+<script defer type="text/javascript" src="{{ url(path="/static/home.js") }}"></script>
 {% endblock scripts %}

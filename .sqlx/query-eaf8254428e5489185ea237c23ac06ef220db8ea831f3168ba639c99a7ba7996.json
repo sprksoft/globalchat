@@ -25,6 +25,11 @@
       },
       {
         "ordinal": 4,
+        "name": "ban_count",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 5,
         "name": "ban_release_timestamp",
         "type_info": "Int4"
       }
@@ -36,6 +41,7 @@
       ]
     },
     "nullable": [
+      false,
       false,
       false,
       false,

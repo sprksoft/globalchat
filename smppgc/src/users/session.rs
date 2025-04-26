@@ -19,37 +19,11 @@ use rocket::{
 use super::{role::Role, SesId, SmId, UserInfo2};
 use crate::{db::models::User, oauth::SmUserInfo};
 
-pub struct SessionLock<'a> {
-    mgr: &'a SessionMgr,
-    ses: Session,
-    id: SesId,
-}
-impl<'a> SessionLock<'a> {
-    pub fn ses(&self) -> &Session {
-        &self.ses
-    }
-}
-impl<'a> Drop for SessionLock<'a> {
-    fn drop(&mut self) {
-        let Some(mut s) = self.mgr.sessions.get_mut(&self.id) else {
-            return;
-        };
-        s.chat_locked = false;
-    }
-}
-impl<'a> Deref for SessionLock<'a> {
-    type Target = Session;
-    fn deref(&self) -> &Self::Target {
-        &self.ses
-    }
-}
-
 #[derive(Clone)]
 pub struct Session {
     created_time: SystemTime,
     ses_id: SesId,
     pub user_info: Arc<UserInfo2>,
-    chat_locked: bool,
 }
 impl Session {
     pub fn expired(&self, now: SystemTime) -> bool {
@@ -73,21 +47,7 @@ impl SessionMgr {
 
     async fn clean_sessions(&self) {
         let now = SystemTime::now();
-        self.sessions
-            .retain(|_, ses| ses.chat_locked || !ses.expired(now));
-    }
-
-    pub fn chat_lock_session<'a>(&'a self, ses_id: SesId) -> Option<SessionLock<'a>> {
-        let mut ses = self.sessions.get_mut(&ses_id)?;
-        if ses.chat_locked {
-            return None;
-        }
-        ses.chat_locked = true;
-        Some(SessionLock {
-            ses: ses.clone(),
-            mgr: self,
-            id: ses_id,
-        })
+        self.sessions.retain(|_, ses| !ses.expired(now));
     }
 
     pub async fn create_session(&self, user: User) -> SesId {
@@ -110,7 +70,6 @@ impl SessionMgr {
             Session {
                 created_time: now,
                 ses_id: ses_id.clone(),
-                chat_locked: false,
                 user_info: Arc::from(user_info),
             },
         );
