@@ -9,13 +9,14 @@ prof_filter_file="/var/proffilter/rules.txt"
 static_dir="/app/www"
 template_dir="/app/templates"
 
-# limits and rate limiting
+# chat
 max_stored_messages=30
 max_users=1000
 
+# user
 max_username_len=30
-max_reserved_names=2
-
+max_claimed_names=2
+max_name_retention=604800 # 7 days
 
 max_same_message_streak=3
 same_message_penalty=6

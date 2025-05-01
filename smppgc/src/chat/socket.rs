@@ -1,6 +1,6 @@
 use lmetrics::metrics;
 use profanity::ProfanityFilter;
-use rocket::{get, Responder, Shutdown, State};
+use rocket::{get, response, Responder, Shutdown, State};
 use std::net::IpAddr;
 use tokio::sync::RwLock;
 
@@ -13,7 +13,7 @@ use crate::{
     chat::{Chat, MessageChange, MessageChangeType, NewClientError},
     ratelimit::RateLimitIpPenalty,
     ratelimit::{MesgIpRateLimiters, MesgRateLimiters},
-    users::{SesId, Session, SessionMgr, UserConfig, UserSid, UsernameManager},
+    users::{SesId, Session, SessionMgr, UserConfig, UserManager, UserSid},
     utils::IpCountry,
     wsprotocol::{KickReason, WsClient},
     MessageConfig, Snowflake,
@@ -45,6 +45,7 @@ pub async fn chat_socket<'a>(
     start_time: Option<Snowflake>,
     mod_badge: Option<bool>,
     ws: WebSocket,
+    mut user_manager: UserManager<'a>,
     mesg_limits: &State<MessageConfig>,
     user_config: &State<UserConfig>,
     ip_limits: &State<RateLimitIpPenalty>,
@@ -52,16 +53,15 @@ pub async fn chat_socket<'a>(
     ip_ratelimiters: &'a State<MesgIpRateLimiters>,
     prof_filter: &'a State<RwLock<ProfanityFilter>>,
     chat: &'a State<Chat>,
-    usrnamemgr: &State<UsernameManager>,
     mut shutdown: Shutdown,
     addr: IpAddr,
     country: IpCountry,
     ses: Option<Session>,
     session_mgr: &'a State<SessionMgr>,
     gcmod: Option<GcMod>,
-) -> ChatSocketResponder<'a> {
+) -> Result<ChatSocketResponder<'a>, response::Debug<sqlx::Error>> {
     if !ip_ratelimiters.0.update(addr, 0) {
-        return ChatSocketResponder::ws_close(ws, KickReason::IpRateLimit);
+        return Ok(ChatSocketResponder::ws_close(ws, KickReason::IpRateLimit));
     }
     let ip_penalty_multiplier = if country.is_be() {
         1
@@ -72,46 +72,38 @@ pub async fn chat_socket<'a>(
     };
 
     let Some(ses) = ses else {
-        return ChatSocketResponder::ws_close(ws, KickReason::NoSession);
+        return Ok(ChatSocketResponder::ws_close(ws, KickReason::NoSession));
     };
 
     //TODO: Fix this: workaround because not all code is written yet
     let sid = UserSid::from_smid(ses.user_info.smid.clone());
     let start_time = start_time.unwrap_or(Snowflake::ZERO);
 
-    let name_lease = match usrnamemgr
-        .claim_name(
-            username,
-            sid.clone(),
-            user_config.max_username_len,
-            &prof_filter,
-        )
-        .await
-    {
+    let claimed_name = match user_manager.claim_name(&ses.user_info, username).await? {
         Ok(name_lease) => name_lease,
         Err(e) => {
-            return ChatSocketResponder::ws_close(ws, e.into_kickreason());
+            return Ok(ChatSocketResponder::ws_close(ws, e.into_kickreason()));
         }
     };
 
     let mod_badge = gcmod.is_some() && mod_badge.unwrap_or(false);
-    let mut chat_client = match chat.new_client(sid.clone(), name_lease, mod_badge).await {
+    let mut chat_client = match chat.new_client(sid.clone(), claimed_name, mod_badge).await {
         Ok(c) => c,
         Err(e) => {
             info!("Closing connection: {:?}", e);
             match e {
                 NewClientError::AlreadyInChat => {
-                    return ChatSocketResponder::ws_close(ws, KickReason::AlreadyInChat)
+                    return Ok(ChatSocketResponder::ws_close(ws, KickReason::AlreadyInChat))
                 }
                 NewClientError::MaxConcurrentUserCount => {
-                    return ChatSocketResponder::ws_close(ws, KickReason::ChatFull)
+                    return Ok(ChatSocketResponder::ws_close(ws, KickReason::ChatFull))
                 }
             }
         }
     };
 
     let mesg_limits = mesg_limits.inner().clone();
-    ChatSocketResponder::Channel(ws.channel(move |stream| {
+    Ok(ChatSocketResponder::Channel(ws.channel(move |stream| {
         Box::pin(async move {
             let chat_hist = chat.history(start_time, gcmod.is_some()).await;
 
@@ -254,7 +246,7 @@ pub async fn chat_socket<'a>(
                 }
             }
         })
-    }))
+    })))
 }
 
 pub enum AdminCmd {

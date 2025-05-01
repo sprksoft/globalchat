@@ -2,7 +2,7 @@
 DROP TABLE names;
 DROP TABLE users;
 
-DROP FUNCTION claim_username(
+DROP FUNCTION claim_name(
   id INTEGER,
   name VARCHAR,
   retention_seconds INTEGER,

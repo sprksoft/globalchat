@@ -37,6 +37,7 @@ impl PartialEq for UserInfo {
 pub struct UserInfo2 {
     pub role: Role,
     pub smid: SmId,
+    pub id: i32,
     pub irl_name: Box<str>,
     pub ban_end_timestamp: SystemTime,
 }

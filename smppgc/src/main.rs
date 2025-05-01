@@ -23,7 +23,6 @@ mod pages;
 mod profanity;
 mod ratelimit;
 mod snowflake;
-mod socket;
 mod themes;
 mod users;
 mod utils;
@@ -99,8 +98,8 @@ fn rocket() -> _ {
         &chat::joined_total::METRIC,
         &chat::left_total::METRIC,
         &chat::history_events_lost_total::METRIC,
-        &socket::messages_total::METRIC,
-        &socket::messages_blocked::METRIC,
+        &chat::socket::messages_total::METRIC,
+        &chat::socket::messages_blocked::METRIC,
         &lmetrics::http_errors_total::METRIC,
         &lmetrics::http_req_total::METRIC,
     ]);
@@ -116,14 +115,6 @@ fn rocket() -> _ {
         .attach(users::stage())
         .attach(auth::stage())
         .attach(oauth::stage())
-        .attach(AdHoc::on_ignite("chat", |r| async {
-            let config = r
-                .figment()
-                .extract::<ChatConfig>()
-                .expect("No chat config found");
-
-            r.mount("/", routes![socket::chat_socket])
-                .manage(Chat::new(config))
-        }))
+        .attach(chat::stage())
         .attach(profanity::stage())
 }

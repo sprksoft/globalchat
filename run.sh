@@ -13,17 +13,22 @@ if ! $DOCKER_COMPOSE version ; then
   exit 1
 fi
 
-
 if [[ "$1" == "prepare" ]] ; then
   if ! type $CARGO ; then
     echo "Cargo not found"
     exit 1
   fi
-  $DOCKER_COMPOSE -f db.compose.yml up --detach
 
   echo "sqlx prepare..."
   $CARGO sqlx prepare --workspace
+  # fall through
+fi
+
+if [[ "$1" == "spawndb" ]] ; then
+  $DOCKER_COMPOSE -f db.compose.yml up --detach
   exit 0
 fi
+
+
 
 $DOCKER_COMPOSE -f compose.yml watch

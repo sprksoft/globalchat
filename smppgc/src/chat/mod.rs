@@ -3,12 +3,14 @@ use std::{collections::HashMap, sync::Arc};
 use circular_queue::CircularQueue;
 use log::*;
 use profanity::ProfanityFilter;
+use rocket::{fairing::AdHoc, routes};
 use tokio::sync::{
     broadcast::{self, error::RecvError},
     Mutex,
 };
 
 mod message;
+pub mod socket;
 pub use message::*;
 
 use crate::{
@@ -61,6 +63,8 @@ pub struct Chat {
     client_ids: IdCounter,
     message_ids: Arc<SnowflakeGenerator>,
 
+    shutdown: broadcast::Sender<()>,
+
     config: ChatConfig,
 }
 impl Chat {
@@ -76,11 +80,14 @@ impl Chat {
             config.max_stored_messages,
         )));
 
+        let (shutdown, shutdown_receiver) = broadcast::channel(1);
+
         Self::spawn_histrec(
             left_receiver,
             messages_receiver,
             users.clone(),
             history.clone(),
+            shutdown_receiver,
         );
 
         Self {
@@ -93,7 +100,11 @@ impl Chat {
             history,
             client_ids: IdCounter::new(),
             config: config.into(),
+            shutdown,
         }
+    }
+    pub fn shutdown(&self) {
+        let _ = self.shutdown.send(());
     }
 
     fn spawn_histrec(
@@ -101,10 +112,14 @@ impl Chat {
         mut messages_receiver: broadcast::Receiver<Message>,
         users: Arc<Mutex<HashMap<u16, ChatUserInfo>>>,
         history: Arc<Mutex<CircularQueue<Message>>>,
+        mut shutdown_receiver: broadcast::Receiver<()>,
     ) {
         tokio::task::spawn(async move {
             loop {
                 tokio::select! {
+                    _ = shutdown_receiver.recv() => {
+                        return;
+                    }
                     left_client = left_receiver.recv() => {
                         match left_client{
                             Ok(left_client)=>{
@@ -185,10 +200,10 @@ impl Chat {
         {
             return Err(NewClientError::AlreadyInChat);
         }
-
+        let username: String = leased_name.into();
         let user_info = UserInfo {
             mod_badge,
-            username: leased_name.into(),
+            username: Arc::from(username),
             static_id,
             id,
         };
@@ -321,4 +336,23 @@ impl Drop for ChatClient {
             }
         };
     }
+}
+
+pub fn stage() -> AdHoc {
+    AdHoc::on_ignite("chat", |r| async {
+        let config = r
+            .figment()
+            .extract::<ChatConfig>()
+            .expect("No chat config found");
+
+        r.mount("/", routes![socket::chat_socket])
+            .manage(Chat::new(config))
+            .attach(AdHoc::on_shutdown("Shutdown Printer", |r| {
+                Box::pin(async move {
+                    if let Some(chat) = r.state::<Chat>() {
+                        chat.shutdown();
+                    }
+                })
+            }))
+    })
 }
