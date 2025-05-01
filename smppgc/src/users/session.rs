@@ -57,12 +57,11 @@ impl SessionMgr {
 
         let user_info = UserInfo2 {
             smid: SmId::from_string(user.smid),
+            id: user.id,
             irl_name: user.irl_name.into(),
             role: Role::try_from(user.role).unwrap_or(Role::User),
-            ban_end_timestamp: user
-                .ban_release_timestamp
-                .map(|ts| SystemTime::UNIX_EPOCH + Duration::from_secs(ts as u64))
-                .unwrap_or(now),
+            ban_end_timestamp: SystemTime::UNIX_EPOCH
+                + Duration::from_secs(user.ban_end_timestamp as u64),
         };
 
         self.sessions.insert(

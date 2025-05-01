@@ -30,7 +30,7 @@
       },
       {
         "ordinal": 5,
-        "name": "ban_release_timestamp",
+        "name": "ban_end_timestamp",
         "type_info": "Int4"
       }
     ],

@@ -154,9 +154,6 @@ socketmgr.on_leave = (code, protoerr, user_wants_leave) => {
 
 }
 
-socketmgr.on_keychange = (key) => {
-  localStorage.setItem("key", key);
-}
 socketmgr.on_profanity_warn = (message, badWord, start, end) => {
   utils.log(`${message} contains the word '${badWord}' at ${start}..${end}'`);
 
@@ -216,7 +213,7 @@ function connect(background, start_snowflake) {
   localStorage.setItem("username", local_name);
 
   background_reconnect=background;
-  socketmgr.join(localStorage.getItem("key"), local_name, start_snowflake, show_mod_badge);
+  socketmgr.join(local_name, start_snowflake, show_mod_badge);
 
   constatus.showModal();
 }

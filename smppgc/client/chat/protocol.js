@@ -11,7 +11,6 @@ const PACKET_MESSAGE_CENSOR = 8;
 
 
 const CLOSED=3;
-const KEY_LENGTH=33;
 
 
 const ERRORS = {
@@ -110,7 +109,6 @@ export class SocketMgr {
   on_profanity_warn;
   on_leave;
   on_join;
-  on_keychange;
 
   #local_id;
   #users;
@@ -145,10 +143,7 @@ export class SocketMgr {
         this.local_id = reader.getUint16();
         this.users[this.local_id] = this.username;
 
-        this.local_key = reader.getString(0, KEY_LENGTH);
-        this.on_keychange(this.local_key);
-
-        log("Setup packet "+this.local_id+" "+this.local_key);
+        log("Setup packet "+this.local_id);
         break;
 
       case PACKET_USERJOIN:
@@ -184,7 +179,7 @@ export class SocketMgr {
   }
 
 
-  async join(key, username, start_snowflake, show_admin_badge){
+  async join(username, start_snowflake, show_admin_badge){
     this.user_wants_leave=false;
     this.username = username;
     if (this.ws !== undefined){
@@ -192,9 +187,6 @@ export class SocketMgr {
     }
     let encoded_username = encodeURIComponent(username);
     let query=`username=${encoded_username}`;
-    if (key !== undefined && key !== null && key !== "") {
-      query+="&key="+key;
-    }
     if (start_snowflake !== undefined && start_snowflake !== null){
       query+="&start_time="+start_snowflake;
     }
