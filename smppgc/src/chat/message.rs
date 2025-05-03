@@ -2,11 +2,13 @@ use std::sync::Arc;
 
 use crate::{users::UserInfo, Snowflake};
 
+use super::ChatUser;
+
 #[derive(Clone, Debug)]
 pub struct Message {
     pub content: Arc<str>,
     pub profanity: bool,
-    pub sender: UserInfo,
+    pub sender: ChatUser,
     pub id: Snowflake,
 }
 impl Message {

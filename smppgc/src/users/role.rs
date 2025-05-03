@@ -1,4 +1,12 @@
-use rocket::serde::{Deserialize, Serialize};
+use super::SesId;
+use crate::db::Db;
+use rocket::{
+    request::FromRequest,
+    serde::{Deserialize, Serialize},
+};
+use rocket_db_pools::Connection;
+
+use super::Session;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(crate = "rocket::serde")]
@@ -9,7 +17,7 @@ pub enum Role {
     Owner,
 }
 impl Role {
-    pub fn has_mod(self) -> bool {
+    pub fn is_mod(self) -> bool {
         match self {
             Self::User => false,
             Self::Mod | Self::Admin | Self::Owner => true,

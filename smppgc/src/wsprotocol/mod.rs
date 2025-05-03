@@ -10,8 +10,8 @@ use thiserror::Error;
 use tokio_tungstenite::tungstenite;
 
 use crate::{
-    chat::{Message, MessageChangeType},
-    users::UserInfo,
+    chat::{ChatClient, ChatUser, Message, MessageChangeType},
+    users::{Session, UserInfo, UserInfo2},
     Snowflake,
 };
 
@@ -89,17 +89,15 @@ impl RecievedMessage {
 
 pub struct WsClient {
     ws: DuplexStream,
-    user_info: UserInfo,
 }
 impl WsClient {
     pub async fn new(
         mut ws: DuplexStream,
-        user_info: UserInfo,
-        clients: Vec<UserInfo>,
+        clients: Vec<ChatUser>,
         history: Vec<Message>,
+        user_info: &ChatUser,
     ) -> Result<Self> {
-        ws.feed(packets::new_setup(user_info.static_id(), user_info.id()))
-            .await?;
+        ws.feed(packets::new_setup(user_info.local_id())).await?;
 
         for client in clients {
             ws.feed(packets::new_client_joined(&client)).await?;
@@ -110,7 +108,7 @@ impl WsClient {
         }
 
         ws.flush().await?;
-        Ok(Self { ws, user_info })
+        Ok(Self { ws })
     }
 
     pub async fn kick(&mut self, reason: KickReason) -> Result<()> {

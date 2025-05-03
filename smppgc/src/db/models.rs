@@ -12,3 +12,9 @@ pub struct User {
     pub ban_count: i32,
     pub ban_end_timestamp: i32,
 }
+#[derive(FromRow)]
+pub struct PromoteKey {
+    pub key: String,
+    pub new_role: i32,
+    pub used_by: Option<i32>,
+}

@@ -9,7 +9,6 @@ use rocket_ws::{Channel, WebSocket};
 use tokio::sync::broadcast::error::RecvError;
 
 use crate::{
-    auth::GcMod,
     chat::{Chat, MessageChange, MessageChangeType, NewClientError},
     ratelimit::RateLimitIpPenalty,
     ratelimit::{MesgIpRateLimiters, MesgRateLimiters},
@@ -58,7 +57,6 @@ pub async fn chat_socket<'a>(
     country: IpCountry,
     ses: Option<Session>,
     session_mgr: &'a State<SessionMgr>,
-    gcmod: Option<GcMod>,
 ) -> Result<ChatSocketResponder<'a>, response::Debug<sqlx::Error>> {
     if !ip_ratelimiters.0.update(addr, 0) {
         return Ok(ChatSocketResponder::ws_close(ws, KickReason::IpRateLimit));
@@ -78,6 +76,7 @@ pub async fn chat_socket<'a>(
     //TODO: Fix this: workaround because not all code is written yet
     let sid = UserSid::from_smid(ses.user_info.smid.clone());
     let start_time = start_time.unwrap_or(Snowflake::ZERO);
+    let is_mod = ses.user_info.role.is_mod();
 
     let claimed_name = match user_manager.claim_name(&ses.user_info, username).await? {
         Ok(name_lease) => name_lease,
@@ -86,8 +85,11 @@ pub async fn chat_socket<'a>(
         }
     };
 
-    let mod_badge = gcmod.is_some() && mod_badge.unwrap_or(false);
-    let mut chat_client = match chat.new_client(sid.clone(), claimed_name, mod_badge).await {
+    let mod_badge = is_mod && mod_badge.unwrap_or(false);
+    let mut chat_client = match chat
+        .new_client(sid.clone(), claimed_name, mod_badge, is_mod)
+        .await
+    {
         Ok(c) => c,
         Err(e) => {
             info!("Closing connection: {:?}", e);
@@ -105,13 +107,13 @@ pub async fn chat_socket<'a>(
     let mesg_limits = mesg_limits.inner().clone();
     Ok(ChatSocketResponder::Channel(ws.channel(move |stream| {
         Box::pin(async move {
-            let chat_hist = chat.history(start_time, gcmod.is_some()).await;
+            let chat_hist = chat.history(start_time, is_mod).await;
 
             let mut wsclient = WsClient::new(
                 stream,
-                chat_client.user_info(),
-                chat.users().await,
                 chat_hist,
+                chat.users().await,
+                chat_client.user()
             )
             .await?;
 
@@ -125,7 +127,7 @@ pub async fn chat_socket<'a>(
                     mesg = wsclient.try_recv() => {
                         let Some(mesg) = mesg? else { continue; };
 
-                        if gcmod.is_some() {
+                        if is_mod {
                             match parse_admin_cmd(&mesg.content) {
                                 Some(AdminCmd::DelMsg(snowflake)) => {
                                     chat.delete_message(snowflake).await;
@@ -197,8 +199,8 @@ pub async fn chat_socket<'a>(
                     mesg = chat_client.message_receiver.recv() => {
                         match mesg{
                             Ok(mesg) => {
-                                if mesg.sender.id() != chat_client.user_info().id() {
-                                    if gcmod.is_some() || !mesg.profanity {
+                                if mesg.sender.local_id() != chat_client.user().local_id() {
+                                    if is_mod || !mesg.profanity {
                                         wsclient.forward(&mesg).await?;
                                     }
                                 }
@@ -214,7 +216,7 @@ pub async fn chat_socket<'a>(
                     mesg_change = chat_client.message_change_receiver.recv() => {
                         match mesg_change{
                             Ok(MessageChange { message_id, mut ty}) => {
-                                if gcmod.is_none() {
+                                if !is_mod {
                                     ty = MessageChangeType::Deleted;
                                 }
                                 wsclient.forward_message_change(message_id, ty).await?;
@@ -231,7 +233,7 @@ pub async fn chat_socket<'a>(
                         match joined_client{
                             Ok(joined_client) => {
                                 //dbg!("join", &joined_client, &chat_client.user_info());
-                                if joined_client.id() != chat_client.user_info().id() {
+                                if joined_client.local_id() != chat_client.user().local_id() {
                                     //dbg!("forwarding", &joined_client);
                                     wsclient.forward_client(&joined_client).await?;
                                 }

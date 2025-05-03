@@ -1,20 +1,21 @@
-use std::{collections::HashMap, sync::Arc};
-
 use circular_queue::CircularQueue;
 use log::*;
 use profanity::ProfanityFilter;
 use rocket::{fairing::AdHoc, routes};
+use std::{collections::HashMap, sync::Arc};
 use tokio::sync::{
     broadcast::{self, error::RecvError},
     Mutex,
 };
 
+mod chatuser;
 mod message;
 pub mod socket;
+pub use chatuser::*;
 pub use message::*;
 
 use crate::{
-    users::{ClaimedName, SmId, UserInfo, UserSid},
+    users::{ClaimedName, SmId, UserSid},
     utils::IdCounter,
     ChatConfig, Snowflake, SnowflakeGenerator,
 };
@@ -35,10 +36,10 @@ pub enum NewClientError {
     AlreadyInChat,
 }
 
-struct ChatUserInfo {
+struct StoredUser {
+    user: ChatUser,
     message_count: usize,
     ghost: bool,
-    user_info: UserInfo,
 }
 
 #[derive(Copy, Clone)]
@@ -54,11 +55,11 @@ pub struct MessageChange {
 
 pub struct Chat {
     messages_sender: broadcast::Sender<Message>,
-    join_sender: broadcast::Sender<UserInfo>,
-    left_sender: broadcast::Sender<UserInfo>,
+    join_sender: broadcast::Sender<ChatUser>,
+    left_sender: broadcast::Sender<ChatUser>,
     message_change_sender: broadcast::Sender<MessageChange>,
 
-    users: Arc<Mutex<HashMap<u16, ChatUserInfo>>>,
+    users: Arc<Mutex<HashMap<u16, StoredUser>>>,
     history: Arc<Mutex<CircularQueue<Message>>>,
     client_ids: IdCounter,
     message_ids: Arc<SnowflakeGenerator>,
@@ -108,9 +109,9 @@ impl Chat {
     }
 
     fn spawn_histrec(
-        mut left_receiver: broadcast::Receiver<UserInfo>,
+        mut left_receiver: broadcast::Receiver<ChatUser>,
         mut messages_receiver: broadcast::Receiver<Message>,
-        users: Arc<Mutex<HashMap<u16, ChatUserInfo>>>,
+        users: Arc<Mutex<HashMap<u16, StoredUser>>>,
         history: Arc<Mutex<CircularQueue<Message>>>,
         mut shutdown_receiver: broadcast::Receiver<()>,
     ) {
@@ -124,13 +125,13 @@ impl Chat {
                         match left_client{
                             Ok(left_client)=>{
                                 left_total::inc();
-                                trace!("User {} left", left_client.id());
+                                trace!("User {} left", left_client.local_id());
                                 {
                                     let mut users = users.lock().await;
-                                    if let Some(entry) = users.get_mut(&left_client.id()){
+                                    if let Some(entry) = users.get_mut(&left_client.local_id()){
                                         entry.ghost=true;
                                         if entry.message_count == 0 {
-                                            users.remove(&left_client.id());
+                                            users.remove(&left_client.local_id());
                                         }
                                     }
                                 }
@@ -149,11 +150,11 @@ impl Chat {
                             Ok(mesg) => {
                                 {
                                     let mut users = users.lock().await;
-                                    if let Some(user) = users.get_mut(&mesg.sender.id()) {
+                                    if let Some(user) = users.get_mut(&mesg.sender.local_id()) {
                                         user.message_count+=1;
                                     }
                                     if let Some(deleted_message) = history.lock().await.push(mesg) {
-                                        let id = deleted_message.sender.id();
+                                        let id = deleted_message.sender.local_id();
                                         if let Some(entry) = users.get_mut(&id){
                                             entry.message_count = entry.message_count.saturating_sub(1);
                                             if entry.ghost == true && entry.message_count == 0{
@@ -183,14 +184,16 @@ impl Chat {
         static_id: UserSid,
         leased_name: ClaimedName,
         mod_badge: bool,
+        bypass_user_count: bool,
     ) -> Result<ChatClient, NewClientError> {
-        if self.config.max_users != 0
+        if !bypass_user_count
+            && self.config.max_users != 0
             && self.config.max_users <= self.users.lock().await.len() as u16
         {
             return Err(NewClientError::MaxConcurrentUserCount);
         }
 
-        let id = self.client_ids.new_id();
+        let local_id = self.client_ids.new_id();
 
         let mut user_lock = self.users.lock().await;
         if user_lock
@@ -200,15 +203,17 @@ impl Chat {
         {
             return Err(NewClientError::AlreadyInChat);
         }
+
         let username: String = leased_name.into();
-        let user_info = UserInfo {
+        let user = ChatUser {
+            local_id,
             mod_badge,
-            username: Arc::from(username),
-            static_id,
-            id,
+            username: username.into(),
+            ghost: false,
+            message_count: 0,
         };
         let client = ChatClient {
-            user_info,
+            user,
             left_sender: self.left_sender.clone(),
             message_sender: self.messages_sender.clone(),
             message_receiver: self.messages_sender.subscribe(),
@@ -217,14 +222,14 @@ impl Chat {
             message_id_gen: self.message_ids.clone(),
         };
 
-        let _ = self.join_sender.send(client.user_info()); // throws error when no receivers
+        let _ = self.join_sender.send(client.user().clone()); // throws error when no receivers
 
         user_lock.insert(
             id,
-            ChatUserInfo {
-                message_count: 0,
+            StoredUser {
+                user: client.user().clone(),
                 ghost: false,
-                user_info: client.user_info(),
+                message_count: 0,
             },
         );
         joined_total::inc();
@@ -283,30 +288,30 @@ impl Chat {
         *lock = new_messages;
     }
 
-    pub async fn users(&self) -> Vec<UserInfo> {
+    pub async fn users(&self) -> Vec<ChatUser> {
         self.users
             .lock()
             .await
             .iter()
-            .map(|u| &u.1.user_info)
+            .map(|u| &u.1.user)
             .cloned()
             .collect()
     }
 }
 
 pub struct ChatClient {
-    user_info: UserInfo,
+    user: ChatUser,
     message_id_gen: Arc<SnowflakeGenerator>,
-    left_sender: rocket::tokio::sync::broadcast::Sender<UserInfo>,
+    left_sender: rocket::tokio::sync::broadcast::Sender<ChatUser>,
     message_sender: broadcast::Sender<Message>,
     pub message_receiver: broadcast::Receiver<Message>,
-    pub join_receiver: broadcast::Receiver<UserInfo>,
+    pub join_receiver: broadcast::Receiver<ChatUser>,
     pub message_change_receiver: broadcast::Receiver<MessageChange>,
 }
 impl ChatClient {
     #[inline]
-    pub fn user_info(&self) -> UserInfo {
-        self.user_info.clone()
+    pub fn user(&self) -> &ChatUser {
+        &self.user
     }
 
     #[inline]
@@ -315,7 +320,7 @@ impl ChatClient {
             id: self.message_id_gen.new_snowflake(),
             content,
             profanity,
-            sender: self.user_info(),
+            sender: self.user().clone(),
         }
     }
 
@@ -326,7 +331,7 @@ impl ChatClient {
 }
 impl Drop for ChatClient {
     fn drop(&mut self) {
-        match self.left_sender.send(self.user_info()) {
+        match self.left_sender.send(self.user().clone()) {
             Ok(_) => {}
             Err(err) => {
                 error!(
