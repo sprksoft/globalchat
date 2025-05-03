@@ -17,12 +17,20 @@ Home - Global Chat
 
 <header>
   <h1 class="header-title">Home</h1>
+  {% if loggedIn %}
   <span class="role" data-role="{{role}}">
     {{role}}
   </span>
+  {% else %}
+  <a class="pillbtn" href="/oauth/start?ret=home">Login</a>
+  {% endif%}
 </header>
 <main class="button-list">
+  {% if logged_in %}
   <a class="button" href="/chat"><img class="btnicon" src="{{ url(path="/static/logo.webp")}}"><span>Chat</span></a>
+  {% endif%}
+  <!--<a class="button" href="/rochat"><img style="filter:saturate(0%)" class="btnicon" src="{{ url(path="/static/logo.webp")}}"><span>Read only chat</span></a>-->
+
   {% if role == "Admin" %}
   <a class="button" href="/prof">Profanity filter</a>
   {% endif %}

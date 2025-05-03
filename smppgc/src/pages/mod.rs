@@ -12,10 +12,9 @@ use rocket::{
 use rocket_dyn_templates::{context, tera, Template};
 
 use crate::{
-    auth::{GcMod, GcRole},
     disclaimer::DisclaimerVer,
     themes::Theme,
-    users::{Session, UserConfig},
+    users::{role::Role, Session, UserConfig},
     utils::CSPFrameAncestors,
     MessageConfig,
 };
@@ -55,11 +54,14 @@ fn login(
 }
 
 #[get("/")]
-fn home(theme: Theme, role: GcRole) -> Template {
+fn home(theme: Theme, ses: Option<Session>) -> Template {
+    let logged_in = ses.is_some();
+    let role = ses.map(|s| s.user_info.role).unwrap_or(Role::User);
     Template::render(
         "pages/home",
         context! {
             role,
+            logged_in,
             theme_css:theme.css()
         },
     )
@@ -87,7 +89,7 @@ fn chat(
             "pages/chat",
             context! (theme_css:theme.css(),
             irl_name: &user_info.irl_name,
-            is_mod: user_info.role.has_mod(),
+            is_mod: user_info.role.is_mod(),
             max_username_len: user_config.max_username_len,
             max_message_len: message_config.max_message_len,
             min_message_len: message_config.min_message_len),
@@ -105,7 +107,13 @@ pub fn stage() -> AdHoc {
     AdHoc::on_ignite("templates", |r| async {
         r.mount(
             "/",
-            routes![login, chat, chat_noses, prof::prof, home, promote::promote],
+            routes![
+                login,
+                chat,
+                chat_noses,
+                prof::prof,
+                home, /* promote::promote */
+            ],
         )
         .attach(api::stage())
         .attach(Template::custom(move |engines| {

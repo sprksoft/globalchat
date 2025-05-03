@@ -14,7 +14,6 @@ use themes::Theme;
 use utils::static_routing;
 use utils::CSPFrameAncestors;
 
-mod auth;
 mod chat;
 mod db;
 mod disclaimer;
@@ -113,7 +112,6 @@ fn rocket() -> _ {
         .attach(static_routing::stage())
         .attach(pages::stage())
         .attach(users::stage())
-        .attach(auth::stage())
         .attach(oauth::stage())
         .attach(chat::stage())
         .attach(profanity::stage())

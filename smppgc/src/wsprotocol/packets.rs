@@ -14,19 +14,15 @@ pub const PACKET_PROFANITY_WARN: u8 = 6;
 pub const PACKET_MESSAGE_DEL: u8 = 7;
 pub const PACKET_MESSAGE_CENSOR: u8 = 8;
 
-pub fn new_setup<'a, 'b>(sid: UserSid, id: u16) -> tokio_tungstenite::tungstenite::Message {
+pub fn new_setup<'a, 'b>(id: u16) -> tokio_tungstenite::tungstenite::Message {
     //|    u8    | const PACKET_SETUP
     //| [u8; 3]  | version
     //|    u16   | local id
-    //| [u8; 33] | static id
 
     let sid_str = sid.to_string();
-    let key_str_bytes = sid_str.as_bytes();
-    let mut data = Vec::with_capacity(1 + 3 + size_of::<u16>() + key_str_bytes.len());
     data.push(PACKET_SETUP);
     data.extend_from_slice(&crate::VERSION_INT.to_be_bytes());
     data.extend_from_slice(&id.to_be_bytes());
-    data.extend_from_slice(key_str_bytes);
 
     tokio_tungstenite::tungstenite::Message::Binary(data)
 }
@@ -94,14 +90,14 @@ pub fn new_message(mesg: &Message) -> tokio_tungstenite::tungstenite::Message {
         Vec::with_capacity(1 + size_of::<u16>() + size_of::<Snowflake>() + content_bytes.len());
 
     let mut id = 0;
-    if mesg.sender.mod_badge {
+    if mesg.sender.mod_badge() {
         id |= 0b0000_0010;
     }
     if mesg.profanity {
         id |= 0b0000_0001;
     }
     data.push(id);
-    data.extend_from_slice(&mesg.sender.id().to_be_bytes());
+    data.extend_from_slice(&mesg.sender.local_id().to_be_bytes());
     data.extend_from_slice(&mesg.id().to_be_bytes());
     data.extend_from_slice(content_bytes);
     tungstenite::Message::Binary(data)
