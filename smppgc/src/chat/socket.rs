@@ -12,7 +12,7 @@ use crate::{
     chat::{Chat, MessageChange, MessageChangeType, NewClientError},
     ratelimit::RateLimitIpPenalty,
     ratelimit::{MesgIpRateLimiters, MesgRateLimiters},
-    users::{SesId, Session, SessionMgr, UserConfig, UserManager, UserSid},
+    users::{ratelimit::UserRatelimiters, SesId, Session, SessionMgr, UserConfig, UserManager},
     utils::IpCountry,
     wsprotocol::{KickReason, WsClient},
     MessageConfig, Snowflake,
@@ -47,9 +47,7 @@ pub async fn chat_socket<'a>(
     mut user_manager: UserManager<'a>,
     mesg_limits: &State<MessageConfig>,
     user_config: &State<UserConfig>,
-    ip_limits: &State<RateLimitIpPenalty>,
-    mesg_ratelimiters: &'a State<MesgRateLimiters>,
-    ip_ratelimiters: &'a State<MesgIpRateLimiters>,
+    ratelimit: &'a State<UserRatelimiters>,
     prof_filter: &'a State<RwLock<ProfanityFilter>>,
     chat: &'a State<Chat>,
     mut shutdown: Shutdown,
@@ -58,23 +56,10 @@ pub async fn chat_socket<'a>(
     ses: Option<Session>,
     session_mgr: &'a State<SessionMgr>,
 ) -> Result<ChatSocketResponder<'a>, response::Debug<sqlx::Error>> {
-    if !ip_ratelimiters.0.update(addr, 0) {
-        return Ok(ChatSocketResponder::ws_close(ws, KickReason::IpRateLimit));
-    }
-    let ip_penalty_multiplier = if country.is_be() {
-        1
-    } else if country.is_unknown() {
-        ip_limits.xx_penalty
-    } else {
-        ip_limits.not_be_penalty
-    };
-
     let Some(ses) = ses else {
         return Ok(ChatSocketResponder::ws_close(ws, KickReason::NoSession));
     };
 
-    //TODO: Fix this: workaround because not all code is written yet
-    let sid = UserSid::from_smid(ses.user_info.smid.clone());
     let start_time = start_time.unwrap_or(Snowflake::ZERO);
     let is_mod = ses.user_info.role.is_mod();
 
@@ -87,7 +72,7 @@ pub async fn chat_socket<'a>(
 
     let mod_badge = is_mod && mod_badge.unwrap_or(false);
     let mut chat_client = match chat
-        .new_client(sid.clone(), claimed_name, mod_badge, is_mod)
+        .new_client(&ses.user_info, claimed_name, mod_badge, is_mod)
         .await
     {
         Ok(c) => c,
@@ -111,8 +96,8 @@ pub async fn chat_socket<'a>(
 
             let mut wsclient = WsClient::new(
                 stream,
-                chat_hist,
                 chat.users().await,
+                chat_hist,
                 chat_client.user()
             )
             .await?;
@@ -235,7 +220,7 @@ pub async fn chat_socket<'a>(
                                 //dbg!("join", &joined_client, &chat_client.user_info());
                                 if joined_client.local_id() != chat_client.user().local_id() {
                                     //dbg!("forwarding", &joined_client);
-                                    wsclient.forward_client(&joined_client).await?;
+                                    wsclient.forward_user(&joined_client).await?;
                                 }
                             },
                             Err(RecvError::Lagged(count)) => {

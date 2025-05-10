@@ -8,14 +8,6 @@ use rocket::{
 };
 use uuid::Uuid;
 
-#[derive(Debug, Eq, PartialEq, PartialOrd, Ord, Hash, Clone)]
-pub struct SmId(Arc<str>);
-impl SmId {
-    pub fn from_string(str: String) -> Self {
-        Self(str.into())
-    }
-}
-
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct SesId(Uuid);
 
@@ -55,30 +47,5 @@ impl<'r> FromRequest<'r> for SesId {
     }
 }
 
-#[deprecated(note = "Use smids now")]
-#[derive(Debug, Eq, PartialEq, Hash, Clone)]
-pub struct UserSid(SmId);
-
-impl UserSid {
-    pub fn from_smid(smid: SmId) -> UserSid {
-        UserSid(smid)
-    }
-    pub fn to_smid(&self) -> SmId {
-        self.0.clone()
-    }
-
-    pub fn new() -> UserSid {
-        Self(SmId("deprecated_uid".into()))
-    }
-    pub fn parse_str(string: &str) -> Option<Self> {
-        Some(Self(SmId("deprecated_uid".into())))
-    }
-    pub fn to_bytes_le(&self) -> [u8; 17] {
-        [0; 17]
-    }
-}
-impl Display for UserSid {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str("deprecated uid")
-    }
-}
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct UserId(pub(super) i32);

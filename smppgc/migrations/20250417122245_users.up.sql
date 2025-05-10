@@ -6,7 +6,6 @@ CREATE TABLE users (
   irl_name VARCHAR NOT NULL,
   role INTEGER NOT NULL DEFAULT 0,
   ban_count INTEGER NOT NULL DEFAULT 0,
-  ban_end_timestamp INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE names (

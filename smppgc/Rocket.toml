@@ -18,20 +18,14 @@ max_username_len=30
 max_claimed_names=2
 max_name_retention=604800 # 7 days
 
-max_same_message_streak=3
-same_message_penalty=6
+[default.message_limits]
+ratelimit="120/60"
+max_len=300
+min_len=2
+small_len=150
+large_penalty=2
 
-small_message_len=150
-max_message_len=300
-min_message_len=2
-large_message_penalty=2
-
-mesg_rate={timeframe=6,amount=3}
-
-xx_penalty=2
-not_be_penalty=4
-mesg_ip_rate={timeframe=60,amount=300}
-new_user_ip_rate={timeframe=120, amount=50} # 2 minuten
+max_spam=2
 
 [default.oauth]
 debug=true

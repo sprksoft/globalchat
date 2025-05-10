@@ -1,18 +1,15 @@
 use std::{sync::Arc, time::SystemTime};
 
-use crate::users::UserSid;
-
-use super::{role::Role, SmId};
+use super::{role::Role, UserId};
 
 #[derive(Clone, Debug)]
-pub struct UserInfo2 {
+pub struct UserInfo {
     pub role: Role,
-    pub smid: SmId,
-    pub id: i32,
+    pub id: UserId,
     pub irl_name: Box<str>,
     pub ban_end_timestamp: SystemTime,
 }
-impl UserInfo2 {
+impl UserInfo {
     pub fn is_banned(&self, now: SystemTime) -> bool {
         now.duration_since(self.ban_end_timestamp).is_ok()
     }
