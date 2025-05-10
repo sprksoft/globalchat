@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{users::UserInfo, Snowflake};
+use crate::Snowflake;
 
 use super::ChatUser;
 

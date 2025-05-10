@@ -11,7 +11,7 @@ use tokio_tungstenite::tungstenite;
 
 use crate::{
     chat::{ChatClient, ChatUser, Message, MessageChangeType},
-    users::{Session, UserInfo, UserInfo2},
+    users::{Session, UserInfo},
     Snowflake,
 };
 
@@ -138,13 +138,13 @@ impl WsClient {
         Ok(())
     }
 
-    pub async fn forward_client(&mut self, client: &UserInfo) -> Result<()> {
+    pub async fn forward_user(&mut self, client: &ChatUser) -> Result<()> {
         self.ws.send(packets::new_client_joined(client)).await?;
         Ok(())
     }
-    pub async fn forward_all_clients(
+    pub async fn forward_multiple_users(
         &mut self,
-        clients: impl Iterator<Item = &UserInfo>,
+        clients: impl Iterator<Item = &ChatUser>,
     ) -> Result<()> {
         for client in clients {
             self.ws.feed(packets::new_client_joined(client)).await?;
@@ -156,7 +156,10 @@ impl WsClient {
         self.ws.send(packets::new_message(mesg)).await?;
         Ok(())
     }
-    pub async fn forward_all(&mut self, messages: impl Iterator<Item = &Message>) -> Result<()> {
+    pub async fn forward_multiple(
+        &mut self,
+        messages: impl Iterator<Item = &Message>,
+    ) -> Result<()> {
         for message in messages {
             self.ws.feed(packets::new_message(message)).await?;
         }

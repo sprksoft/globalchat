@@ -1,9 +1,12 @@
 use std::sync::Arc;
 
+use crate::users::UserId;
+
 #[derive(Debug, Clone)]
 pub struct ChatUser {
     username: Arc<str>,
     mod_badge: bool,
+    user_id: UserId,
     local_id: u16,
 }
 impl ChatUser {
@@ -15,6 +18,9 @@ impl ChatUser {
     }
     pub fn local_id(&self) -> u16 {
         self.local_id
+    }
+    pub fn user_id(&self) -> UserId {
+        self.user_id
     }
     pub fn mod_badge(&self) -> bool {
         self.mod_badge

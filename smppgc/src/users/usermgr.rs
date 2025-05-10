@@ -18,7 +18,7 @@ use crate::{
     wsprotocol::KickReason,
 };
 
-use super::{UserConfig, UserInfo2};
+use super::{UserConfig, UserInfo};
 
 #[derive(Error, Debug)]
 pub enum NameClaimError {
@@ -104,7 +104,7 @@ impl<'r> UserManager<'r> {
     }
     pub async fn claim_name(
         &mut self,
-        user: &UserInfo2,
+        user: &UserInfo,
         name: &str,
     ) -> Result<Result<ClaimedName, NameClaimError>, sqlx::Error> {
         if name.len() > self.max_name_len || name.len() < 2 {

@@ -3,38 +3,45 @@ use std::ops::Range;
 use tokio_tungstenite::tungstenite;
 
 use crate::{
-    chat::{Message, MessageChangeType},
-    users::{UserInfo, UserSid},
+    chat::{ChatUser, Message, MessageChangeType},
+    users::UserInfo,
     Snowflake,
 };
-// Range 0-3 is for message packets
-pub const PACKET_SETUP: u8 = 4;
-pub const PACKET_USERJOIN: u8 = 5;
-pub const PACKET_PROFANITY_WARN: u8 = 6;
-pub const PACKET_MESSAGE_DEL: u8 = 7;
-pub const PACKET_MESSAGE_CENSOR: u8 = 8;
+pub const PACKET_MESSAGE: u8 = 0;
+pub const PACKET_MESSAGE_PROF: u8 = 1;
+
+pub const PACKET_SETUP: u8 = 2;
+pub const PACKET_USERJOIN: u8 = 3;
+pub const PACKET_MODJOIN: u8 = 4;
+pub const PACKET_PROFANITY_WARN: u8 = 5;
+pub const PACKET_MESSAGE_DEL: u8 = 6;
+pub const PACKET_MESSAGE_CENSOR: u8 = 7;
 
 pub fn new_setup<'a, 'b>(id: u16) -> tokio_tungstenite::tungstenite::Message {
     //|    u8    | const PACKET_SETUP
     //| [u8; 3]  | version
     //|    u16   | local id
-
-    let sid_str = sid.to_string();
+    
+    let mut data = Vec::with_capacity(1+size_of::<u16>()/size_of::<u16>())
     data.push(PACKET_SETUP);
     data.extend_from_slice(&crate::VERSION_INT.to_be_bytes());
     data.extend_from_slice(&id.to_be_bytes());
 
     tokio_tungstenite::tungstenite::Message::Binary(data)
 }
-pub fn new_client_joined(client: &UserInfo) -> tokio_tungstenite::tungstenite::Message {
-    //|  u8  | const PACKET_USERJOIN
+pub fn new_client_joined(client: &ChatUser) -> tokio_tungstenite::tungstenite::Message {
+    //|  u8  | const PACKET_USERJOIN, const PACKET_MODJOIN
     //| u16  | user id
     //| [u8] | username
 
     let username_bytes = client.username().as_bytes();
     let mut data = Vec::with_capacity(username_bytes.len() + size_of::<u16>() + 1);
-    data.push(PACKET_USERJOIN);
-    data.extend_from_slice(&client.id().to_be_bytes());
+    data.push(if client.mod_badge() {
+        PACKET_MODJOIN
+    } else {
+        PACKET_USERJOIN
+    });
+    data.extend_from_slice(&client.local_id().to_be_bytes());
     data.extend_from_slice(&username_bytes);
     tokio_tungstenite::tungstenite::Message::Binary(data)
 }
@@ -79,8 +86,7 @@ pub fn new_message_change(
 }
 
 pub fn new_message(mesg: &Message) -> tokio_tungstenite::tungstenite::Message {
-    //|  u8  | 0b0000 0000
-    //                  ^^  show mod badge, contains profanity
+    //|  u8  | const PACKET_MESSAGE, const PACKET_MESSAGE_PROF
     //|  u16 | sender id
     //| Snowflake | message id
     //| [u8] | content bytes
@@ -89,14 +95,11 @@ pub fn new_message(mesg: &Message) -> tokio_tungstenite::tungstenite::Message {
     let mut data =
         Vec::with_capacity(1 + size_of::<u16>() + size_of::<Snowflake>() + content_bytes.len());
 
-    let mut id = 0;
-    if mesg.sender.mod_badge() {
-        id |= 0b0000_0010;
-    }
-    if mesg.profanity {
-        id |= 0b0000_0001;
-    }
-    data.push(id);
+    data.push(if mesg.profanity {
+        PACKET_MESSAGE_PROF
+    } else {
+        PACKET_MESSAGE
+    });
     data.extend_from_slice(&mesg.sender.local_id().to_be_bytes());
     data.extend_from_slice(&mesg.id().to_be_bytes());
     data.extend_from_slice(content_bytes);

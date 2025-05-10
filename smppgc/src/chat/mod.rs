@@ -10,12 +10,13 @@ use tokio::sync::{
 
 mod chatuser;
 mod message;
+mod message_limits;
 pub mod socket;
 pub use chatuser::*;
 pub use message::*;
 
 use crate::{
-    users::{ClaimedName, SmId, UserSid},
+    users::{ClaimedName, UserInfo},
     utils::IdCounter,
     ChatConfig, Snowflake, SnowflakeGenerator,
 };
@@ -37,7 +38,7 @@ pub enum NewClientError {
 }
 
 struct StoredUser {
-    user: ChatUser,
+    pub user: ChatUser,
     message_count: usize,
     ghost: bool,
 }
@@ -181,24 +182,25 @@ impl Chat {
 
     pub async fn new_client(
         &self,
-        static_id: UserSid,
+        userinfo: &UserInfo,
         leased_name: ClaimedName,
         mod_badge: bool,
         bypass_user_count: bool,
     ) -> Result<ChatClient, NewClientError> {
+        let mut user_lock = self.users.lock().await;
         if !bypass_user_count
             && self.config.max_users != 0
-            && self.config.max_users <= self.users.lock().await.len() as u16
+            && self.config.max_users <= user_lock.len() as u16
         {
             return Err(NewClientError::MaxConcurrentUserCount);
         }
 
+        let user_id = userinfo.id;
         let local_id = self.client_ids.new_id();
 
-        let mut user_lock = self.users.lock().await;
         if user_lock
             .iter()
-            .find(|(_, u)| !u.ghost && static_id == u.user_info.static_id())
+            .find(|(_, u)| !u.ghost && user_id == u.user.user_id())
             .is_some()
         {
             return Err(NewClientError::AlreadyInChat);
@@ -207,10 +209,9 @@ impl Chat {
         let username: String = leased_name.into();
         let user = ChatUser {
             local_id,
+            user_id,
             mod_badge,
             username: username.into(),
-            ghost: false,
-            message_count: 0,
         };
         let client = ChatClient {
             user,
@@ -225,7 +226,7 @@ impl Chat {
         let _ = self.join_sender.send(client.user().clone()); // throws error when no receivers
 
         user_lock.insert(
-            id,
+            local_id,
             StoredUser {
                 user: client.user().clone(),
                 ghost: false,
@@ -351,8 +352,9 @@ pub fn stage() -> AdHoc {
             .expect("No chat config found");
 
         r.mount("/", routes![socket::chat_socket])
+            .attach(message_limits::stage())
             .manage(Chat::new(config))
-            .attach(AdHoc::on_shutdown("Shutdown Printer", |r| {
+            .attach(AdHoc::on_shutdown("Chat shutdown", |r| {
                 Box::pin(async move {
                     if let Some(chat) = r.state::<Chat>() {
                         chat.shutdown();

@@ -1,8 +1,6 @@
 use rocket::time::PrimitiveDateTime;
 use sqlx::FromRow;
 
-use crate::users::{role::Role, SmId};
-
 #[derive(FromRow)]
 pub struct User {
     pub id: i32,

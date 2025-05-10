@@ -38,20 +38,6 @@ pub struct ChatConfig {
     pub max_users: u16,
 }
 
-pub type MessageLen = u16;
-pub type BadWordLen = u8;
-
-#[derive(Deserialize, Debug, Clone)]
-#[serde(crate = "rocket::serde")]
-pub struct MessageConfig {
-    pub small_message_len: usize,
-    pub max_message_len: MessageLen,
-    pub min_message_len: MessageLen,
-    pub large_message_penalty: u32,
-
-    pub max_same_message_streak: u32,
-    pub same_message_penalty: u32,
-}
 metrics! {
     pub counter total_500_responses("Total amount of 500 responses");
 }
@@ -107,8 +93,6 @@ fn rocket() -> _ {
         .mount("/", routes![server_version, err_test])
         .mount("/metrics", metrics)
         .attach(db::stage())
-        .attach(AdHoc::config::<MessageConfig>())
-        .attach(ratelimit::stage())
         .attach(static_routing::stage())
         .attach(pages::stage())
         .attach(users::stage())

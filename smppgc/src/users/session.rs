@@ -16,14 +16,14 @@ use rocket::{
     State,
 };
 
-use super::{role::Role, SesId, SmId, UserInfo2};
+use super::{role::Role, SesId, SmId, UserInfo};
 use crate::{db::models::User, oauth::SmUserInfo};
 
 #[derive(Clone)]
 pub struct Session {
     created_time: SystemTime,
     ses_id: SesId,
-    pub user_info: Arc<UserInfo2>,
+    pub user_info: Arc<UserInfo>,
 }
 impl Session {
     pub fn expired(&self, now: SystemTime) -> bool {
@@ -55,9 +55,8 @@ impl SessionMgr {
         let now = SystemTime::now();
         let ses_id = SesId::new();
 
-        let user_info = UserInfo2 {
-            smid: SmId::from_string(user.smid),
-            id: user.id,
+        let user_info = UserInfo {
+            id: super::UserId(user.id),
             irl_name: user.irl_name.into(),
             role: Role::try_from(user.role).unwrap_or(Role::User),
             ban_end_timestamp: SystemTime::UNIX_EPOCH
