@@ -96,3 +96,44 @@ button {
   flex-wrap: wrap;
   justify-content:end;
 }
+
+.smbtn {
+  background: linear-gradient(#ff760e, #f20900, #f20900);
+  border-radius: 10px;
+  font-weight: bold;
+  font-family: "Open Sans";
+  padding: 0px;
+  transition: filter 0.5s;
+  filter: brightness(100%);
+  cursor: pointer;
+  font-size: 1rem;
+  
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+.smbtn:not(:disabled):hover {
+  filter: brightness(150%);
+  text-decoration: none;
+}
+.smbtn:disabled {
+  cursor:default;
+  filter: brightness(50%);
+}
+
+.smbtn img {
+  height: 30px;
+  width: 30px;
+  margin: 10px;
+}
+.smbtn .sepatator {
+  background: #FFF;
+  border-radius: 100000px;
+  width: 2px;
+  height: calc(100% - 15px);
+  margin: 0px;
+  margin-right: 10px;
+}
+.smbtn span {
+  color: #FFFF;
+}

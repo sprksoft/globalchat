@@ -1,7 +1,6 @@
 use lmetrics::metrics;
 use profanity::ProfanityFilter;
 use rocket::{get, response, Responder, Shutdown, State};
-use std::net::IpAddr;
 use tokio::sync::RwLock;
 
 use log::*;
@@ -9,14 +8,16 @@ use rocket_ws::{Channel, WebSocket};
 use tokio::sync::broadcast::error::RecvError;
 
 use crate::{
-    chat::{Chat, MessageChange, MessageChangeType, NewClientError},
-    ratelimit::RateLimitIpPenalty,
-    ratelimit::{MesgIpRateLimiters, MesgRateLimiters},
-    users::{ratelimit::UserRatelimiters, SesId, Session, SessionMgr, UserConfig, UserManager},
-    utils::IpCountry,
+    chat::{
+        message_limits::LimitType, Chat, MessageChange, MessageChangeType, MessageLen,
+        NewClientError,
+    },
+    users::{Session, SessionMgr, UserManager},
     wsprotocol::{KickReason, WsClient},
-    MessageConfig, Snowflake,
+    Snowflake,
 };
+
+use super::message_limits::MessageLimiter;
 
 #[derive(Responder)]
 pub enum ChatSocketResponder<'a> {
@@ -45,14 +46,10 @@ pub async fn chat_socket<'a>(
     mod_badge: Option<bool>,
     ws: WebSocket,
     mut user_manager: UserManager<'a>,
-    mesg_limits: &State<MessageConfig>,
-    user_config: &State<UserConfig>,
-    ratelimit: &'a State<UserRatelimiters>,
+    mesg_limiter: &'a State<MessageLimiter>,
     prof_filter: &'a State<RwLock<ProfanityFilter>>,
     chat: &'a State<Chat>,
     mut shutdown: Shutdown,
-    addr: IpAddr,
-    country: IpCountry,
     ses: Option<Session>,
     session_mgr: &'a State<SessionMgr>,
 ) -> Result<ChatSocketResponder<'a>, response::Debug<sqlx::Error>> {
@@ -89,7 +86,6 @@ pub async fn chat_socket<'a>(
         }
     };
 
-    let mesg_limits = mesg_limits.inner().clone();
     Ok(ChatSocketResponder::Channel(ws.channel(move |stream| {
         Box::pin(async move {
             let chat_hist = chat.history(start_time, is_mod).await;
@@ -102,8 +98,6 @@ pub async fn chat_socket<'a>(
             )
             .await?;
 
-            let mut last_message = None;
-            let mut same_mesg_streak=0;
             loop {
                 tokio::select! {
                     _ = &mut shutdown => {
@@ -130,56 +124,30 @@ pub async fn chat_socket<'a>(
                             }
 
                         }
-
-                        if mesg.len() > mesg_limits.max_message_len as usize || mesg.len() < mesg_limits.min_message_len as usize{
-                            messages_blocked::inc("size");
-                            continue;
-                        }
-                        let rl_points = if mesg.len() > mesg_limits.small_message_len { mesg_limits.large_message_penalty } else { 1 };
-                        if !ip_ratelimiters.0.update(addr, rl_points*ip_penalty_multiplier){
-                            messages_blocked::inc("ipratelimit");
-                            wsclient.kick(KickReason::IpRateLimit).await?;
-                            continue;
-                        }
-                        if Some(&mesg.content) == last_message.as_ref(){
-                            same_mesg_streak+=1;
-                        }else{
-                            same_mesg_streak=0;
-                            last_message = Some(mesg.content.clone());
-                        }
-                        if same_mesg_streak >= mesg_limits.max_same_message_streak{
-                            mesg_ratelimiters.0.update(sid.clone(), mesg_limits.same_message_penalty);
-                            messages_blocked::inc("same_mesg_spam");
-                        }
-                        if !mesg_ratelimiters.0.update(sid.clone(), rl_points){
-                            wsclient.kick(KickReason::RateLimit).await?;
-                            messages_blocked::inc("ratelimit");
-                            continue;
-                        }
-
-
-                        let (prof_span, content) = {
-                            let lock = prof_filter.read().await;
-                            let (tokenized_mesg, content) = lock.tokenize(&mesg.content.trim());
-
-                            (lock.check(&tokenized_mesg).map(|m|(m.span, m.rule.to_string_friendly())), content)
+                        let mesg = {
+                            match mesg_limiter.feed(ses.user_info.id, &&prof_filter.read().await, mesg.content) {
+                                Ok(c) => {let mesg = chat_client.new_message(c.into(), false); wsclient.forward(&mesg).await?; mesg},
+                                Err(LimitType::Rate) => {
+                                    messages_blocked::inc("ratelimit");
+                                    return wsclient.kick(KickReason::RateLimit).await;
+                                },
+                                Err(LimitType::Profanity{content, bad_word, span}) => {
+                                    let span = span.start as MessageLen..span.end as MessageLen;
+                                    wsclient.profanity_warning(&content, &bad_word, span).await?;
+                                    messages_blocked::inc("profanity");
+                                    chat_client.new_message(content.into(), true)
+                                }
+                                Err(LimitType::Size) => {
+                                    messages_blocked::inc("size");
+                                    continue;
+                                },
+                                Err(LimitType::Spam) => {
+                                    messages_blocked::inc("spam");
+                                    continue;
+                                }
+                            }
                         };
-                        if content.len() > mesg_limits.max_message_len as usize || content.len() < mesg_limits.min_message_len as usize{
-                            messages_blocked::inc("size");
-                            continue;
-                        }
-                        let mesg = chat_client.new_message(content.into(), prof_span.is_some());
-                        if let Some((span, bad_word)) = prof_span {
-                            let span = span.start as crate::MessageLen..span.end as crate::MessageLen;
-                            wsclient.profanity_warning(&mesg.content, &bad_word, span).await?;
-                            messages_blocked::inc("profanity");
-                        }else{
-                            wsclient.forward(&mesg).await?;
-                        }
                         chat_client.send(mesg);
-
-
-
                     }
                     mesg = chat_client.message_receiver.recv() => {
                         match mesg{

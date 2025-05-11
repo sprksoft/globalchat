@@ -22,27 +22,5 @@ main {
 }
 
 #sm-login-btn {
-  align-self: center;
-
-  font-size: 1rem;
-  font-weight: bold;
-  font-family: inherit;
-  color: #ffffffff;
-  background: linear-gradient(#ff760e, #f20900, #f20900);
-  border-radius: 1000px;
-  border: none;
-
   margin: 2rem 0rem 1rem 0rem;
-  padding: 1rem 3rem 1rem 3rem;
-  transition: transform 0.3s;
-
-  cursor: pointer;
-}
-#sm-login-btn:not(:disabled):hover {
- transform: scaleX(1.1) scaleY(1);
-}
-
-#sm-login-btn:disabled {
-  cursor: default;
-  filter: brightness(50%);
 }

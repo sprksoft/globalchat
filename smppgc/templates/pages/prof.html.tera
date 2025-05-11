@@ -92,7 +92,7 @@ Profanity filter - Global Chat
 
 <div class="view">
 <header class="slim-header">
-  <a href="/home" class="button">
+  <a href="/" class="button">
     {% include "svg/arrow_l" %}
   </a>
   <h1 class="header-title">Profanity filter</h1>

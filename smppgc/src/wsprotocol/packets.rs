@@ -3,8 +3,7 @@ use std::ops::Range;
 use tokio_tungstenite::tungstenite;
 
 use crate::{
-    chat::{ChatUser, Message, MessageChangeType},
-    users::UserInfo,
+    chat::{ChatUser, Message, MessageChangeType, MessageLen},
     Snowflake,
 };
 pub const PACKET_MESSAGE: u8 = 0;
@@ -21,8 +20,8 @@ pub fn new_setup<'a, 'b>(id: u16) -> tokio_tungstenite::tungstenite::Message {
     //|    u8    | const PACKET_SETUP
     //| [u8; 3]  | version
     //|    u16   | local id
-    
-    let mut data = Vec::with_capacity(1+size_of::<u16>()/size_of::<u16>())
+
+    let mut data = Vec::with_capacity(1 + size_of::<u8>() * 3 + size_of::<u16>());
     data.push(PACKET_SETUP);
     data.extend_from_slice(&crate::VERSION_INT.to_be_bytes());
     data.extend_from_slice(&id.to_be_bytes());
@@ -49,7 +48,7 @@ pub fn new_client_joined(client: &ChatUser) -> tokio_tungstenite::tungstenite::M
 pub fn new_profanity_warn(
     message: &str,
     bad_word: &str,
-    span: Range<crate::MessageLen>,
+    span: Range<MessageLen>,
 ) -> tokio_tungstenite::tungstenite::Message {
     //|  u8  | const PACKET_PROFANITY_WARN
     //| MessageLen | match start
@@ -59,11 +58,11 @@ pub fn new_profanity_warn(
     //| [u8] | bad word
 
     let mut data =
-        Vec::with_capacity(1 + size_of::<crate::MessageLen>() * 3 + message.len() + bad_word.len());
+        Vec::with_capacity(1 + size_of::<MessageLen>() * 3 + message.len() + bad_word.len());
     data.push(PACKET_PROFANITY_WARN);
     data.extend_from_slice(&span.start.to_be_bytes());
     data.extend_from_slice(&span.end.to_be_bytes());
-    data.extend_from_slice(&(message.len() as crate::MessageLen).to_be_bytes());
+    data.extend_from_slice(&(message.len() as MessageLen).to_be_bytes());
     data.extend_from_slice(message.as_bytes());
     data.extend_from_slice(bad_word.as_bytes());
     tokio_tungstenite::tungstenite::Message::Binary(data)

@@ -1,4 +1,4 @@
-use std::{convert::Infallible, fmt::Display, ops::Deref, sync::Arc};
+use std::{convert::Infallible, fmt::Display, ops::Deref};
 
 use rocket::{
     async_trait,
@@ -49,3 +49,19 @@ impl<'r> FromRequest<'r> for SesId {
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct UserId(pub(super) i32);
+impl Deref for UserId {
+    type Target = i32;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl Into<i32> for UserId {
+    fn into(self) -> i32 {
+        self.0
+    }
+}
+impl UserId {
+    pub fn to_i32(self) -> i32 {
+        self.0
+    }
+}

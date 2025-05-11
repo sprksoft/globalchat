@@ -4,10 +4,10 @@ use crate::users::UserId;
 
 #[derive(Debug, Clone)]
 pub struct ChatUser {
-    username: Arc<str>,
-    mod_badge: bool,
-    user_id: UserId,
-    local_id: u16,
+    pub(super) username: Arc<str>,
+    pub(super) mod_badge: bool,
+    pub(super) user_id: UserId,
+    pub(super) local_id: u16,
 }
 impl ChatUser {
     pub fn arc_username(&self) -> Arc<str> {

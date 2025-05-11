@@ -165,9 +165,9 @@ export class SocketMgr {
         let start = reader.getUint16(0);
         let end = reader.getUint16(0);
         let msgLen = reader.getUint16(0);
-        let message = reader.getString(0, msgLen);
+        let msg = reader.getString(0, msgLen);
         let badWord = reader.getString(0);
-        this.on_profanity_warn(message, badWord, start, end);
+        this.on_profanity_warn(msg, badWord, start, end);
         break;
 
       case PACKET_MESSAGE_DEL:

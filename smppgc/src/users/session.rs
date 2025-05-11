@@ -1,11 +1,8 @@
-use dashmap::{DashMap, Map};
+use dashmap::DashMap;
 use std::{
-    convert::Infallible,
-    ops::Deref,
     sync::Arc,
     time::{Duration, Instant, SystemTime},
 };
-use tokio::sync::RwLock;
 
 use rocket::{
     async_trait,
@@ -13,11 +10,10 @@ use rocket::{
     http::Status,
     outcome::{try_outcome, IntoOutcome},
     request::{FromRequest, Outcome},
-    State,
 };
 
-use super::{role::Role, SesId, SmId, UserInfo};
-use crate::{db::models::User, oauth::SmUserInfo};
+use super::{role::Role, SesId, UserInfo};
+use crate::db::models::User;
 
 #[derive(Clone)]
 pub struct Session {
@@ -59,8 +55,9 @@ impl SessionMgr {
             id: super::UserId(user.id),
             irl_name: user.irl_name.into(),
             role: Role::try_from(user.role).unwrap_or(Role::User),
-            ban_end_timestamp: SystemTime::UNIX_EPOCH
-                + Duration::from_secs(user.ban_end_timestamp as u64),
+            ban_end_timestamp: SystemTime::now(), //TODO: ban system
+                                                  // ban_end_timestamp: SystemTime::UNIX_EPOCH
+                                                  //     + Duration::from_secs(user.ban_end_timestamp as u64),
         };
 
         self.sessions.insert(
@@ -91,6 +88,32 @@ impl<'r> FromRequest<'r> for Session {
             .get_session(ses_id)
             .await
             .or_forward(Status::Unauthorized)
+    }
+}
+
+pub struct ModSession(pub Session);
+#[async_trait]
+impl<'r> FromRequest<'r> for ModSession {
+    type Error = &'static str;
+    async fn from_request(req: &'r rocket::Request<'_>) -> Outcome<Self, Self::Error> {
+        let ses = try_outcome!(req.guard::<Session>().await);
+        match ses.user_info.role {
+            Role::Owner | Role::Admin | Role::Mod => Outcome::Success(ModSession(ses)),
+            Role::User => Outcome::Forward(Status::Unauthorized),
+        }
+    }
+}
+
+pub struct AdminSession(pub Session);
+#[async_trait]
+impl<'r> FromRequest<'r> for AdminSession {
+    type Error = &'static str;
+    async fn from_request(req: &'r rocket::Request<'_>) -> Outcome<Self, Self::Error> {
+        let ses = try_outcome!(req.guard::<Session>().await);
+        match ses.user_info.role {
+            Role::Owner | Role::Admin => Outcome::Success(AdminSession(ses)),
+            Role::Mod | Role::User => Outcome::Forward(Status::Unauthorized),
+        }
     }
 }
 

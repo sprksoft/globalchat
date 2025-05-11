@@ -15,6 +15,8 @@ pub mod socket;
 pub use chatuser::*;
 pub use message::*;
 
+pub use message_limits::*;
+
 use crate::{
     users::{ClaimedName, UserInfo},
     utils::IdCounter,
