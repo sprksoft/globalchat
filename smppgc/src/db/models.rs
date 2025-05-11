@@ -1,4 +1,3 @@
-use rocket::time::PrimitiveDateTime;
 use sqlx::FromRow;
 
 #[derive(FromRow)]
@@ -8,7 +7,6 @@ pub struct User {
     pub role: i32,
     pub irl_name: String,
     pub ban_count: i32,
-    pub ban_end_timestamp: i32,
 }
 #[derive(FromRow)]
 pub struct PromoteKey {

@@ -1,16 +1,14 @@
-use chat::Chat;
 use lmetrics::metrics;
 use lmetrics::LMetrics;
 use rocket::catch;
 use rocket::catchers;
 use rocket::get;
+use rocket::launch;
 use rocket::routes;
 use rocket::serde::Deserialize;
 use rocket::Responder;
-use rocket::{fairing::AdHoc, launch};
 use rocket_dyn_templates::context;
 use rocket_dyn_templates::Template;
-use themes::Theme;
 use utils::static_routing;
 use utils::CSPFrameAncestors;
 
@@ -74,7 +72,7 @@ fn server_version() -> String {
 
 #[launch]
 fn rocket() -> _ {
-    let mut metrics = LMetrics::new(&[
+    let metrics = LMetrics::new(&[
         &crate::total_500_responses::METRIC,
         &oauth::total_started_oauth_flows::METRIC,
         &oauth::total_failed_oauth_flows::METRIC,
@@ -94,9 +92,9 @@ fn rocket() -> _ {
         .mount("/metrics", metrics)
         .attach(db::stage())
         .attach(static_routing::stage())
-        .attach(pages::stage())
         .attach(users::stage())
+        .attach(pages::stage())
         .attach(oauth::stage())
-        .attach(chat::stage())
         .attach(profanity::stage())
+        .attach(chat::stage())
 }

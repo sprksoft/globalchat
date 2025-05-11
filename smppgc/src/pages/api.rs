@@ -1,9 +1,9 @@
 use tokio::sync::{Mutex, RwLock};
 
 use crate::{
-    auth::{GcAdmin, GcRole},
     chat::Chat,
     profanity::{ProfRuleset, RuleLintSet, RulesetChanges, RulesetError},
+    users::{role::Role, AdminSession, Session},
 };
 use profanity::ProfanityFilter;
 use rocket::{
@@ -20,7 +20,7 @@ enum SyncResponse {
 
 #[post("/prof/ruleset", data = "<changes>")]
 async fn sync_ruleset(
-    _gcadmin: GcAdmin,
+    _ses: AdminSession,
     changes: Json<RulesetChanges>,
     global_ruleset: &State<Mutex<ProfRuleset>>,
     global_filter: &State<RwLock<ProfanityFilter>>,
@@ -62,12 +62,13 @@ async fn sync_ruleset(
 }
 
 #[get("/role")]
-fn role(auth: Option<GcRole>) -> &'static str {
-    match auth {
-        None => "invalid key",
-        Some(GcRole::Mod) => "mod",
-        Some(GcRole::Admin) => "admin",
-        Some(GcRole::User) => "normal user",
+fn role(ses: Option<Session>) -> &'static str {
+    match ses.map(|s| s.user_info.role) {
+        None => "not logged in",
+        Some(Role::Owner) => "owner",
+        Some(Role::Mod) => "mod",
+        Some(Role::Admin) => "admin",
+        Some(Role::User) => "user",
     }
 }
 

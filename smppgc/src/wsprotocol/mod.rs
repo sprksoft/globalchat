@@ -10,8 +10,7 @@ use thiserror::Error;
 use tokio_tungstenite::tungstenite;
 
 use crate::{
-    chat::{ChatClient, ChatUser, Message, MessageChangeType},
-    users::{Session, UserInfo},
+    chat::{ChatUser, Message, MessageChangeType, MessageLen},
     Snowflake,
 };
 
@@ -119,7 +118,7 @@ impl WsClient {
         &mut self,
         message: &str,
         bad_word: &str,
-        span: Range<crate::MessageLen>,
+        span: Range<MessageLen>,
     ) -> Result<()> {
         self.ws
             .send(packets::new_profanity_warn(message, bad_word, span))
@@ -173,7 +172,9 @@ impl WsClient {
         let message = message?;
 
         if message.is_text() {
-            let content = String::from_utf8_lossy(&message.into_data()).to_string();
+            let content = String::from_utf8_lossy(&message.into_data())
+                .trim()
+                .to_string();
 
             Ok(Some(RecievedMessage { content: content }))
         } else if message.is_binary() {

@@ -20,7 +20,7 @@ use thiserror::Error;
 use url::Url;
 use uuid::Uuid;
 
-use crate::db::{self, Db, DbResult};
+use crate::db::{self, Db};
 use crate::themes::{self, Theme};
 
 metrics!(
@@ -269,7 +269,7 @@ async fn oauth_return(
 
     let param = state.split_once('+').map(|(_, param)| param);
     match param {
-        Some("ret:home") => Ok(OAuthResponse::Redirect(Redirect::temporary("/home"))),
+        Some("ret:home") => Ok(OAuthResponse::Redirect(Redirect::temporary("/"))),
         Some("ret:chat") => Ok(OAuthResponse::Redirect(Redirect::temporary("/chat"))),
         _ => Ok(OAuthResponse::fail_flow(
             "Invalid ret in state parameter at redirect endpoint",

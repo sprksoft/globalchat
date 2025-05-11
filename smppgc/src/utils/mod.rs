@@ -1,11 +1,11 @@
 use std::sync::atomic::AtomicU16;
 
 mod csp;
-mod ipcountry;
+//mod ipcountry;
 pub mod static_routing;
 
 pub use csp::*;
-pub use ipcountry::*;
+//pub use ipcountry::*;
 
 pub struct IdCounter {
     id_counter: AtomicU16,

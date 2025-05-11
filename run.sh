@@ -13,7 +13,12 @@ if ! $DOCKER_COMPOSE version ; then
   exit 1
 fi
 
-if [[ "$1" == "prepare" ]] ; then
+if [[ "$1" == "spawndb" ]] ; then
+  $DOCKER_COMPOSE -f db.compose.yml up --detach
+  exit 0
+fi
+
+if [[ "$1" != "noprepare" ]] ; then
   if ! type $CARGO ; then
     echo "Cargo not found"
     exit 1
@@ -24,10 +29,6 @@ if [[ "$1" == "prepare" ]] ; then
   # fall through
 fi
 
-if [[ "$1" == "spawndb" ]] ; then
-  $DOCKER_COMPOSE -f db.compose.yml up --detach
-  exit 0
-fi
 
 
 

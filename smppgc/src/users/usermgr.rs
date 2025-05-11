@@ -1,22 +1,15 @@
-use dashmap::DashMap;
 use log::*;
 use profanity::{ProfanityFilter, TokenizedMessage};
 use rocket::{
-    fairing::AdHoc,
     outcome::{try_outcome, Outcome},
     request::FromRequest,
-    serde::Deserialize,
 };
 use rocket_db_pools::Connection;
 use sqlx::query;
-use std::{collections::VecDeque, ops::Deref, sync::Arc};
+use std::ops::Deref;
 use thiserror::Error;
-use tokio::sync::RwLock;
 
-use crate::{
-    db::{models::User, Db},
-    wsprotocol::KickReason,
-};
+use crate::{db::Db, wsprotocol::KickReason};
 
 use super::{UserConfig, UserInfo};
 
@@ -125,7 +118,7 @@ impl<'r> UserManager<'r> {
         let max_retention = self.max_name_retention as i32;
         let result = query!(
             "SELECT claim_name($1, $2, $3, $4)",
-            user.id,
+            user.id.to_i32(),
             norm_name,
             max_claimed_names,
             max_retention,

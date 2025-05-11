@@ -9,12 +9,12 @@ use rocket::{
 };
 use thiserror::Error;
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct RateLimitConfig {
     pub timeframe: u32,
     pub amount: u32,
 }
-impl Deserialize for RateLimitConfig {
+impl<'de> Deserialize<'de> for RateLimitConfig {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: rocket::serde::Deserializer<'de>,
@@ -38,7 +38,7 @@ impl<'de> Visitor<'de> for RatelimitConfigVisitor {
 }
 
 #[derive(Debug, Error)]
-enum ParseRatelimitError {
+pub enum ParseRatelimitError {
     #[error("{0}")]
     ParseIntError(#[from] ParseIntError),
     #[error("rate limit needs to be in the format: <amount>/<timeframe>")]
@@ -98,7 +98,7 @@ impl RateLimiter {
     }
 }
 
-impl Deserialize for RateLimiter {
+impl<'de> Deserialize<'de> for RateLimiter {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: rocket::serde::Deserializer<'de>,

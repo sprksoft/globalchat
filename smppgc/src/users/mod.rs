@@ -1,5 +1,4 @@
 mod ids;
-pub mod ratelimit;
 pub mod role;
 mod session;
 mod userinfo;
@@ -9,10 +8,6 @@ use rocket::{fairing::AdHoc, serde::Deserialize};
 pub use session::*;
 pub use userinfo::*;
 pub use usermgr::*;
-
-use crate::ratelimit::RateLimitConfig;
-
-use self::ratelimit::UserRatelimiters;
 
 #[derive(Deserialize)]
 #[serde(crate = "rocket::serde")]
@@ -26,6 +21,6 @@ pub struct UserConfig {
 pub fn stage() -> AdHoc {
     AdHoc::on_ignite("users", |r| async {
         r.attach(session::stage())
-            .manage(AdHoc::config::<UserConfig>())
+            .attach(AdHoc::config::<UserConfig>())
     })
 }

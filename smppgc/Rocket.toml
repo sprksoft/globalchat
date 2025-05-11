@@ -24,7 +24,6 @@ max_len=300
 min_len=2
 small_len=150
 large_penalty=2
-
 max_spam=2
 
 [default.oauth]

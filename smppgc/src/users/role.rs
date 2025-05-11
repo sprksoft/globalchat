@@ -1,12 +1,4 @@
-use super::SesId;
-use crate::db::Db;
-use rocket::{
-    request::FromRequest,
-    serde::{Deserialize, Serialize},
-};
-use rocket_db_pools::Connection;
-
-use super::Session;
+use rocket::serde::{Deserialize, Serialize};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(crate = "rocket::serde")]
