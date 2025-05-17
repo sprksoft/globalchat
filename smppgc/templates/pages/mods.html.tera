@@ -1,0 +1,68 @@
+{% extends "base" %}
+<!-- vim: set ft=html: -->
+
+{% block title %}
+Moderators - Global Chat
+{% endblock title %}
+
+{% block head %}
+
+<style type="text/css">
+{{theme_css}}
+</style>
+
+<link rel="stylesheet" href="{{ url(path="/static/home.css") }}" />
+{% endblock head %}
+
+{% block content %}
+
+<div class="view">
+<header class="slim-header">
+  <a href="/" class="button">
+    {% include "svg/arrow_l" %}
+  </a>
+  <h1 class="header-title">Moderators</h1>
+</header>
+<main>
+  <h2>Moderators</h2>
+  <table>
+    <thead>
+      <tr>
+        <th style="text-align:left;">Irl Name</th>
+        <th style="width: 6em;">Role</th>
+        <th style="width: 6em;">Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for user in users %}
+      <tr>
+        <td>{{ user.name }}</td>
+        <td>{{ user.role }}</td>
+        <td><button>de-mod</button></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <h2>Keys</h2>
+  <table>
+    <thead>
+      <tr>
+        <th style="text-align:left;">Key</th>
+        <th >Claimed by</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>nonexistand_key_lalala</td>
+        <td>No one</td>
+      </tr>
+    </tbody>
+  </table>
+</main>
+<div>
+
+{% endblock content %}
+
+{% block scripts %}
+{% endblock scripts %}

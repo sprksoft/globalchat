@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE promote_keys SET used_by=$2 WHERE key=$1 AND used_by IS NULL RETURNING new_role",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "new_role",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "4c26762d1fcb3138d87f4b586c66f2e5e5460b6c828ef9da3a31e72af6a6f725"
+}

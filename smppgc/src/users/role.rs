@@ -10,14 +10,18 @@ pub enum Role {
 }
 impl Role {
     pub fn is_mod(self) -> bool {
-        match self {
-            Self::User => false,
-            Self::Mod | Self::Admin | Self::Owner => true,
+        self >= Self::Mod
+    }
+    pub fn from_i32(num: i32) -> Option<Self> {
+        match num {
+            0 => Some(Self::User),
+            1 => Some(Self::Mod),
+            2 => Some(Self::Admin),
+            3 => Some(Self::Owner),
+            _ => None,
         }
     }
-}
-impl Into<i32> for Role {
-    fn into(self) -> i32 {
+    pub fn to_i32(self) -> i32 {
         match self {
             Self::User => 0,
             Self::Mod => 1,
@@ -25,20 +29,28 @@ impl Into<i32> for Role {
             Self::Owner => 3,
         }
     }
-}
-
-impl TryFrom<i32> for Role {
-    type Error = ();
-    fn try_from(value: i32) -> Result<Self, Self::Error> {
-        match value {
-            0 => Ok(Role::User),
-            1 => Ok(Role::Mod),
-            2 => Ok(Role::Admin),
-            3 => Ok(Role::Owner),
-            _ => Err(()),
+    pub fn to_str(self) -> &'static str {
+        match self {
+            Role::User => "user",
+            Role::Mod => "mod",
+            Role::Admin => "admin",
+            Role::Owner => "owner",
         }
     }
 }
+
+impl PartialOrd for Role {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.to_i32().partial_cmp(&other.to_i32())
+    }
+}
+impl TryFrom<i32> for Role {
+    type Error = ();
+    fn try_from(value: i32) -> Result<Self, Self::Error> {
+        Self::from_i32(value).ok_or(())
+    }
+}
+
 impl TryFrom<String> for Role {
     type Error = ();
     fn try_from(value: String) -> Result<Self, Self::Error> {

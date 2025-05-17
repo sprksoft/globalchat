@@ -226,3 +226,25 @@ dialog {
   display:block;
 }
 
+
+
+table {
+  border-collapse: collapse;
+  border: 2px solid var(--color-base03);
+  border-radius: 10px;
+  font-family: inherit;
+  width: 100%;
+}
+
+th,
+td {
+  background: var(--color-base01);
+  border: 2px solid var(--color-base03);
+  padding: 0.22rem 1rem;
+}
+
+
+th {
+  background: var(--color-base03);
+}
+

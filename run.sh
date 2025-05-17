@@ -18,7 +18,27 @@ if [[ "$1" == "spawndb" ]] ; then
   exit 0
 fi
 
-if [[ "$1" != "noprepare" ]] ; then
+watch=false
+prepare=true
+
+while test $# -gt 0
+do
+  case "$1" in
+    --spawndb) $DOCKER_COMPOSE -f db.compose.yml up --detach
+      exit 0
+      ;;
+    --watch) watch=true
+      ;;
+    --noprep) prepare=false
+      ;;
+    --*) echo "invalid option $1"
+      ;;
+  esac
+  shift
+done
+
+
+if $prepare ; then
   if ! type $CARGO ; then
     echo "Cargo not found"
     exit 1
@@ -26,10 +46,10 @@ if [[ "$1" != "noprepare" ]] ; then
 
   echo "sqlx prepare..."
   $CARGO sqlx prepare --workspace
-  # fall through
 fi
 
-
-
-
-$DOCKER_COMPOSE -f compose.yml watch
+if $watch ; then
+  $DOCKER_COMPOSE -f compose.yml watch
+else
+  $DOCKER_COMPOSE -f compose.yml up --rebuild --detach
+fi

@@ -8,6 +8,13 @@ CREATE TABLE users (
   ban_count INTEGER NOT NULL DEFAULT 0
 );
 
+CREATE TABLE sessions (
+  user_id INTEGER NOT NULL,
+  created_at INTEGER NOT NULL,
+
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
 CREATE TABLE names (
   name VARCHAR NOT NULL PRIMARY KEY,
   user_id INTEGER NOT NULL,
