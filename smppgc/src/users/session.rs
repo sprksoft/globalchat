@@ -54,7 +54,7 @@ impl SessionMgr {
         let user_info = UserInfo {
             id: super::UserId(user.id),
             irl_name: user.irl_name.into(),
-            role: Role::try_from(user.role).unwrap_or(Role::User),
+            role: Role::from_i32(user.role).unwrap_or(Role::User),
             ban_end_timestamp: SystemTime::now(), //TODO: ban system
                                                   // ban_end_timestamp: SystemTime::UNIX_EPOCH
                                                   //     + Duration::from_secs(user.ban_end_timestamp as u64),

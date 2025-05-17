@@ -6,7 +6,7 @@
 <style>
 {{ theme_css }}
 </style>
-<link rel="stylesheet" href="{{ url(path="/static/index.css") }}" />
+<link rel="stylesheet" href="{{ url(path="/static/home.css") }}" />
 {% endblock head %}
 
 {% block content %}

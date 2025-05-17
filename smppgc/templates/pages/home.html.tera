@@ -33,6 +33,7 @@ Home - Global Chat
 
   {% if role == "Admin" %}
   <a class="button" href="/prof">Profanity filter</a>
+  <a class="button" href="/mods">Moderators</a>
   {% endif %}
 </main>
 

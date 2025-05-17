@@ -7,7 +7,7 @@
 {{theme_css}}
 </style>
 
-<link rel="stylesheet" href="{{ url(path="/static/index.css") }}" />
+<link rel="stylesheet" href="{{ url(path="/static/login.css") }}" />
 {% endblock head %}
 
 {% block content %}
@@ -33,5 +33,5 @@
 <script>
   const ENABLE_CHECK={{ accepted_disclaimer == disclaimer_ver }};
 </script>
-<script defer type="text/javascript" src="{{ url(path="/static/index.js") }}"></script>
+<script defer type="text/javascript" src="{{ url(path="/static/login.js") }}"></script>
 {% endblock scripts %}

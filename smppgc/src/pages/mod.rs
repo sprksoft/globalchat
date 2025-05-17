@@ -90,7 +90,9 @@ pub fn stage() -> AdHoc {
                 chat,
                 chat_noses,
                 prof::prof,
-                home, /* promote::promote */
+                home,
+                promote::promote,
+                promote::mods
             ],
         )
         .attach(api::stage())

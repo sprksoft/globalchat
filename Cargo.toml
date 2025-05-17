@@ -16,3 +16,6 @@ rocket = { git="https://github.com/Xgames123/Rocket.git", branch="v0.5" }
 rocket_ws = { git="https://github.com/Xgames123/Rocket.git", branch="v0.5" }
 rocket_dyn_templates = { git="https://github.com/Xgames123/Rocket.git", branch="v0.5" }
 rocket_db_pools = { git="https://github.com/Xgames123/Rocket.git", branch="v0.5" }
+
+[profile.dev.package.sqlx-macros]
+opt-level = 3
