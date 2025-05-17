@@ -65,6 +65,19 @@ pub async fn promote(
     })
 }
 
+fn shorten_name(name: &str) -> String {
+    let mut iter = name.split_whitespace();
+    let mut name = iter.next().unwrap_or("").to_string();
+    name.push(' ');
+
+    let last_name: String = iter
+        .flat_map(|part| part.chars().next().map(|p| [p, '.']))
+        .flatten()
+        .collect();
+    name.push_str(&last_name);
+    name
+}
+
 #[derive(Serialize)]
 #[serde(crate = "rocket::serde")]
 struct User {
@@ -72,25 +85,12 @@ struct User {
     role: &'static str,
 }
 
-fn shorten_name(name: &str) -> String {
-    let mut iter = name.split_whitespace();
-    let mut new_name = String::new();
-    if let Some(first_name) = iter.next() {
-        new_name.push_str(first_name);
-    }
-    new_name.push(' ');
-    let mut first = true;
-    for part in iter {
-        let Some(part) = part.chars().next() else {
-            continue;
-        };
-        if !first {
-            new_name.push('.');
-        }
-        new_name.push(part);
-        first = false;
-    }
-    new_name
+#[derive(Serialize)]
+#[serde(crate = "rocket::serde")]
+struct Key {
+    used_by: String,
+    key: String,
+    new_role: &'static str,
 }
 
 #[get("/mods")]
@@ -104,12 +104,28 @@ pub async fn mods(
         .await?
         .iter()
         .map(|u| User {
-            role: Role::from_i32(u.role).unwrap_or(Role::User).to_str(),
+            role: Role::from_i32(u.role)
+                .map(|r| r.to_str())
+                .unwrap_or("unknown"),
             name: shorten_name(&u.irl_name),
+        })
+        .collect();
+
+    let keys: Vec<Key> = query!("SELECT key,new_role,users.irl_name FROM promote_keys LEFT JOIN users ON users.id = promote_keys.used_by")
+        .fetch_all(&mut **db)
+        .await?
+        .drain(..)
+        .map(|k| Key {
+            new_role: Role::from_i32(k.new_role)
+                .map(|r| r.to_str())
+                .unwrap_or("unknown"),
+            used_by: k.irl_name.map(|n|shorten_name(n))
+                .unwrap_or("No one".to_string()),
+            key: k.key,
         })
         .collect();
     Ok(Template::render(
         "pages/mods",
-        context! {theme_css:theme.css(), users:users},
+        context! {theme_css:theme.css(), users:users, keys:keys},
     ))
 }

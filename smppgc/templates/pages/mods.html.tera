@@ -30,7 +30,6 @@ Moderators - Global Chat
       <tr>
         <th style="text-align:left;">Irl Name</th>
         <th style="width: 6em;">Role</th>
-        <th style="width: 6em;">Action</th>
       </tr>
     </thead>
     <tbody>
@@ -38,7 +37,6 @@ Moderators - Global Chat
       <tr>
         <td>{{ user.name }}</td>
         <td>{{ user.role }}</td>
-        <td><button>de-mod</button></td>
       </tr>
       {% endfor %}
     </tbody>
@@ -49,14 +47,18 @@ Moderators - Global Chat
     <thead>
       <tr>
         <th style="text-align:left;">Key</th>
-        <th >Claimed by</th>
+        <th>Used by</th>
+        <th style="width: 6em;">Role</th>
       </tr>
     </thead>
     <tbody>
+      {% for key in keys %}
       <tr>
-        <td>nonexistand_key_lalala</td>
-        <td>No one</td>
+        <td>{{ key.key }}</td>
+        <td>{{ key.used_by }}</td>
+        <td>{{ key.new_role }}</td>
       </tr>
+      {% endfor %}
     </tbody>
   </table>
 </main>
