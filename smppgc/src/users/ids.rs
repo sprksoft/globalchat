@@ -12,7 +12,7 @@ use uuid::Uuid;
 pub struct SesId(Uuid);
 
 impl SesId {
-    pub(super) fn new() -> Self {
+    pub fn new() -> Self {
         Self(Uuid::new_v4())
     }
     pub fn parse_str(string: &str) -> Option<Self> {
@@ -49,6 +49,11 @@ impl<'r> FromRequest<'r> for SesId {
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct UserId(pub(super) i32);
+impl UserId {
+    pub fn to_i32(self) -> i32 {
+        self.0
+    }
+}
 impl Deref for UserId {
     type Target = i32;
     fn deref(&self) -> &Self::Target {
@@ -57,11 +62,6 @@ impl Deref for UserId {
 }
 impl Into<i32> for UserId {
     fn into(self) -> i32 {
-        self.0
-    }
-}
-impl UserId {
-    pub fn to_i32(self) -> i32 {
         self.0
     }
 }

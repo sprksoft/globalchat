@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use lmetrics::metrics;
 use lmetrics::LMetrics;
 use rocket::catch;

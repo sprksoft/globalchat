@@ -1,0 +1,35 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT users.role,users.id,users.irl_name FROM sessions INNER JOIN users ON sessions.user_id = users.id WHERE sessions.id = $1 AND EXTRACT(epoch from now())-sessions.created_at < $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "role",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "irl_name",
+        "type_info": "Varchar"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Numeric"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "8db60763d2625f62f662ef0cf0b71760e09215bdea61cde76b9a5fdf30f9dcac"
+}

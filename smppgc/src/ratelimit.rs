@@ -1,12 +1,8 @@
-use crate::users::UserId;
-use std::{net::IpAddr, num::ParseIntError, str::FromStr, time::Instant};
+use std::{num::ParseIntError, str::FromStr, time::Instant};
 
 use dashmap::DashMap;
 use log::*;
-use rocket::{
-    fairing::AdHoc,
-    serde::{de::Visitor, Deserialize},
-};
+use rocket::serde::{de::Visitor, Deserialize};
 use thiserror::Error;
 
 #[derive(Copy, Clone, Debug)]

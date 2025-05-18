@@ -3,6 +3,7 @@ use profanity::{ProfanityFilter, TokenizedMessage};
 use rocket::{
     outcome::{try_outcome, Outcome},
     request::FromRequest,
+    time::Duration,
 };
 use rocket_db_pools::Connection;
 use sqlx::query;
@@ -11,7 +12,7 @@ use thiserror::Error;
 
 use crate::{db::Db, wsprotocol::KickReason};
 
-use super::{UserConfig, UserInfo};
+use super::{User, UserConfig, UserId};
 
 #[derive(Error, Debug)]
 pub enum NameClaimError {
@@ -45,6 +46,26 @@ impl Deref for ClaimedName {
 impl Into<String> for ClaimedName {
     fn into(self) -> String {
         self.0
+    }
+}
+
+pub struct Ban {
+    reason: Option<String>,
+    expiration_time: i32,
+}
+impl Ban {
+    pub fn reason(&self) -> &str {
+        match self.reason.as_ref() {
+            Some(r) => &*r,
+            None => "",
+        }
+    }
+
+    pub fn into_close_frame(&self) -> rocket_ws::frame::CloseFrame {
+        rocket_ws::frame::CloseFrame {
+            code: rocket_ws::frame::CloseCode::Normal,
+            reason: format!("err_banned:{}:{}", self.expiration_time, self.reason()).into(),
+        }
     }
 }
 
@@ -97,7 +118,7 @@ impl<'r> UserManager<'r> {
     }
     pub async fn claim_name(
         &mut self,
-        user: &UserInfo,
+        user: &User,
         name: &str,
     ) -> Result<Result<ClaimedName, NameClaimError>, sqlx::Error> {
         if name.len() > self.max_name_len || name.len() < 2 {
@@ -118,7 +139,7 @@ impl<'r> UserManager<'r> {
         let max_retention = self.max_name_retention as i32;
         let result = query!(
             "SELECT claim_name($1, $2, $3, $4)",
-            user.id.to_i32(),
+            user.id().to_i32(),
             norm_name,
             max_claimed_names,
             max_retention,
@@ -130,5 +151,38 @@ impl<'r> UserManager<'r> {
             return Ok(Err(NameClaimError::Taken));
         }
         Ok(Ok(ClaimedName(name)))
+    }
+
+    pub async fn ban_user(
+        &mut self,
+        user_id: UserId,
+        reason: &str,
+        duration: Duration,
+    ) -> Result<(), sqlx::Error> {
+        query!("DELETE FROM bans WHERE expiration_time-EXTRACT(epoch from now()) < 0")
+            .execute(&mut **self.con)
+            .await?;
+
+        query!(
+            "INSERT INTO bans (user_id, reason, expiration_time) VALUES ($1, $2, EXTRACT(epoch from now())+$3)",
+            user_id.to_i32(),
+            reason,
+            duration.whole_seconds() as i32
+        ).execute(&mut **self.con).await?;
+
+        query!(
+            "UPDATE users SET ban_count = ban_count + 1 WHERE id=$1",
+            user_id.to_i32()
+        )
+        .execute(&mut **self.con)
+        .await?;
+        Ok(())
+    }
+
+    pub async fn get_ban(&mut self, user_id: UserId) -> Result<Option<Ban>, sqlx::Error> {
+        Ok(query!(
+            "SELECT reason,expiration_time FROM bans WHERE user_id=$1 AND expiration_time-EXTRACT(epoch from now()) > 0",
+            user_id.to_i32()
+        ).fetch_optional(&mut **self.con).await?.map(|b|Ban { reason: b.reason, expiration_time: b.expiration_time }))
     }
 }

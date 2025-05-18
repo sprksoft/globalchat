@@ -14,7 +14,7 @@ pub type BadWordLen = u8;
 
 #[derive(Deserialize, Debug, Clone)]
 #[serde(crate = "rocket::serde")]
-struct MessageLimits {
+pub struct MessageLimits {
     pub small_len: MessageLen,
     pub max_len: MessageLen,
     pub min_len: MessageLen,
@@ -104,11 +104,11 @@ impl MessageLimiter {
                 };
 
                 let result = if p.spam > self.config.max_spam {
-                    self.prof_check(filter, &message)
-                } else if p.ratelimiter.update(increase) {
                     Err(LimitType::Spam)
-                } else {
+                } else if !p.ratelimiter.update(increase) {
                     Err(LimitType::Rate)
+                } else {
+                    self.prof_check(filter, &message)
                 };
                 p.last_message_content = message.into();
                 result

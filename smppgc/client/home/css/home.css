@@ -260,3 +260,22 @@ main {
 .rule-changes .changes-text {
   opacity: 1;
 }
+
+
+.copybtn,.copybtn:hover {
+  opacity: 0;
+  transition: opacity 0.5s;
+  margin: 0px;
+  margin-left: 0.5em;
+
+  background-color: var(--color-accent);
+  color: var(--color-base00);
+  border: none;
+}
+td:hover > .copybtn {
+  opacity: 1;
+}
+
+td:has(.copybtn) {
+  padding-right: 0px;
+}

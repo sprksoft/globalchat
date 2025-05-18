@@ -11,6 +11,7 @@ use tokio_tungstenite::tungstenite;
 
 use crate::{
     chat::{ChatUser, Message, MessageChangeType, MessageLen},
+    users::Ban,
     Snowflake,
 };
 
@@ -110,8 +111,11 @@ impl WsClient {
         Ok(Self { ws })
     }
 
-    pub async fn kick(&mut self, reason: KickReason) -> Result<()> {
+    pub async fn disconnect(&mut self, reason: KickReason) -> Result<()> {
         self.ws.close(Some(reason.into_close_frame())).await
+    }
+    pub async fn ban(&mut self, ban: Ban) -> Result<()> {
+        self.ws.close(Some(ban.into_close_frame())).await
     }
 
     pub async fn profanity_warning(

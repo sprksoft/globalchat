@@ -1,8 +1,4 @@
-use rocket_dyn_templates::{
-    context,
-    tera::{self, Tera},
-    Template,
-};
+use rocket_dyn_templates::tera::{self, Tera};
 struct UrlFunction;
 impl tera::Function for UrlFunction {
     fn call(

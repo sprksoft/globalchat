@@ -20,8 +20,9 @@ use thiserror::Error;
 use url::Url;
 use uuid::Uuid;
 
-use crate::db::{self, Db};
+use crate::db::Db;
 use crate::themes::{self, Theme};
+use crate::users::{SesId, UserConfig};
 
 metrics!(
     pub counter total_started_oauth_flows("Total count of started oauth flows");
@@ -218,8 +219,8 @@ async fn oauth_return(
     code: &str,
     state: &str,
     oauth: &State<OAuth>,
-    session_mgr: &State<crate::users::SessionMgr>,
     cookiejar: &CookieJar<'_>,
+    user_config: &State<UserConfig>,
     mut db: Connection<Db>,
 ) -> Result<OAuthResponse, response::Debug<OAuthError>> {
     cookiejar.remove(OAuth::STATE_COOKIE_NAME);
@@ -232,7 +233,7 @@ async fn oauth_return(
         return Ok(OAuthResponse::fail_flow("state missmatch"));
     }
 
-    let user_info = if oauth.config.debug {
+    let sm_uinfo = if oauth.config.debug {
         serde_json::from_str(code)
             .expect("Failed to deserialize sm_userinfo from json (oauth debug)")
     } else {
@@ -241,28 +242,46 @@ async fn oauth_return(
         oauth.fetch_userinfo(&client, &access_token).await?
     };
 
-    let mut irl_name = user_info.name;
+    let mut irl_name = sm_uinfo.name;
     irl_name.push(' ');
-    irl_name.push_str(&user_info.surname);
+    irl_name.push_str(&sm_uinfo.surname);
 
-    let user: db::models::User = sqlx::query_as!(
-        db::models::User,
+    let user = sqlx::query!(
         "INSERT INTO users (smid, irl_name) VALUES ($1, $2) ON CONFLICT (smid) DO UPDATE SET irl_name = $2 RETURNING *;",
-        user_info.user_id,
+        sm_uinfo.user_id,
         irl_name,
     )
     .fetch_one(&mut **db)
     .await
     .map_err(|e| response::Debug(e.into()))?;
 
-    let ses_id = session_mgr.create_session(user).await;
+    // Cleanup sessions
+    sqlx::query!(
+        "DELETE FROM sessions WHERE EXTRACT(epoch from now())-created_at < $1",
+        user_config.max_session_age as i64
+    )
+    .execute(&mut **db)
+    .await
+    .map_err(|e| response::Debug(e.into()))?;
+
+    let ses_id = SesId::new();
+    sqlx::query!(
+        "INSERT INTO sessions (id, user_id) VALUES ($1, $2)",
+        ses_id.inner(),
+        user.id
+    )
+    .execute(&mut **db)
+    .await
+    .map_err(|e| response::Debug(e.into()))?;
 
     cookiejar.add(
         Cookie::build(("session", ses_id.to_string()))
             .http_only(true)
             .secure(true)
             .same_site(rocket::http::SameSite::Strict)
-            .permanent(),
+            .max_age(Duration::seconds(
+                user_config.max_session_age.saturating_sub(10) as i64,
+            )),
     );
 
     total_logins::inc();

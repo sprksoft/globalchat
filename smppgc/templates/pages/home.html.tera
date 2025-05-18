@@ -31,7 +31,7 @@ Home - Global Chat
   {% endif%}
   <!--<a class="button" href="/rochat"><img style="filter:saturate(0%)" class="btnicon" src="{{ url(path="/static/logo.webp")}}"><span>Read only chat</span></a>-->
 
-  {% if role == "Admin" %}
+  {% if is_admin %}
   <a class="button" href="/prof">Profanity filter</a>
   <a class="button" href="/mods">Moderators</a>
   {% endif %}

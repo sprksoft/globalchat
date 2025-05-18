@@ -18,7 +18,7 @@ pub use message::*;
 pub use message_limits::*;
 
 use crate::{
-    users::{ClaimedName, UserInfo},
+    users::{ClaimedName, User},
     utils::IdCounter,
     ChatConfig, Snowflake, SnowflakeGenerator,
 };
@@ -184,7 +184,7 @@ impl Chat {
 
     pub async fn new_client(
         &self,
-        userinfo: &UserInfo,
+        user: &User,
         leased_name: ClaimedName,
         mod_badge: bool,
         bypass_user_count: bool,
@@ -197,7 +197,7 @@ impl Chat {
             return Err(NewClientError::MaxConcurrentUserCount);
         }
 
-        let user_id = userinfo.id;
+        let user_id = user.id();
         let local_id = self.client_ids.new_id();
 
         if user_lock

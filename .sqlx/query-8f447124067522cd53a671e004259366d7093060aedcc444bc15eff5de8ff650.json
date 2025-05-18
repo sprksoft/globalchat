@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM bans WHERE expiration_time-EXTRACT(epoch from now()) < 0",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "8f447124067522cd53a671e004259366d7093060aedcc444bc15eff5de8ff650"
+}
