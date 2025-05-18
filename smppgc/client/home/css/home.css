@@ -20,12 +20,6 @@ main {
     margin: 0px;
   }
 }
-.view {
-  flex-grow: 1;
-  overflow: auto;
-  display: flex;
-  flex-direction: column;
-}
 .toolbar {
   background: var(--color-base01);
   border-top: solid var(--color-base02) var(--border-size);
