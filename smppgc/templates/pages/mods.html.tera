@@ -54,7 +54,7 @@ Moderators - Global Chat
     <tbody>
       {% for key in keys %}
       <tr>
-        <td>{{ key.key }}</td>
+        <td><code>{{ key.key }}</code><button class="pillbtn copybtn" onclick="navigator.clipboard.writeText('https://gc.smartschoolplusplus.com/promote?key={{ key.key }}'); this.innerText='copied!'; setTimeout(()=>{this.innerText='copy'}, 1000)">copy</button></td>
         <td>{{ key.used_by }}</td>
         <td>{{ key.new_role }}</td>
       </tr>

@@ -17,9 +17,10 @@ max_users=1000
 max_username_len=30
 max_claimed_names=2
 max_name_retention=604800 # 7 days
+max_session_age=2592000 # 30 days
 
 [default.message_limits]
-ratelimit="120/60"
+ratelimit="3/6"
 max_len=300
 min_len=2
 small_len=150

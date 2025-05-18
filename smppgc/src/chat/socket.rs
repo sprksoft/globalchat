@@ -12,7 +12,7 @@ use crate::{
         message_limits::LimitType, Chat, MessageChange, MessageChangeType, MessageLen,
         NewClientError,
     },
-    users::{Session, SessionMgr, UserManager},
+    users::{Ban, User, UserManager},
     wsprotocol::{KickReason, WsClient},
     Snowflake,
 };
@@ -30,6 +30,11 @@ impl<'a> ChatSocketResponder<'a> {
     pub fn ws_close(ws: WebSocket, reason: KickReason) -> ChatSocketResponder<'a> {
         ChatSocketResponder::Channel(ws.channel(move |mut stream| {
             Box::pin(async move { stream.close(Some(reason.into_close_frame())).await })
+        }))
+    }
+    pub fn ws_ban(ws: WebSocket, ban: Ban) -> ChatSocketResponder<'a> {
+        ChatSocketResponder::Channel(ws.channel(move |mut stream| {
+            Box::pin(async move { stream.close(Some(ban.into_close_frame())).await })
         }))
     }
 }
@@ -50,17 +55,22 @@ pub async fn chat_socket<'a>(
     prof_filter: &'a State<RwLock<ProfanityFilter>>,
     chat: &'a State<Chat>,
     mut shutdown: Shutdown,
-    ses: Option<Session>,
-    session_mgr: &'a State<SessionMgr>,
+    user: Option<User>,
 ) -> Result<ChatSocketResponder<'a>, response::Debug<sqlx::Error>> {
-    let Some(ses) = ses else {
+    let Some(user) = user else {
         return Ok(ChatSocketResponder::ws_close(ws, KickReason::NoSession));
     };
 
     let start_time = start_time.unwrap_or(Snowflake::ZERO);
-    let is_mod = ses.user_info.role.is_mod();
+    let is_mod = user.role().is_mod();
 
-    let claimed_name = match user_manager.claim_name(&ses.user_info, username).await? {
+    if !is_mod {
+        if let Some(ban) = user_manager.get_ban(user.id()).await? {
+            return Ok(ChatSocketResponder::ws_ban(ws, ban));
+        }
+    }
+
+    let claimed_name = match user_manager.claim_name(&user, username).await? {
         Ok(name_lease) => name_lease,
         Err(e) => {
             return Ok(ChatSocketResponder::ws_close(ws, e.into_kickreason()));
@@ -69,7 +79,7 @@ pub async fn chat_socket<'a>(
 
     let mod_badge = is_mod && mod_badge.unwrap_or(false);
     let mut chat_client = match chat
-        .new_client(&ses.user_info, claimed_name, mod_badge, is_mod)
+        .new_client(&user, claimed_name, mod_badge, is_mod)
         .await
     {
         Ok(c) => c,
@@ -101,7 +111,7 @@ pub async fn chat_socket<'a>(
             loop {
                 tokio::select! {
                     _ = &mut shutdown => {
-                        return wsclient.kick(KickReason::ServerShutdown).await;
+                        return wsclient.disconnect(KickReason::ServerShutdown).await;
                     }
                     mesg = wsclient.try_recv() => {
                         let Some(mesg) = mesg? else { continue; };
@@ -125,11 +135,11 @@ pub async fn chat_socket<'a>(
 
                         }
                         let mesg = {
-                            match mesg_limiter.feed(ses.user_info.id, &&prof_filter.read().await, mesg.content) {
+                            match mesg_limiter.feed(user.id(), &&prof_filter.read().await, mesg.content) {
                                 Ok(c) => {let mesg = chat_client.new_message(c.into(), false); wsclient.forward(&mesg).await?; mesg},
                                 Err(LimitType::Rate) => {
                                     messages_blocked::inc("ratelimit");
-                                    return wsclient.kick(KickReason::RateLimit).await;
+                                    return wsclient.disconnect(KickReason::RateLimit).await;
                                 },
                                 Err(LimitType::Profanity{content, bad_word, span}) => {
                                     let span = span.start as MessageLen..span.end as MessageLen;
@@ -147,7 +157,9 @@ pub async fn chat_socket<'a>(
                                 }
                             }
                         };
+                        messages_total::inc();
                         chat_client.send(mesg);
+                        println!("message sent to chat");
                     }
                     mesg = chat_client.message_receiver.recv() => {
                         match mesg{

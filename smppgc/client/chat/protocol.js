@@ -109,6 +109,34 @@ function handle_version_check(protocol_ver, ver) {
   }
 }
 
+function secondsToString(sec) {
+  const SEC_DAY = 24 * 60 * 60;
+  const SEC_HOUR = 60 * 60;
+  const SEC_MIN = 60;
+  if (sec > SEC_DAY) {
+    const days = Math.ceil(sec / SEC_DAY);
+    return days == 1 ? "1 dag" : days + " dagen";
+  } else if (sec > SEC_HOUR) {
+    const hour = Math.ceil(sec / SEC_HOUR);
+    return hour + " uur";
+  } else if (sec > SEC_MIN) {
+    const min = Math.ceil(sec / SEC_MIN);
+    return min == 1 ? "1 minuut" : min + " minuten";
+  } else {
+    return sec == 1 ? "1 seconde" : sec + " seconden";
+  }
+}
+
+function parseBan(str) {
+  const match = str.match(/^err_banned:([0-9]*):(.*)$/);
+  const ban = {
+    expirationTime: new Date(parseInt(match[1]) * 1000),
+    reason: match[2],
+  };
+  log(`ban: ${JSON.stringify(ban)}`);
+  return ban;
+}
+
 export class SocketMgr {
   on_message;
   on_message_del;
@@ -130,11 +158,14 @@ export class SocketMgr {
       case PACKET_MESSAGE:
         const sender_id = reader.getUint16(0);
         const snowflake = reader.getSnowflake(0);
-        let content = reader.getString(0);
-        let sender_username = this.users[sender_id]?.username;
-        let message = new Message(content, sender_username, snowflake);
+        const content = reader.getString(0);
+        let sender = this.users[sender_id];
+        if (!sender) {
+          sender = { username: "non existing person", isMod: false };
+        }
+        let message = new Message(content, sender.username, snowflake);
         message.profanity = packetId === PACKET_MESSAGE_PROF;
-        message.mod_badge = mod_badge;
+        message.mod_badge = sender.isMod;
         this.on_message(this.local_id == sender_id, sender_id, message);
         break;
 
@@ -145,7 +176,7 @@ export class SocketMgr {
         handle_version_check(version, VERSION_INT);
 
         this.local_id = reader.getUint16();
-        this.users[this.local_id] = {username:this.username, isMod:false};
+        this.users[this.local_id] = { username: this.username, isMod: false };
 
         log("Setup packet " + this.local_id);
         break;
@@ -188,7 +219,7 @@ export class SocketMgr {
   }
 
   async join(username, start_snowflake, show_admin_badge) {
-    this.user_wants_leave = false;
+    this.#user_wants_leave = false;
     this.username = username;
     if (this.ws !== undefined) {
       await this.ws.close();
@@ -208,8 +239,24 @@ export class SocketMgr {
 
     this.ws.onclose = async (e) => {
       this.users = {};
-      console.error("disconnect reason: " + e.reason);
-      this.on_leave(e.code, e.reason, this.user_wants_leave);
+      let protoerr = e.reason;
+      log("disconnect protoerr: " + protoerr);
+
+      let reason;
+      if (this.#user_wants_leave || (protoerr == "" && e.code == 1000)) {
+        // Normal Closure or the user wants to leave
+        reason = "";
+      } else if (e.code == 1006 && protoerr == "") {
+        protoerr = "retry";
+      } else if (protoerr.startsWith("err_banned:")) {
+        const ban = parseBan(e.reason);
+        reason = `Je bent verbannen. reden:\n'${ban.reason}'\nJe kunt terug joinen over ${secondsToString(ban.expirationTime - new Date())}`;
+      } else {
+        reason = human_err(e.reason);
+      }
+
+      log("disconnect reason: " + reason);
+      this.on_leave(reason, protoerr);
     };
 
     this.ws.onmessage = async (e) => {
@@ -241,7 +288,7 @@ export class SocketMgr {
   }
 
   async leave() {
-    this.user_wants_leave = true;
+    this.#user_wants_leave = true;
     await this.ws.close(1000, "Dag dag ik ga je missen. xxx");
   }
 }

@@ -3,8 +3,6 @@ use rocket::fairing::AdHoc;
 use rocket::response;
 use rocket_db_pools::Database;
 
-pub mod models;
-
 #[derive(Database)]
 #[database("sqlx")]
 pub struct Db(sqlx::PgPool);

@@ -24,9 +24,6 @@ prepare=true
 while test $# -gt 0
 do
   case "$1" in
-    --spawndb) $DOCKER_COMPOSE -f db.compose.yml up --detach
-      exit 0
-      ;;
     --watch) watch=true
       ;;
     --noprep) prepare=false
@@ -51,5 +48,5 @@ fi
 if $watch ; then
   $DOCKER_COMPOSE -f compose.yml watch
 else
-  $DOCKER_COMPOSE -f compose.yml up --rebuild --detach
+  $DOCKER_COMPOSE -f compose.yml up --detach
 fi
