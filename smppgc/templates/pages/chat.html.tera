@@ -39,6 +39,21 @@
   <button class="pillbtn" id="profane-message-ok">Ok</button>
 </dialog>
 
+<dialog id="ban-dialog">
+  <h1>Verban <code id="ban-dialog-user"></code></h1>
+  <select autocomplete="off" id="ban-dialog-preset">
+    <option selected disabled hidden>Kies een reden</option>
+    <option data-duration="10" data-fullreason="Niet basically">Niets basically</option>
+    <option data-duration="604800" data-fullreason="Niet ernstig">Niet ernstig</option>
+    <option data-duration="31536000" data-fullreason="Ernstig">Ernstig</option>
+  </select>
+  <section id="ban-dialog-reason"></section>
+  <div id="ban-dialog-buttons">
+    <button onclick="document.getElementById('ban-dialog').close()" class="pillbtn">Cancel</button>
+    <button id="ban-dialog-ban-button" class="pillbtn dangerbtn">Ban</button>
+  </div>
+</dialog>
+
 <template id="message-template">
   <div class="message">
     <svg class="driehoek_bubble" viewBox="0 0 8 13" height="13" width="8" preserveAspectRatio="xMidYMid meet" version="1.1" x="0px" y="0px" enable-background="new 0 0 8 13"><path fill="currentColor" d="M1.5,2.5L8,11.2V0L2.8,0C1,0,0.5,1.2,1.5,2.6z"></path></svg>
@@ -51,6 +66,7 @@
       <div class="message-actions">
         {% if is_mod %}
         <button class="delbtn unimportantbtn">delete</button>
+        <button class="banbtn unimportantbtn">ban</button>
         {% endif %}
       </div>
     </div>

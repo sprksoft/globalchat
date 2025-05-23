@@ -1,20 +1,29 @@
 use std::ops::Range;
 
+use rocket::time::Duration;
 use tokio_tungstenite::tungstenite;
 
 use crate::{
     chat::{ChatUser, Message, MessageChangeType, MessageLen},
     Snowflake,
 };
+use log::*;
+
 pub const PACKET_MESSAGE: u8 = 0;
 pub const PACKET_MESSAGE_PROF: u8 = 1;
+pub const PACKET_MESSAGE_SYSTEM: u8 = 2;
 
-pub const PACKET_SETUP: u8 = 2;
-pub const PACKET_USERJOIN: u8 = 3;
-pub const PACKET_MODJOIN: u8 = 4;
-pub const PACKET_PROFANITY_WARN: u8 = 5;
-pub const PACKET_MESSAGE_DEL: u8 = 6;
-pub const PACKET_MESSAGE_CENSOR: u8 = 7;
+pub const PACKET_SETUP: u8 = 3;
+pub const PACKET_USERJOIN: u8 = 4;
+pub const PACKET_MODJOIN: u8 = 5;
+pub const PACKET_PROFANITY_WARN: u8 = 6;
+pub const PACKET_MESSAGE_DEL: u8 = 7;
+pub const PACKET_MESSAGE_CENSOR: u8 = 8;
+
+//C2S
+pub const PACKET_C2S_MESSAGE: u8 = 0;
+pub const PACKET_C2S_DELMSG: u8 = 1;
+pub const PACKET_C2S_BANMSGAUTHOR: u8 = 2;
 
 pub fn new_setup<'a, 'b>(id: u16) -> tokio_tungstenite::tungstenite::Message {
     //|    u8    | const PACKET_SETUP
@@ -103,4 +112,71 @@ pub fn new_message(mesg: &Message) -> tokio_tungstenite::tungstenite::Message {
     data.extend_from_slice(&mesg.id().to_be_bytes());
     data.extend_from_slice(content_bytes);
     tungstenite::Message::Binary(data)
+}
+pub fn new_system_message(content: &str) -> tokio_tungstenite::tungstenite::Message {
+    let content_bytes = content.as_bytes();
+    let mut data = Vec::with_capacity(1 + content_bytes.len());
+    data.push(PACKET_MESSAGE_SYSTEM);
+    data.extend_from_slice(content_bytes);
+    tungstenite::Message::Binary(data)
+}
+
+pub enum C2SPacket {
+    Message(String),
+    AdminCmd(AdminCmd),
+}
+
+pub enum AdminCmd {
+    DelMsg(Snowflake),
+    BanMsgAuthor {
+        mesg: Snowflake,
+        duration: Duration,
+        reason: String,
+    },
+}
+
+fn parse_u64(bytes: &[u8]) -> Result<u64, ()> {
+    Ok(u64::from_be_bytes(bytes[..8].try_into().map_err(|_| ())?))
+}
+fn parse_u32(bytes: &[u8]) -> Result<u32, ()> {
+    Ok(u32::from_be_bytes(bytes[..4].try_into().map_err(|_| ())?))
+}
+fn parse_dur(bytes: &[u8]) -> Result<Duration, ()> {
+    Ok(Duration::seconds(parse_u32(bytes)? as i64))
+}
+fn parse_snowflake(bytes: &[u8]) -> Result<Snowflake, ()> {
+    Ok(Snowflake::from_u64(parse_u64(bytes)?))
+}
+fn parse_str(bytes: &[u8]) -> String {
+    String::from_utf8_lossy(bytes).to_string()
+}
+
+pub fn parse_c2s(data: Vec<u8>) -> Result<C2SPacket, ()> {
+    let packet_id = data[0];
+    let data = &data[1..];
+    match packet_id {
+        PACKET_C2S_MESSAGE => Ok(C2SPacket::Message(
+            String::from_utf8_lossy(data).trim().to_string(),
+        )),
+        PACKET_C2S_DELMSG => {
+            let snowflake = parse_snowflake(&data[..8])?;
+            Ok(C2SPacket::AdminCmd(AdminCmd::DelMsg(snowflake)))
+        }
+        PACKET_C2S_BANMSGAUTHOR => {
+            let snowflake = parse_snowflake(&data[..8])?;
+            let data = &data[8..];
+            let duration = parse_dur(&data[..4])?;
+            let data = &data[4..];
+            let reason = parse_str(&data);
+            Ok(C2SPacket::AdminCmd(AdminCmd::BanMsgAuthor {
+                mesg: snowflake,
+                duration,
+                reason,
+            }))
+        }
+        id => {
+            error!("Invalid c2s packet_id: {}", id);
+            Err(())
+        }
+    }
 }

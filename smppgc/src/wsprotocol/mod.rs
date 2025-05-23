@@ -1,23 +1,22 @@
-use std::{borrow::Cow, ops::Range};
-
-use futures_util::SinkExt;
-use rocket_ws::{
-    frame::{CloseCode, CloseFrame},
-    result::Result,
-    stream::DuplexStream,
-};
-use thiserror::Error;
-use tokio_tungstenite::tungstenite;
-
 use crate::{
     chat::{ChatUser, Message, MessageChangeType, MessageLen},
     users::Ban,
     Snowflake,
 };
-
+use futures_util::SinkExt;
 use log::*;
+use packets::parse_c2s;
+use rocket_ws::{
+    frame::{CloseCode, CloseFrame},
+    result::Result,
+    stream::DuplexStream,
+};
+use std::{borrow::Cow, ops::Range};
+use thiserror::Error;
+use tokio_tungstenite::tungstenite;
 
 mod packets;
+pub use packets::{AdminCmd, C2SPacket};
 
 #[derive(Debug, Error)]
 pub enum PacketsError {
@@ -62,7 +61,7 @@ macro_rules! kick_reason {
 }
 kick_reason! {
     pub KickReason{
-        Hard(Policy,""),
+        Kick(Policy,"err_kick"),
         Cmd(Abnormal,"err_cmd"),
         NoSession(Policy, "err_no_session"),
         AlreadyInChat(Policy, "err_already_in_chat"),
@@ -74,16 +73,6 @@ kick_reason! {
         UsernameTaken(Error,"err_username_taken"),
         UsernameInvalid(Error,"err_username_invalid"),
         UsernameInvalidLength(Error,"err_username_length")
-    }
-}
-
-pub struct RecievedMessage {
-    pub content: String,
-}
-impl RecievedMessage {
-    #[inline]
-    pub fn len(&self) -> usize {
-        self.content.len()
     }
 }
 
@@ -116,6 +105,9 @@ impl WsClient {
     }
     pub async fn ban(&mut self, ban: Ban) -> Result<()> {
         self.ws.close(Some(ban.into_close_frame())).await
+    }
+    pub async fn system_message(&mut self, content: &str) -> Result<()> {
+        self.ws.send(packets::new_system_message(content)).await
     }
 
     pub async fn profanity_warning(
@@ -169,29 +161,25 @@ impl WsClient {
         self.ws.flush().await?;
         Ok(())
     }
-    pub async fn try_recv(&mut self) -> Result<Option<RecievedMessage>> {
+    pub async fn try_recv(&mut self) -> Result<Option<C2SPacket>> {
         let Some(message) = futures_util::StreamExt::next(&mut self.ws).await else {
             return Err(rocket_ws::result::Error::ConnectionClosed);
         };
         let message = message?;
-
-        if message.is_text() {
-            let content = String::from_utf8_lossy(&message.into_data())
-                .trim()
-                .to_string();
-
-            Ok(Some(RecievedMessage { content: content }))
-        } else if message.is_binary() {
-            error!("Closing connection because: Received binary message");
-            self.ws
-                .close(Some(CloseFrame {
-                    code: CloseCode::Unsupported,
-                    reason: Cow::Borrowed("INT: No binary messages."),
-                }))
-                .await?;
-            Ok(None)
-        } else {
-            Ok(None)
+        if message.is_binary() {
+            match parse_c2s(message.into_data()) {
+                Ok(p) => return Ok(Some(p)),
+                Err(()) => {}
+            }
         }
+
+        error!("Closing connection because: invalid packet");
+        self.ws
+            .close(Some(CloseFrame {
+                code: CloseCode::Invalid,
+                reason: Cow::Borrowed("INT: invalid packet"),
+            }))
+            .await?;
+        Ok(None)
     }
 }

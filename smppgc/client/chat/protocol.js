@@ -1,20 +1,28 @@
+import * as sflake from "./snowflake.js";
+
 import { log } from "./../common/utils.js";
 import { Message } from "./mesg.js";
 
 const PACKET_MESSAGE = 0;
 const PACKET_MESSAGE_PROF = 1;
+const PACKET_MESSAGE_SYSTEM = 2;
 
-const PACKET_SETUP = 2;
-const PACKET_USERJOIN = 3;
-const PACKET_MODJOIN = 4;
-const PACKET_PROFANITY_WARN = 5;
-const PACKET_MESSAGE_DEL = 6;
-const PACKET_MESSAGE_CENSOR = 7;
+const PACKET_SETUP = 3;
+const PACKET_USERJOIN = 4;
+const PACKET_MODJOIN = 5;
+const PACKET_PROFANITY_WARN = 6;
+const PACKET_MESSAGE_DEL = 7;
+const PACKET_MESSAGE_CENSOR = 8;
+
+// C2S
+const PACKET_C2S_MESSAGE = 0;
+const PACKET_C2S_DELMSG = 1;
+const PACKET_C2S_BANMSGAUTHOR = 2;
 
 const CLOSED = 3;
 
 const ERRORS = {
-  err_cmd: "Je bent gekicked door een admin.",
+  err_kick: "Je bent uit de chat gezet door een admin.",
   err_ratelimit:
     "Te veel berichten. Typ langzamer.\nJe kunt terug joinen binnen een paar seconden",
   err_ipratelimit: "Er zijn spammers met het zelfde ip als jou.",
@@ -45,8 +53,8 @@ export function human_err(protoerr) {
 }
 
 class Reader {
-  #dv;
-  #index;
+  dv;
+  index;
   constructor(dv) {
     this.dv = dv;
     this.index = 0;
@@ -168,6 +176,12 @@ export class SocketMgr {
         message.mod_badge = sender.isMod;
         this.on_message(this.local_id == sender_id, sender_id, message);
         break;
+      case PACKET_MESSAGE_SYSTEM: {
+        let content = reader.getString(0);
+        let message = new Message(content, "system", sflake.now());
+        this.on_message(false, -1, message);
+        break;
+      }
 
       case PACKET_SETUP:
         this.on_join();
@@ -250,7 +264,12 @@ export class SocketMgr {
         protoerr = "retry";
       } else if (protoerr.startsWith("err_banned:")) {
         const ban = parseBan(e.reason);
-        reason = `Je bent verbannen. reden:\n'${ban.reason}'\nJe kunt terug joinen over ${secondsToString(ban.expirationTime - new Date())}`;
+        const seconds = secondsToString(
+          (ban.expirationTime.getTime() - new Date().getTime())/1000,
+        );
+        reason = `Je bent verbannen. reden:\n'${
+          ban.reason
+        }'\nJe kunt terug joinen over ${seconds}`;
       } else {
         reason = human_err(e.reason);
       }
@@ -273,7 +292,28 @@ export class SocketMgr {
     if (this.ws.readyState !== WebSocket.OPEN) {
       return false;
     }
-    await this.ws.send("%admin /delmsg " + snowflake);
+    const data = new ArrayBuffer(1 + 8);
+    let dv = new DataView(data);
+    dv.setUint8(0, PACKET_C2S_DELMSG, false);
+    dv.setBigUint64(1, snowflake, false);
+    await this.ws.send(data);
+  }
+  async banMessageAuthor(snowflake, duration, reason) {
+    if (this.ws.readyState !== WebSocket.OPEN) {
+      return false;
+    }
+
+    const tencoder = new TextEncoder();
+    const messageData = tencoder.encode(reason);
+    const data = new ArrayBuffer(1 + 8 + 4 + messageData.length);
+    const array = new Uint8Array(data);
+    const dv = new DataView(data);
+    dv.setUint8(0, PACKET_C2S_BANMSGAUTHOR);
+    dv.setBigUint64(1, snowflake);
+    dv.setUint32(1+8, duration);
+    array.set(messageData, 1+8+4);
+
+    await this.ws.send(data);
   }
 
   async send(message) {
@@ -283,7 +323,14 @@ export class SocketMgr {
     if (this.ws.bufferedAmount > 2) {
       return false;
     }
-    await this.ws.send(message);
+    const tencoder = new TextEncoder();
+    const messageData = tencoder.encode(message);
+    const data = new ArrayBuffer(messageData.length+1);
+    const array = new Uint8Array(data);
+    array.set(0, PACKET_C2S_MESSAGE);
+    array.set(messageData, 1);
+
+    await this.ws.send(data);
     return true;
   }
 
