@@ -29,6 +29,7 @@ do
     --noprep) prepare=false
       ;;
     --*) echo "invalid option $1"
+      exit 1
       ;;
   esac
   shift

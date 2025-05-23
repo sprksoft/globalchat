@@ -11,6 +11,7 @@ import "./common/logo.css";
 import "./chat/css/chat.css";
 import "./chat/css/login_popup.css";
 import "./chat/css/stickers.css";
+import "./chat/css/ban.css";
 
 const mesgs = document.getElementById("mesgs");
 const sendinput = document.getElementById("send-input");
@@ -29,14 +30,23 @@ const profaneMessageCountdown = document.getElementById(
   "profane-message-countdown",
 );
 const profaneMessageBadWord = document.getElementById("badword");
+const banDialog = document.getElementById("ban-dialog");
+const banDialogUser = document.getElementById("ban-dialog-user");
+const banDialogPreset = document.getElementById("ban-dialog-preset");
+const banDialogBanButton = document.getElementById("ban-dialog-ban-button");
+const banDialogReason = document.getElementById("ban-dialog-reason");
 
 let profanityCoolDown = 0;
 let profanityCoolDownInterval;
 
 export let socketmgr = new proto.SocketMgr();
 
-function add_message(message, scroll = false) {
-  let msgEl = createMessage(message, (controls = true), (highlight = null));
+function add_message(message, scroll = false, controls = true) {
+  let onControls = onMessageAction;
+  if (!controls) {
+    onControls = undefined;
+  }
+  let msgEl = createMessage(message, onControls, (highlight = null));
 
   let should_scroll =
     Math.abs(mesgs.scrollHeight - mesgs.clientHeight - mesgs.scrollTop) <= 3 ||
@@ -62,6 +72,41 @@ local_commands.push([
     return true;
   },
 ]);
+
+function onMessageAction(e, message) {
+  if (e.target.classList.contains("delbtn")) {
+    socketmgr.deleteMessage(message.snowflake);
+  } else if (e.target.classList.contains("banbtn")) {
+    showBanDialog(message.snowflake, message.sender);
+  }
+}
+
+function showBanDialog(snowflake, sender) {
+  banDialog.dataset.snowflake = snowflake;
+  banDialogUser.innerText = sender;
+  banDialogPreset.selectedIndex = 0;
+  banDialogBanButton.disabled = true;
+  banDialogReason.innerText = "";
+  banDialog.showModal();
+}
+
+banDialogPreset.addEventListener("change", () => {
+  if (banDialogPreset.selectedIndex !== 0) {
+    banDialogBanButton.disabled = false;
+    banDialogReason.innerText =
+      banDialogPreset.selectedOptions[0].dataset.fullreason;
+  }
+});
+banDialogBanButton.addEventListener("click", async () => {
+  const preset = banDialogPreset.selectedOptions[0];
+  const snowflake = BigInt(banDialog.dataset.snowflake);
+  await socketmgr.banMessageAuthor(
+    snowflake,
+    parseInt(preset.dataset.duration),
+    preset.dataset.fullreason,
+  );
+  banDialog.close();
+});
 
 // Are we currently trying to reconnect in the background
 let background_reconnect = false;
@@ -113,7 +158,11 @@ socketmgr.on_message = (me, sender_id, message) => {
   utils.log(
     `Got message from ${sender_id} (${message.snowflake}) mod: ${message.mod_badge}: ${message.content}`,
   );
-  add_message(message, (scroll = me)); // scroll if the message comes from me
+  add_message(
+    message,
+    (scroll = me || sender_id == -1),
+    (controls = sender_id !== -1),
+  ); // scroll if the message comes from me or system
 
   if (me) {
     mesgEasterEgg(message.content);
@@ -163,6 +212,7 @@ socketmgr.on_leave = (reason, protoerr) => {
   profanityCoolDown = 0;
   clearInterval(profanityCoolDownInterval);
   profaneMessageDialog.close();
+  banDialog.close();
 
   console.log("Got no session error. Redirecting to login page...");
   if (protoerr == "err_no_session") {

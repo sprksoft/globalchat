@@ -29,6 +29,13 @@ svg {
   display: block;
 }
 
+textarea {
+  background-color: var(--color-base01);
+  border: solid var(--color-base02) var(--border-size);
+  border-radius: var(--border-radius);
+  color: var(--color-text);
+}
+
 header {
   display: flex;
   flex-direction: row;
