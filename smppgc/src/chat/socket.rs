@@ -110,7 +110,8 @@ pub async fn chat_socket<'a>(
             loop {
                 tokio::select! {
                     _ = &mut shutdown => {
-                        return wsclient.disconnect(KickReason::ServerShutdown).await;
+                        wsclient.disconnect(KickReason::ServerShutdown).await?;
+                        continue;
                     }
                     mesg = wsclient.try_recv() => {
                         let Some(packet) = mesg? else { continue; };

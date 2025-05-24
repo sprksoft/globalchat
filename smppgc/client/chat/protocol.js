@@ -262,6 +262,7 @@ export class SocketMgr {
         reason = "";
       } else if (e.code == 1006 && protoerr == "") {
         protoerr = "retry";
+        reason = "Kon niet verbinden met de server.";
       } else if (protoerr.startsWith("err_banned:")) {
         const ban = parseBan(e.reason);
         const seconds = secondsToString(

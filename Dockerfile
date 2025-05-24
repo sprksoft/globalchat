@@ -49,7 +49,7 @@ FROM late-builder AS dev
 cd /build
 nohup $ESBUILD_CMD --watch=forever &
 cd /app
-/app/app
+exec /app/app
 EOF
 
   CMD [ "/entry.sh" ]
