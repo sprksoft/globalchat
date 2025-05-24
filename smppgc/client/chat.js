@@ -286,8 +286,11 @@ function connect(background, start_snowflake) {
       ", mod_badge:" +
       show_mod_badge,
   );
-  let local_name = get_name();
-  localStorage.setItem("username", local_name);
+  let local_name=null;
+  if (!READONLY) {
+    local_name = get_name();
+    localStorage.setItem("username", local_name);
+  }
 
   background_reconnect = background;
   socketmgr.join(local_name, start_snowflake, show_mod_badge);
@@ -295,13 +298,13 @@ function connect(background, start_snowflake) {
   constatus.showModal();
 }
 
-sendinput.addEventListener("keypress", (e) => {
+sendinput?.addEventListener("keypress", (e) => {
   if (e.key == "Enter" && !e.shiftKey && !utils.has_virtkb()) {
     e.preventDefault();
     send_message();
   }
 });
-sendbtn.addEventListener("click", () => {
+sendbtn?.addEventListener("click", () => {
   if (send_message()) {
     setTimeout(() => {
       sendinput.focus();
@@ -325,7 +328,7 @@ login_popup.addEventListener("cancel", (e) => {
 
 connectbtn.addEventListener("click", () => {
   login_popup.close();
-  sendinput.focus();
+  sendinput?.focus();
 });
 
 profaneMessageDialog.addEventListener("close", () => {
@@ -337,5 +340,7 @@ profaneMessageOk.addEventListener("click", () => {
   profaneMessageDialog.close();
 });
 
-username_field.value = localStorage.getItem("username");
+if (!READONLY) {
+  username_field.value = localStorage.getItem("username");
+}
 login_popup.showModal();

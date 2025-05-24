@@ -78,15 +78,16 @@ kick_reason! {
 
 pub struct WsClient {
     ws: DuplexStream,
+    ro: bool,
 }
 impl WsClient {
-    pub async fn new(
+    async fn send_setup_packets(
         mut ws: DuplexStream,
         clients: Vec<ChatUser>,
         history: Vec<Message>,
-        user_info: &ChatUser,
-    ) -> Result<Self> {
-        ws.feed(packets::new_setup(user_info.local_id())).await?;
+        local_id: u16,
+    ) -> Result<DuplexStream> {
+        ws.feed(packets::new_setup(local_id)).await?;
 
         for client in clients {
             ws.feed(packets::new_client_joined(&client)).await?;
@@ -97,7 +98,28 @@ impl WsClient {
         }
 
         ws.flush().await?;
-        Ok(Self { ws })
+        Ok(ws)
+    }
+    pub async fn new(
+        ws: DuplexStream,
+        clients: Vec<ChatUser>,
+        history: Vec<Message>,
+        user_info: &ChatUser,
+    ) -> Result<Self> {
+        Ok(Self {
+            ws: Self::send_setup_packets(ws, clients, history, user_info.local_id()).await?,
+            ro: false,
+        })
+    }
+    pub async fn new_ro(
+        ws: DuplexStream,
+        clients: Vec<ChatUser>,
+        history: Vec<Message>,
+    ) -> Result<Self> {
+        Ok(Self {
+            ws: Self::send_setup_packets(ws, clients, history, 0).await?,
+            ro: true,
+        })
     }
 
     pub async fn disconnect(&mut self, reason: KickReason) -> Result<()> {
@@ -166,7 +188,7 @@ impl WsClient {
             return Err(rocket_ws::result::Error::ConnectionClosed);
         };
         let message = message?;
-        if message.is_binary() {
+        if !self.ro && message.is_binary() {
             match parse_c2s(message.into_data()) {
                 Ok(p) => return Ok(Some(p)),
                 Err(()) => {}

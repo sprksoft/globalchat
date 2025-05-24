@@ -35,6 +35,7 @@ pub use version_int::*;
 pub struct ChatConfig {
     pub max_stored_messages: usize,
     pub max_users: u16,
+    pub max_ro_users: usize,
 }
 
 metrics! {
@@ -81,6 +82,8 @@ fn rocket() -> _ {
         &static_routing::static_req_total::METRIC,
         &chat::joined_total::METRIC,
         &chat::left_total::METRIC,
+        &chat::ro_joined_total::METRIC,
+        &chat::ro_left_total::METRIC,
         &chat::history_events_lost_total::METRIC,
         &chat::socket::messages_total::METRIC,
         &chat::socket::messages_blocked::METRIC,

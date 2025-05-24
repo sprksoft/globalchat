@@ -238,15 +238,18 @@ export class SocketMgr {
     if (this.ws !== undefined) {
       await this.ws.close();
     }
-    let encoded_username = encodeURIComponent(username);
-    let query = `username=${encoded_username}`;
+    let query="";
+    if (username) {
+      let encoded_username = encodeURIComponent(username);
+      query += `&username=${encoded_username}`;
+    }
     if (start_snowflake !== undefined && start_snowflake !== null) {
       query += "&start_time=" + start_snowflake;
     }
     if (show_admin_badge) {
       query += "&mod_badge=true";
     }
-    let fullurl = WEBSOCKET_URL + "?" + query;
+    let fullurl = WEBSOCKET_URL + "?" + query.substring(1);
     log("creating socket: " + fullurl);
     this.ws = new WebSocket(fullurl);
     this.ws.binaryType = "arraybuffer";

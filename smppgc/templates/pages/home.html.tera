@@ -29,6 +29,8 @@ Home - Global Chat
   {% else %}
   <button class="button smbtn" onclick="location.href='/oauth/start?ret=home'">{% include "smbtn_content" %}</button>
   {% endif%}
+
+  <a class="button" href="/rochat"><img style="filter: saturate(0%)" class="btnicon" src="{{ url(path="/static/logo.webp")}}"><span>Alleen Lezen Chat</span></a>
   <!--<a class="button" href="/rochat"><img style="filter:saturate(0%)" class="btnicon" src="{{ url(path="/static/logo.webp")}}"><span>Read only chat</span></a>-->
 
   {% if is_admin %}

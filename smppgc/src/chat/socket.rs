@@ -20,8 +20,6 @@ use super::message_limits::MessageLimiter;
 
 #[derive(Responder)]
 pub enum ChatSocketResponder<'a> {
-    #[response(status = 500)]
-    Error(&'static str),
     #[response(status = 200)]
     Channel(Channel<'a>),
 }
@@ -207,6 +205,70 @@ pub async fn chat_socket<'a>(
 
                             Err(RecvError::Lagged(count)) => {
                                 error!("Lost {} chat events", count);
+                            },
+                            Err(RecvError::Closed)=>{
+                                return Ok(());
+                            }
+                        }
+                    }
+                }
+            }
+        })
+    })))
+}
+
+#[get("/socket/rochat?<start_time>")]
+pub async fn readonly_chat_socket<'a>(
+    start_time: Option<Snowflake>,
+    mut shutdown: Shutdown,
+    ws: WebSocket,
+    chat: &'a State<Chat>,
+) -> Result<ChatSocketResponder<'a>, response::Debug<sqlx::Error>> {
+    let start_time = start_time.unwrap_or(Snowflake::ZERO);
+    let mut chat_client = match chat.new_roclient().await {
+        Ok(c) => c,
+        Err(NewClientError::AlreadyInChat) => {
+            return Ok(ChatSocketResponder::ws_close(ws, KickReason::AlreadyInChat))
+        }
+        Err(NewClientError::MaxConcurrentUserCount) => {
+            return Ok(ChatSocketResponder::ws_close(ws, KickReason::ChatFull))
+        }
+    };
+
+    Ok(ChatSocketResponder::Channel(ws.channel(move |stream| {
+        Box::pin(async move {
+            let chat_hist = chat.history(start_time, false).await;
+
+            let mut wsclient = WsClient::new_ro(stream, chat.users().await, chat_hist).await?;
+
+            loop {
+                tokio::select! {
+                    _ = &mut shutdown => {
+                        wsclient.disconnect(KickReason::ServerShutdown).await?;
+                        continue;
+                    }
+                    mesg = wsclient.try_recv() => {
+                        let _ = mesg?;
+                    }
+                    event = chat_client.recv() => {
+                        match event {
+                            Ok(ChatEvent::Join(new_user)) => {
+                                wsclient.forward_user(&new_user).await?;
+                            },
+                            Ok(ChatEvent::Leave(_)) => {},
+                            Ok(ChatEvent::Message(mesg)) => {
+                                if !mesg.profanity {
+                                    wsclient.forward(&mesg).await?;
+                                }
+                            },
+                            Ok(ChatEvent::MessageChange(snowflake, _)) => {
+                                wsclient.forward_message_change(snowflake, MessageChangeType::Deleted).await?;
+
+                            }
+                            Ok(ChatEvent::Kick(_)) => {},
+
+                            Err(RecvError::Lagged(count)) => {
+                                error!("Lost {} chat events (readonly chat)", count);
                             },
                             Err(RecvError::Closed)=>{
                                 return Ok(());
