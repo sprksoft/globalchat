@@ -29,7 +29,7 @@ const ERRORS = {
   err_505:
     "Stop and wait a sec when you look at me like that my darling what do you expect. In my imagination you're waiting lying on your side with your hands between your theights.",
   err_full: "De chat zit vol.",
-  err_shutdown: "Globalchat gaat even offline. Sorry voor het ongemak.",
+  err_shutdown: "De server wordt herstart. Sorry voor het ongemak.",
   err_already_in_chat:
     "Je bent al in de chat op een anderen tab of een ander aparaat.",
   err_no_session:

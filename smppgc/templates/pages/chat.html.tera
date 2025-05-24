@@ -43,8 +43,9 @@
   <h1>Verban <code id="ban-dialog-user"></code></h1>
   <select autocomplete="off" id="ban-dialog-preset">
     <option selected disabled hidden>Kies een reden</option>
-    <option data-duration="604800" data-fullreason="Niet ernstig">Spam, Mindless Racism of Sexism</option>
-    <option data-duration="31536000" data-fullreason="Ernstig">Doxing, Pesten...</option>
+    <option data-duration="86400" data-fullreason="Spam">Waarschuwing</option>
+    <option data-duration="604800" data-fullreason="Spam">Spam, Mindless Racism of Sexism</option>
+    <option data-duration="31536000" data-fullreason="Pesten">Doxing, Pesten</option>
   </select>
   <section id="ban-dialog-reason"></section>
   <div id="ban-dialog-buttons">
