@@ -51,3 +51,15 @@
   color: var(--color-text);
   opacity: 0.7;
 }
+
+.ro-name-input {
+  color: var(--color-text);
+  opacity: 0.7;
+  font-weight: bold;
+
+  flex-grow: 1;
+  text-align: center;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}

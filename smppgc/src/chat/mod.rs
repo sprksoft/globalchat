@@ -2,7 +2,10 @@ use circular_queue::CircularQueue;
 use log::*;
 use profanity::ProfanityFilter;
 use rocket::{fairing::AdHoc, routes};
-use std::{collections::HashMap, sync::Arc};
+use std::{
+    collections::HashMap,
+    sync::{atomic::AtomicUsize, Arc},
+};
 use tokio::sync::{
     broadcast::{self, error::RecvError},
     Mutex,
@@ -26,6 +29,8 @@ use lmetrics::metrics;
 use thiserror::Error;
 
 metrics! {
+    pub counter ro_joined_total("Total joined readonly users", []);
+    pub counter ro_left_total("Total joined readonly users", []);
     pub counter joined_total("Total joined users",[]);
     pub counter left_total("Total left users", []);
     pub counter history_events_lost_total("Total history events lost.");
@@ -68,6 +73,7 @@ pub struct Chat {
     message_ids: Arc<SnowflakeGenerator>,
 
     shutdown: broadcast::Sender<()>,
+    ro_user_count: Arc<AtomicUsize>,
 
     config: ChatConfig,
 }
@@ -96,6 +102,7 @@ impl Chat {
             client_ids: IdCounter::new(),
             message_ids: SnowflakeGenerator::new().into(),
             shutdown,
+            ro_user_count: Arc::new(AtomicUsize::new(0)),
             config: config.into(),
         }
     }
@@ -149,7 +156,7 @@ impl Chat {
 
                             }
                             Ok(ChatEvent::Join(_)) | Ok(ChatEvent::MessageChange(_, _)) | Ok(ChatEvent::Kick(_)) => {},
-                            Err(RecvError::Closed)=>{
+                            Err(RecvError::Closed) => {
                                 return;
                             },
                             Err(RecvError::Lagged(count))=>{
@@ -219,6 +226,24 @@ impl Chat {
         joined_total::inc();
 
         Ok(client)
+    }
+
+    pub async fn new_roclient(&self) -> Result<RoChatClient, NewClientError> {
+        if self
+            .ro_user_count
+            .load(std::sync::atomic::Ordering::Relaxed)
+            >= self.config.max_ro_users
+        {
+            return Err(NewClientError::MaxConcurrentUserCount);
+        }
+        self.ro_user_count
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+
+        ro_joined_total::inc();
+        Ok(RoChatClient {
+            event_receiver: self.event_sender.subscribe(),
+            ro_user_count: self.ro_user_count.clone(),
+        })
     }
 
     pub fn kick(&self, user_id: UserId) {
@@ -296,6 +321,24 @@ impl Chat {
     }
 }
 
+pub struct RoChatClient {
+    ro_user_count: Arc<AtomicUsize>,
+    event_receiver: broadcast::Receiver<ChatEvent>,
+}
+impl RoChatClient {
+    #[inline]
+    pub async fn recv(&mut self) -> Result<ChatEvent, RecvError> {
+        self.event_receiver.recv().await
+    }
+}
+impl Drop for RoChatClient {
+    fn drop(&mut self) {
+        ro_left_total::inc();
+        self.ro_user_count
+            .fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
+    }
+}
+
 pub struct ChatClient {
     user: ChatUser,
     message_id_gen: Arc<SnowflakeGenerator>,
@@ -343,15 +386,18 @@ pub fn stage() -> AdHoc {
             .extract::<ChatConfig>()
             .expect("No chat config found");
 
-        r.mount("/", routes![socket::chat_socket])
-            .attach(message_limits::stage())
-            .manage(Chat::new(config))
-            .attach(AdHoc::on_shutdown("Chat shutdown", |r| {
-                Box::pin(async move {
-                    if let Some(chat) = r.state::<Chat>() {
-                        chat.shutdown();
-                    }
-                })
-            }))
+        r.mount(
+            "/",
+            routes![socket::chat_socket, socket::readonly_chat_socket],
+        )
+        .attach(message_limits::stage())
+        .manage(Chat::new(config))
+        .attach(AdHoc::on_shutdown("Chat shutdown", |r| {
+            Box::pin(async move {
+                if let Some(chat) = r.state::<Chat>() {
+                    chat.shutdown();
+                }
+            })
+        }))
     })
 }

@@ -12,6 +12,7 @@ template_dir="/app/templates"
 # chat
 max_stored_messages=30
 max_users=1000
+max_ro_users=10
 
 # user
 max_username_len=30

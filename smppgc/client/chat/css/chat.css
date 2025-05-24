@@ -42,6 +42,12 @@ a:hover {
   max-height:300px;
 }
 
+a.goto-chat-link {
+  text-align: center;
+  font-weight: bold;
+  text-decoration-thickness: 2px;
+}
+
 .chat-name {
   margin: 0px;
 }

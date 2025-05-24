@@ -19,11 +19,18 @@
   {% endif %}
   <span id="err-mesg" class="err"></span>
   <div class="container">
+    {% if readonly %}
+    <div class="ro-name-input"><span>Alleen lezen</span></div>
+    {% else %}
     <input autofocus maxlength="{{max_username_len}}" id="name-input" type="text" placeholder="({{ irl_name }})" data-default_username="{{ irl_name }}">
+    {% endif %}
     <button id="connectbtn" class="button">
       {% include "svg/arrow_r" %}
     </button>
   </div>
+  {% if readonly %}
+  <a class="goto-chat-link" href="/chat">Ga naar de echte chat</a>
+  {% endif %}
 </dialog>
 
 <dialog id="connection-status" class="loading-dialog">
@@ -82,12 +89,14 @@
 </header>
 <div id="mesgs"></div>
 <div class="bottom">
+  {% if not readonly %}
   <div id="botbar">
     <div id="send-input" contenteditable data-plaintext="true" enterkeyhint="send" placeholder="Enter a message"></div> <!--Er is denk ik geen goede manier om textareas niet raar te laten zijn dus we moeten hier wel een div gebruiken :(-->
     <button id="sendbtn" class="button">
       {% include "svg/arrow_r" %}
     </button>
   </div>
+  {% endif %}
 </div>
 
 {% endblock content %}
@@ -101,7 +110,8 @@
     protocol =  "wss://"
   }
   const VERSION_INT = {{ version_int() }}
-  const WEBSOCKET_URL=protocol+location.host+"/socket/chat";
+  const WEBSOCKET_URL=protocol+location.host+"/socket{% if readonly %}/rochat{% else %}/chat{% endif %}";
+  const READONLY = {% if readonly %}true{% else %}false{% endif %};
   const MAX_MESSAGE_LEN="{{max_message_len}}";
   const MIN_MESSAGE_LEN="{{min_message_len}}";
 </script>
