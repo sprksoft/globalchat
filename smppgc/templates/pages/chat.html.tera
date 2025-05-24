@@ -43,14 +43,13 @@
   <h1>Verban <code id="ban-dialog-user"></code></h1>
   <select autocomplete="off" id="ban-dialog-preset">
     <option selected disabled hidden>Kies een reden</option>
-    <option data-duration="10" data-fullreason="Niet basically">Niets basically</option>
-    <option data-duration="604800" data-fullreason="Niet ernstig">Niet ernstig</option>
-    <option data-duration="31536000" data-fullreason="Ernstig">Ernstig</option>
+    <option data-duration="604800" data-fullreason="Niet ernstig">Spam, Mindless Racism of Sexism</option>
+    <option data-duration="31536000" data-fullreason="Ernstig">Doxing, Pesten...</option>
   </select>
   <section id="ban-dialog-reason"></section>
   <div id="ban-dialog-buttons">
-    <button onclick="document.getElementById('ban-dialog').close()" class="pillbtn">Cancel</button>
-    <button id="ban-dialog-ban-button" class="pillbtn dangerbtn">Ban</button>
+    <button onclick="document.getElementById('ban-dialog').close()" class="pillbtn">Annuleren</button>
+    <button id="ban-dialog-ban-button" class="pillbtn dangerbtn">Verban</button>
   </div>
 </dialog>
 
@@ -66,7 +65,7 @@
       <div class="message-actions">
         {% if is_mod %}
         <button class="delbtn unimportantbtn">delete</button>
-        <button class="banbtn unimportantbtn">ban</button>
+        <button class="banbtn unimportantbtn">verban</button>
         {% endif %}
       </div>
     </div>
