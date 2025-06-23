@@ -1,7 +1,10 @@
+use rocket_db_pools::Connection;
+use sqlx::query;
 use tokio::sync::{Mutex, RwLock};
 
 use crate::{
     chat::Chat,
+    db::{Db, DbResult},
     profanity::{ProfRuleset, RuleLintSet, RulesetChanges, RulesetError},
     users::{role::Role, AdminUser, User},
 };
@@ -72,8 +75,32 @@ fn role(user: Option<User>) -> &'static str {
     }
 }
 
+#[derive(Responder)]
+enum DemoteResponder {
+    Ok(&'static str),
+    #[response(status = 401)]
+    Unauthorized(&'static str),
+}
+
+#[post("/demote?<id>")]
+async fn demote(user: User, id: i32, mut db: Connection<Db>) -> DbResult<DemoteResponder> {
+    let result = query!(
+        "UPDATE users SET role=0 WHERE id=$1 AND role < $2",
+        id,
+        user.role().to_i32()
+    )
+    .execute(&mut **db)
+    .await?;
+
+    if result.rows_affected() == 0 {
+        Ok(DemoteResponder::Unauthorized("unauthorized"))
+    } else {
+        Ok(DemoteResponder::Ok("ok"))
+    }
+}
+
 pub fn stage() -> AdHoc {
     AdHoc::on_ignite("api", |r| async {
-        r.mount("/api", routes![role, sync_ruleset])
+        r.mount("/api", routes![role, sync_ruleset, demote])
     })
 }
