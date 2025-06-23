@@ -290,6 +290,7 @@ async fn oauth_return(
     match param {
         Some("ret:home") => Ok(OAuthResponse::Redirect(Redirect::temporary("/"))),
         Some("ret:chat") => Ok(OAuthResponse::Redirect(Redirect::temporary("/chat"))),
+        Some("ret:prom") => Ok(OAuthResponse::Redirect(Redirect::temporary("/promote"))),
         _ => Ok(OAuthResponse::fail_flow(
             "Invalid ret in state parameter at redirect endpoint",
         )),

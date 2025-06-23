@@ -30,6 +30,7 @@ Moderators - Global Chat
       <tr>
         <th style="text-align:left;">Irl Name</th>
         <th style="width: 6em;">Role</th>
+        <th style="width: 6em;">Action</th>
       </tr>
     </thead>
     <tbody>
@@ -37,6 +38,7 @@ Moderators - Global Chat
       <tr>
         <td>{{ user.name }}</td>
         <td>{{ user.role }}</td>
+        <td><button class="pillbtn dangerbtn" {% if user.cantbedemoted %}disabled{% endif %} onclick="fetch('/api/demote?id={{ user.id }}', {method:'POST'}); this.parentElement.parentElement.remove()">demod</button></td>
       </tr>
       {% endfor %}
     </tbody>

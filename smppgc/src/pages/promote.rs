@@ -1,4 +1,13 @@
-use rocket::{get, response::Redirect, serde::Serialize, Responder};
+use rocket::{
+    fairing::AdHoc,
+    get,
+    http::{Cookie, CookieJar},
+    response::Redirect,
+    routes,
+    serde::Serialize,
+    time::Duration,
+    Responder,
+};
 use rocket_db_pools::Connection;
 use rocket_dyn_templates::{context, Template};
 use sqlx::query;
@@ -6,53 +15,73 @@ use sqlx::query;
 use crate::{
     db::{Db, DbResult},
     themes::Theme,
-    users::{role::Role, AdminUser, User},
+    users::{role::Role, AdminUser, SesId},
 };
 
+const PROMOTE_COOKIE: &'static str = "SMPPGC-Auth";
+
 #[derive(Responder)]
-pub enum PromoteResponse {
+enum PromoteResponse {
     Redirect(Redirect),
-    Error(Template),
+    Template(Template),
+}
+
+#[get("/promote")]
+async fn promote_with_cookie(
+    theme: Theme<'_>,
+    ses_id: SesId,
+    jar: &CookieJar<'_>,
+    mut db: Connection<Db>,
+) -> DbResult<PromoteResponse> {
+    let key = jar.get(PROMOTE_COOKIE);
+
+    let status = match key {
+        Some(c) => {
+            let key = c.value_trimmed();
+
+            let result = query!("SELECT claim_key($1,$2)", ses_id.inner(), key)
+                .fetch_one(&mut **db)
+                .await?;
+            let status: String = result.claim_key.unwrap_or("invaliderror".to_string());
+            status
+        }
+        None => "lostcookie".to_string(),
+    };
+
+    Ok(if status == "ok" {
+        jar.remove(PROMOTE_COOKIE);
+        PromoteResponse::Redirect(Redirect::to("/"))
+    } else {
+        PromoteResponse::Template(Template::render(
+            "pages/promotekey",
+            context! {
+                theme_css: theme.css(),
+                status:status,
+            },
+        ))
+    })
+}
+#[get("/promote", rank = 0)]
+fn promote_nologin(theme: Theme<'_>) -> Template {
+    Template::render(
+        "pages/promotekey",
+        context! {
+            theme_css: theme.css(),
+            status: "notloggedin",
+        },
+    )
 }
 
 #[get("/promote?<key>")]
-pub async fn promote(
-    key: &str,
-    theme: Theme<'_>,
-    user: User,
-    mut db: Connection<Db>,
-) -> DbResult<PromoteResponse> {
-    //TODO: optimize by using SesId in query and also below
-    let role = query!(
-        "UPDATE promote_keys SET used_by=$2 WHERE key=$1 AND used_by IS NULL RETURNING new_role",
-        key,
-        user.id().to_i32(),
-    )
-    .fetch_optional(&mut **db)
-    .await?
-    .map(|r| r.new_role);
-
-    Ok(match role {
-        Some(role) => {
-            query!(
-                "UPDATE users SET role=$1 WHERE id=$2",
-                role,
-                user.id().to_i32()
-            )
-            .execute(&mut **db)
-            .await?;
-            PromoteResponse::Redirect(Redirect::to("/"))
-        }
-        None => PromoteResponse::Error(Template::render(
-            "pages/error_page",
-            context! {
-                theme_css: theme.css(),
-                title: "Key doesn't exist",
-                error: "The key doesn't exist or has already been used. (Ask on discord for a new key)",
-                internal: ""
-            },
-        )),
-    })
+fn promote(key: &str, jar: &CookieJar<'_>) -> Redirect {
+    jar.add(
+        Cookie::build((PROMOTE_COOKIE, key.to_string()))
+            .secure(true)
+            .http_only(true)
+            .max_age(Duration::seconds(300))
+            .build(),
+    );
+    Redirect::temporary("/promote")
 }
 
 fn shorten_name(name: &str) -> String {
@@ -73,6 +102,8 @@ fn shorten_name(name: &str) -> String {
 struct TableUser {
     name: String,
     role: &'static str,
+    id: i32,
+    cantbedemoted: bool,
 }
 
 #[derive(Serialize)]
@@ -84,20 +115,23 @@ struct TableKey {
 }
 
 #[get("/mods")]
-pub async fn mods(
+async fn mods(
     theme: Theme<'_>,
-    _adminses: AdminUser,
+    admin_user: AdminUser,
     mut db: Connection<Db>,
 ) -> DbResult<Template> {
-    let users: Vec<TableUser> = query!("SELECT irl_name,role FROM users WHERE role > 0")
+    let users: Vec<TableUser> = query!("SELECT irl_name,role,id FROM users WHERE role > 0")
         .fetch_all(&mut **db)
         .await?
         .iter()
-        .map(|u| TableUser {
-            role: Role::from_i32(u.role)
-                .map(|r| r.to_str())
-                .unwrap_or("unknown"),
-            name: shorten_name(&u.irl_name),
+        .map(|u| {
+            let role = Role::from_i32(u.role);
+            TableUser {
+                role: role.map(|r| r.to_str()).unwrap_or("unknown"),
+                name: shorten_name(&u.irl_name),
+                id: u.id,
+                cantbedemoted: admin_user.0.role() <= role.unwrap_or(Role::User),
+            }
         })
         .collect();
 
@@ -118,4 +152,13 @@ pub async fn mods(
         "pages/mods",
         context! {theme_css:theme.css(), users:users, keys:keys},
     ))
+}
+
+pub fn stage() -> AdHoc {
+    AdHoc::on_ignite("promote", |r| async {
+        r.mount(
+            "/",
+            routes![promote, promote_with_cookie, promote_nologin, mods],
+        )
+    })
 }

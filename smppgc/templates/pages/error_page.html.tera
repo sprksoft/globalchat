@@ -14,9 +14,11 @@
   <main>
     <h1>{{ title }}</h1>
     <p>{{ error }}</p>
-    <code>
-      {{ internal }}
-    </code>
+    <p>
+      <code>
+        {{ internal }}
+      </code>
+    </p>
     <a href="/chat">Ga terug naar de chat</a>
   </main>
 </div>

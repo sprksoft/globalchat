@@ -106,17 +106,9 @@ pub fn stage() -> AdHoc {
     AdHoc::on_ignite("templates", |r| async {
         r.mount(
             "/",
-            routes![
-                login,
-                chat,
-                ro_chat,
-                chat_noses,
-                prof::prof,
-                home,
-                promote::promote,
-                promote::mods
-            ],
+            routes![login, chat, ro_chat, chat_noses, prof::prof, home],
         )
+        .attach(promote::stage())
         .attach(api::stage())
         .attach(Template::custom(move |engines| {
             templating::setup(&mut engines.tera);
