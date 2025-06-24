@@ -1,0 +1,8 @@
+[package]
+name = "wordfilter"
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+
+[dependencies]
+rust-stemmers = "1.2.0"
