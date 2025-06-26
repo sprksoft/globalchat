@@ -5,4 +5,9 @@ authors.workspace = true
 edition.workspace = true
 
 [dependencies]
-rust-stemmers = "1.2.0"
+bincode={version="2.0.1"}
+clap={ version = "4.5.4", features = ["derive"], optional = true }
+
+[features]
+default=["cli"]
+cli=["dep:clap"]
