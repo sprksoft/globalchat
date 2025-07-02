@@ -86,24 +86,25 @@ function showBanDialog(snowflake, sender) {
   banDialogUser.innerText = sender;
   banDialogPreset.selectedIndex = 0;
   banDialogBanButton.disabled = true;
-  banDialogReason.innerText = "";
+  banDialogReason.value = "";
   banDialog.showModal();
 }
 
 banDialogPreset.addEventListener("change", () => {
   if (banDialogPreset.selectedIndex !== 0) {
     banDialogBanButton.disabled = false;
-    banDialogReason.innerText =
+    banDialogReason.value =
       banDialogPreset.selectedOptions[0].dataset.fullreason;
   }
 });
 banDialogBanButton.addEventListener("click", async () => {
   const preset = banDialogPreset.selectedOptions[0];
+  const reason = banDialogReason.value;
   const snowflake = BigInt(banDialog.dataset.snowflake);
   await socketmgr.banMessageAuthor(
     snowflake,
     parseInt(preset.dataset.duration),
-    preset.dataset.fullreason,
+    reason,
   );
   banDialog.close();
 });
@@ -216,7 +217,7 @@ socketmgr.on_leave = (reason, protoerr) => {
 
   console.log("Got no session error. Redirecting to login page...");
   if (protoerr == "err_no_session") {
-    location = "/login";
+    location = "/login?redirect=/v1";
   }
 };
 

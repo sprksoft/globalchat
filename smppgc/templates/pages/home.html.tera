@@ -25,9 +25,9 @@ Home - Global Chat
 </header>
 <main class="button-list">
   {% if logged_in %}
-  <a class="button" href="/chat"><img class="btnicon" src="{{ url(path="/static/logo.webp")}}"><span>Chat</span></a>
+  <a class="button" href="/v1"><img class="btnicon" src="{{ url(path="/static/logo.webp")}}"><span>Chat</span></a>
   {% else %}
-  <button class="button smbtn" onclick="location.href='/oauth/start?ret=home'">{% include "smbtn_content" %}</button>
+  <button class="button" onclick="location.href='/login?redirect=/'">login</button>
   {% endif%}
 
   <a class="button" href="/rochat"><img style="filter: saturate(0%)" class="btnicon" src="{{ url(path="/static/logo.webp")}}"><span>Alleen Lezen Chat</span></a>

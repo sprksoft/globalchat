@@ -27,7 +27,8 @@
   background-color: var(--color-base01);
   border: solid var(--color-base02) var(--border-size);
   border-radius: var(--border-radius);
-  color: color-mix(in oklab, #000 20%, var(--color-text));
+  color: var(--color-text);
+  font-size: 1rem;
   padding: 0.7rem;
   min-height: 4rem;
 }

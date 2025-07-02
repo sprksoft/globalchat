@@ -1,6 +1,6 @@
 set -e
 DOCKER="docker"
-DOCKER_COMPOSE="docker compose"
+DOCKER_COMPOSE="$DOCKER compose"
 CARGO="cargo"
 
 if ! $DOCKER version >> /dev/null ; then

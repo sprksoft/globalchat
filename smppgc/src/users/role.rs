@@ -1,4 +1,9 @@
-use rocket::serde::{Deserialize, Serialize};
+use std::borrow::Cow;
+
+use rocket::{
+    form::FromFormField,
+    serde::{Deserialize, Serialize},
+};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(crate = "rocket::serde")]
@@ -68,5 +73,10 @@ impl TryFrom<&str> for Role {
             "owner" => Ok(Role::Owner),
             _ => Err(()),
         }
+    }
+}
+impl<'v> FromFormField<'v> for Role {
+    fn from_value(field: rocket::form::ValueField<'v>) -> rocket::form::Result<'v, Self> {
+        Ok(Self::try_from(field.value).map_err(|_| &[Cow::Borrowed("invalid role value")])?)
     }
 }

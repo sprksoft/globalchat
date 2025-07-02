@@ -38,7 +38,7 @@ Moderators - Global Chat
       <tr>
         <td>{{ user.name }}</td>
         <td>{{ user.role }}</td>
-        <td><button class="pillbtn dangerbtn" {% if user.cantbedemoted %}disabled{% endif %} onclick="fetch('/api/demote?id={{ user.id }}', {method:'POST'}); this.parentElement.parentElement.remove()">demod</button></td>
+        <td><button data-uid="{{ user.id }}" class="demote-btn pillbtn dangerbtn" {% if user.cantbedemoted %}disabled{% endif %}>demod</button></td>
       </tr>
       {% endfor %}
     </tbody>
@@ -53,20 +53,22 @@ Moderators - Global Chat
         <th style="width: 6em;">Role</th>
       </tr>
     </thead>
-    <tbody>
+    <tbody class="key-table-body">
       {% for key in keys %}
       <tr>
-        <td><code>{{ key.key }}</code><button class="pillbtn copybtn" onclick="navigator.clipboard.writeText('https://gc.smartschoolplusplus.com/promote?key={{ key.key }}'); this.innerText='copied!'; setTimeout(()=>{this.innerText='copy'}, 1000)">copy</button></td>
+        <td><code class="copyable">{{ key.key }}</code></td>
         <td>{{ key.used_by }}</td>
         <td>{{ key.new_role }}</td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
+  <button id="newkey-btn" class="pillbtn">New Mod Key</button>
 </main>
 <div>
 
 {% endblock content %}
 
 {% block scripts %}
+<script defer type="text/javascript" src="{{ url(path="/static/mods.js") }}"></script>
 {% endblock scripts %}

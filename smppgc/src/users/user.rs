@@ -1,6 +1,6 @@
 use rocket::{
     async_trait,
-    http::Status,
+    http::{uri::Uri, Header, Status},
     outcome::{try_outcome, Outcome},
     request::{self, FromRequest},
 };
@@ -64,7 +64,7 @@ impl<'r> FromRequest<'r> for ModUser {
         let user = try_outcome!(req.guard::<User>().await);
         match user.role {
             Role::Owner | Role::Admin | Role::Mod => Outcome::Success(ModUser(user)),
-            Role::User => Outcome::Forward(Status::Unauthorized),
+            Role::User => Outcome::Forward(Status::Forbidden),
         }
     }
 }
@@ -77,7 +77,7 @@ impl<'r> FromRequest<'r> for AdminUser {
         let user = try_outcome!(req.guard::<User>().await);
         match user.role {
             Role::Owner | Role::Admin => Outcome::Success(AdminUser(user)),
-            Role::Mod | Role::User => Outcome::Forward(Status::Unauthorized),
+            Role::Mod | Role::User => Outcome::Forward(Status::Forbidden),
         }
     }
 }

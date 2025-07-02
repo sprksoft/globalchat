@@ -21,8 +21,11 @@ use url::Url;
 use uuid::Uuid;
 
 use crate::db::Db;
+use crate::disclaimer::DisclaimerVer;
 use crate::themes::{self, Theme};
 use crate::users::{SesId, UserConfig};
+
+pub const REDIRECT_URL_COOKIE: &'static str = "login_continue_url";
 
 metrics!(
     pub counter total_started_oauth_flows("Total count of started oauth flows");
@@ -62,38 +65,23 @@ enum OAuthError {
     Sqlx(#[from] sqlx::Error),
     #[error("{0}")]
     Url(#[from] url::ParseError),
-    #[error("Invalid characters in return parameter")]
-    InvalidCharsInRet,
 }
 
 impl OAuth {
     pub const STATE_COOKIE_NAME: &'static str = "oauth_state";
 
-    pub fn get_auth_url(&self, ret: &str) -> Result<(Url, String), OAuthError> {
-        if ret
-            .chars()
-            .find(|char| !char.is_ascii_alphanumeric())
-            .is_some()
-        {
-            return Err(OAuthError::InvalidCharsInRet);
-        }
-        let state = format!("{}+ret:{}", Uuid::new_v4().as_simple(), ret);
-
+    pub fn get_auth_url(&self, state: &str) -> Result<Url, OAuthError> {
         let config = &self.config;
-
-        Ok((
-            Url::parse_with_params(
-                "https://oauth.smartschool.be/OAuth",
-                &[
-                    ("response_type", "code"),
-                    ("client_id", &config.client_id),
-                    ("redirect_uri", &config.redirect_uri),
-                    ("scope", "userinfo"),
-                    ("state", &state),
-                ],
-            )?,
-            state,
-        ))
+        Ok(Url::parse_with_params(
+            "https://oauth.smartschool.be/OAuth",
+            &[
+                ("response_type", "code"),
+                ("client_id", &config.client_id),
+                ("redirect_uri", &config.redirect_uri),
+                ("scope", "userinfo"),
+                ("state", state),
+            ],
+        )?)
     }
 
     pub async fn fetch_access_token(
@@ -148,9 +136,20 @@ enum OAuthResponse {
 
     #[response(status = 422)]
     UnprocessableEntity(Template),
+
+    #[response(status = 422)]
+    Forbidden(Template),
 }
 impl OAuthResponse {
-    pub fn fail_flow(internal: &str) -> Self {
+    pub fn fail_flow_403(internal: &str) -> Self {
+        let dtheme = themes::DEFAULT_THEME.clone();
+        total_failed_oauth_flows::inc(internal);
+        Self::Forbidden(Template::render(
+            "pages/error_page",
+            context! {title: "403 Forbidden", theme_css: dtheme.css(), error: "Oei! Er ging iets mis tijdens het inloggen.", internal: internal},
+        ))
+    }
+    pub fn fail_flow_422(internal: &str) -> Self {
         let dtheme = themes::DEFAULT_THEME.clone();
         total_failed_oauth_flows::inc(internal);
         Self::UnprocessableEntity(Template::render(
@@ -160,21 +159,23 @@ impl OAuthResponse {
     }
 }
 
-#[get("/oauth/start?<ret>")]
+#[get("/oauth/start?<provider>")]
 fn oauth_start(
-    ret: &str,
     oauth: &State<OAuth>,
     cookiejar: &CookieJar<'_>,
+    provider: &str,
+    accepted_disclaimer: DisclaimerVer,
 ) -> Result<OAuthResponse, response::Debug<OAuthError>> {
     total_started_oauth_flows::inc();
+    if accepted_disclaimer != DisclaimerVer::LATEST {
+        return Ok(OAuthResponse::fail_flow_422(
+            "Disclaimer niet geaccepteerd.",
+        ));
+    }
 
-    let (mut url, state) = match oauth.get_auth_url(ret) {
+    let state = Uuid::new_v4().as_simple().to_string();
+    let mut url = match oauth.get_auth_url(&state) {
         Ok(us) => us,
-        Err(OAuthError::InvalidCharsInRet) => {
-            return Ok(OAuthResponse::fail_flow(
-                "Invalid value for ret paramater at oauth start",
-            ));
-        }
         Err(e) => {
             total_failed_oauth_flows::inc("get_auth_url: OAuth error");
             return Err(response::Debug(e));
@@ -230,7 +231,9 @@ async fn oauth_return(
         .map(|c| c.value_trimmed() == state)
         .unwrap_or(false)
     {
-        return Ok(OAuthResponse::fail_flow("state missmatch"));
+        return Ok(OAuthResponse::fail_flow_422(
+            "'state' is niet dezelfde als de cookie.",
+        ));
     }
 
     let sm_uinfo = if oauth.config.debug {
@@ -281,20 +284,51 @@ async fn oauth_return(
             .same_site(rocket::http::SameSite::Strict)
             .max_age(Duration::seconds(
                 user_config.max_session_age.saturating_sub(10) as i64,
-            )),
+            ))
+            .path("/"),
     );
 
     total_logins::inc();
 
-    let param = state.split_once('+').map(|(_, param)| param);
-    match param {
-        Some("ret:home") => Ok(OAuthResponse::Redirect(Redirect::temporary("/"))),
-        Some("ret:chat") => Ok(OAuthResponse::Redirect(Redirect::temporary("/chat"))),
-        Some("ret:prom") => Ok(OAuthResponse::Redirect(Redirect::temporary("/promote"))),
-        _ => Ok(OAuthResponse::fail_flow(
-            "Invalid ret in state parameter at redirect endpoint",
-        )),
+    let redirect_url = cookiejar
+        .get(REDIRECT_URL_COOKIE)
+        .map(|c| c.value_trimmed().to_string())
+        .filter(|url| validate_redirect_url(&url));
+    cookiejar.remove(REDIRECT_URL_COOKIE);
+
+    Ok(OAuthResponse::Redirect(Redirect::to(
+        redirect_url.unwrap_or("/v1".to_string()),
+    )))
+}
+
+fn validate_redirect_url(url: &str) -> bool {
+    if !url.starts_with("/") {
+        error!("invalid redirect url (no starting slash): {}", url);
+        return false;
     }
+    if url.contains("://") {
+        error!("invalid redirect url (contains ://): {}", url);
+        return false;
+    }
+    for char in url.chars() {
+        if !(char.is_alphanumeric() || ['/', '=', '_', '-', '?', '&'].contains(&char)) {
+            error!("invalid redirect url: '{}' invalid char: {}", url, char);
+            return false;
+        }
+    }
+    true
+}
+
+pub fn set_continue_url_cookie(cookiejar: &CookieJar<'_>, url: String) {
+    cookiejar.add(
+        Cookie::build((REDIRECT_URL_COOKIE, url))
+            .http_only(true)
+            .secure(true)
+            .same_site(rocket::http::SameSite::Strict)
+            .max_age(Duration::seconds(3600))
+            .path("/")
+            .build(),
+    );
 }
 
 pub fn stage() -> AdHoc {
