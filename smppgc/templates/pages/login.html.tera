@@ -23,8 +23,8 @@
         <p id="disclaimer-countdown-text">Je kunt accepteren binnen <time id="disclaimer-countdown"></time></p>
       </div>
     </div>
-    <button class="button smbtn" id="sm-login-btn" onclick="location.href='/oauth/start?ret=chat'">{% include "smbtn_content" %}</button>
-    <span>Geen Smartschool account? <a href="/rochat">Alleen Lezen Chat</a></span>
+    <button class="button smbtn" id="sm-login-btn" onclick="location.href='/oauth/start?provider=smartschool'">{% include "smbtn_content" %}</button>
+    <span>Geen account account? <a href="/rochat">Alleen Lezen Chat</a></span>
   </main>
 </div>
 

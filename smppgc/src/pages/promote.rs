@@ -1,12 +1,16 @@
 use rocket::{
     fairing::AdHoc,
     get,
-    http::{Cookie, CookieJar},
-    response::Redirect,
+    http::{
+        uri::{Origin, Uri},
+        Cookie,
+    },
+    response::Debug,
+    response::{status::BadRequest, Redirect},
     routes,
     serde::Serialize,
     time::Duration,
-    Responder,
+    uri, Request, Responder,
 };
 use rocket_db_pools::Connection;
 use rocket_dyn_templates::{context, Template};
@@ -18,38 +22,25 @@ use crate::{
     users::{role::Role, AdminUser, SesId},
 };
 
-const PROMOTE_COOKIE: &'static str = "SMPPGC-Auth";
-
 #[derive(Responder)]
 enum PromoteResponse {
     Redirect(Redirect),
     Template(Template),
 }
 
-#[get("/promote")]
-async fn promote_with_cookie(
+#[get("/promote?<key>")]
+async fn promote(
+    key: &str,
     theme: Theme<'_>,
     ses_id: SesId,
-    jar: &CookieJar<'_>,
     mut db: Connection<Db>,
 ) -> DbResult<PromoteResponse> {
-    let key = jar.get(PROMOTE_COOKIE);
-
-    let status = match key {
-        Some(c) => {
-            let key = c.value_trimmed();
-
-            let result = query!("SELECT claim_key($1,$2)", ses_id.inner(), key)
-                .fetch_one(&mut **db)
-                .await?;
-            let status: String = result.claim_key.unwrap_or("invaliderror".to_string());
-            status
-        }
-        None => "lostcookie".to_string(),
-    };
+    let result = query!("SELECT claim_key($1,$2)", ses_id.inner(), key)
+        .fetch_one(&mut **db)
+        .await?;
+    let status: String = result.claim_key.unwrap_or("invaliderror".to_string());
 
     Ok(if status == "ok" {
-        jar.remove(PROMOTE_COOKIE);
         PromoteResponse::Redirect(Redirect::to("/"))
     } else {
         PromoteResponse::Template(Template::render(
@@ -61,27 +52,10 @@ async fn promote_with_cookie(
         ))
     })
 }
-#[get("/promote", rank = 0)]
-fn promote_nologin(theme: Theme<'_>) -> Template {
-    Template::render(
-        "pages/promotekey",
-        context! {
-            theme_css: theme.css(),
-            status: "notloggedin",
-        },
-    )
-}
-
-#[get("/promote?<key>")]
-fn promote(key: &str, jar: &CookieJar<'_>) -> Redirect {
-    jar.add(
-        Cookie::build((PROMOTE_COOKIE, key.to_string()))
-            .secure(true)
-            .http_only(true)
-            .max_age(Duration::seconds(300))
-            .build(),
-    );
-    Redirect::temporary("/promote")
+#[allow(unused_variables)]
+#[get("/promote?<key>", rank = 0)]
+fn promote_nologin(key: &str, origin: &Origin<'_>) -> Redirect {
+    Redirect::to(uri!(crate::pages::login(redirect = origin.to_string())))
 }
 
 fn shorten_name(name: &str) -> String {
@@ -143,7 +117,7 @@ async fn mods(
             new_role: Role::from_i32(k.new_role)
                 .map(|r| r.to_str())
                 .unwrap_or("unknown"),
-            used_by: k.irl_name.map(|n|shorten_name(&n))
+            used_by: k.irl_name.as_ref().map(|n|shorten_name(n))
                 .unwrap_or("No one".to_string()),
             key: k.key,
         })
@@ -156,9 +130,6 @@ async fn mods(
 
 pub fn stage() -> AdHoc {
     AdHoc::on_ignite("promote", |r| async {
-        r.mount(
-            "/",
-            routes![promote, promote_with_cookie, promote_nologin, mods],
-        )
+        r.mount("/", routes![promote, promote_nologin, mods])
     })
 }

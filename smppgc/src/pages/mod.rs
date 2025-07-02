@@ -12,6 +12,7 @@ use rocket_dyn_templates::{context, Template};
 use crate::{
     chat::MessageLimiter,
     disclaimer::DisclaimerVer,
+    oauth,
     themes::Theme,
     users::{role::Role, User, UserConfig},
     utils::AllowSmIFrame,
@@ -22,8 +23,14 @@ mod prof;
 mod promote;
 mod templating;
 
-#[get("/login")]
-fn login(theme: Theme, accepted_disclaimer: DisclaimerVer) -> AllowSmIFrame<Template> {
+#[get("/login?<redirect>")]
+fn login(
+    theme: Theme,
+    cookiejar: &CookieJar<'_>,
+    redirect: String,
+    accepted_disclaimer: DisclaimerVer,
+) -> AllowSmIFrame<Template> {
+    oauth::set_continue_url_cookie(&cookiejar, redirect);
     AllowSmIFrame(Template::render(
         "pages/login",
         context! {
@@ -58,7 +65,7 @@ fn set_cookie_theme(cookiejar: &CookieJar<'_>, theme: &Theme) {
     );
 }
 
-#[get("/chat")]
+#[get("/v1")]
 fn chat(
     theme: Theme,
     user: User,
@@ -97,9 +104,9 @@ fn ro_chat(cookiejar: &CookieJar<'_>, theme: Theme) -> AllowSmIFrame<Template> {
     ))
 }
 
-#[get("/chat", rank = 0)]
+#[get("/v1", rank = 0)]
 fn chat_noses() -> Redirect {
-    Redirect::to("/login")
+    Redirect::to("/login?redirect=/v1")
 }
 
 pub fn stage() -> AdHoc {

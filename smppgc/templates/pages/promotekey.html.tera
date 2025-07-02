@@ -16,11 +16,6 @@
     <h1>Ongeldige sleutel</h1>
     <p>Vraag aan de persoon die jou de link heeft gestuurd om een nieuwe.</p>
 
-    {% elif status == "notloggedin" %}
-    <h1>Je bent niet ingelogd</h1>
-    <p>Click op de knop hieronder om in te loggen</p>
-    <button class="button smbtn" onclick="location.href='/oauth/start?ret=prom'">{% include "smbtn_content" %}</button>
-
     {% elif status == "keyused" %}
     <h1>De sleutel is al in gebruik</h1>
     <p>Vraag aan de persoon die jou de link heeft gestuurd om een nieuwe.</p>

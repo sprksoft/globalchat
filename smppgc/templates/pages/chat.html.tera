@@ -29,7 +29,7 @@
     </button>
   </div>
   {% if readonly %}
-  <a class="goto-chat-link" href="/chat">Ga naar de echte chat</a>
+  <a class="goto-chat-link" href="/v1">Ga naar de echte chat</a>
   {% endif %}
 </dialog>
 
@@ -50,11 +50,13 @@
   <h1>Verban <code id="ban-dialog-user"></code></h1>
   <select autocomplete="off" id="ban-dialog-preset">
     <option selected disabled hidden>Kies een reden</option>
-    <option data-duration="86400" data-fullreason="Spam">Waarschuwing</option>
-    <option data-duration="604800" data-fullreason="Spam">Spam, Mindless Racism of Sexism</option>
-    <option data-duration="31536000" data-fullreason="Pesten">Doxing, Pesten</option>
+    <option data-duration="3600" data-fullreason="Je hebt een waarschuwing ontvangen wegens ongepast gedrag.">Waarschuwing</option> {# 1 uur #}
+    <option data-duration="18000" data-fullreason="Spammen of het plaatsen van racistische, seksistische of andere ongepaste berichten.">Spam, racistische of seksistische uitingen, ...</option> {# 5 uur #}
+    <option data-duration="86400" data-fullreason="Herhaaldelijk spammen of het plaatsen van racistische, seksistische of andere kwetsende inhoud.">Herhaaldelijke spam, racistische of seksistische uitingen, ...</option> {# 1 dag #}
+    <option data-duration="604800" data-fullreason="Racistische, seksistische of discriminerende opmerkingen tegenover andere gebruikers.">Racistische of seksistische uitingen tegenover andere gebruikers</option> {# 1 week #}
+    <option data-duration="31536000" data-fullreason="Ernstige overtredingen zoals doxing of pesten van andere gebruikers.">Ernstig, Doxing, pesten</option> {# 1 jaar #}
   </select>
-  <section id="ban-dialog-reason"></section>
+  <textarea id="ban-dialog-reason"></textarea>
   <div id="ban-dialog-buttons">
     <button onclick="document.getElementById('ban-dialog').close()" class="pillbtn">Annuleren</button>
     <button id="ban-dialog-ban-button" class="pillbtn dangerbtn">Verban</button>

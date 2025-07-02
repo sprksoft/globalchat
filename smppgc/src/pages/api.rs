@@ -1,6 +1,7 @@
 use rocket_db_pools::Connection;
 use sqlx::query;
 use tokio::sync::{Mutex, RwLock};
+use uuid::Uuid;
 
 use crate::{
     chat::Chat,
@@ -82,6 +83,19 @@ enum DemoteResponder {
     Unauthorized(&'static str),
 }
 
+#[post("/new_key?<role>")]
+async fn new_key(_admin: AdminUser, role: Role, mut db: Connection<Db>) -> DbResult<String> {
+    let new_key = Uuid::new_v4().simple().to_string();
+    query!(
+        "INSERT INTO promote_keys(key,new_role) VALUES ($1, $2)",
+        new_key,
+        role.to_i32()
+    )
+    .execute(&mut **db)
+    .await?;
+    return Ok(new_key);
+}
+
 #[post("/demote?<id>")]
 async fn demote(user: User, id: i32, mut db: Connection<Db>) -> DbResult<DemoteResponder> {
     let result = query!(
@@ -101,6 +115,6 @@ async fn demote(user: User, id: i32, mut db: Connection<Db>) -> DbResult<DemoteR
 
 pub fn stage() -> AdHoc {
     AdHoc::on_ignite("api", |r| async {
-        r.mount("/api", routes![role, sync_ruleset, demote])
+        r.mount("/api", routes![new_key, role, sync_ruleset, demote])
     })
 }

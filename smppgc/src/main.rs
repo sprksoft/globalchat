@@ -50,6 +50,7 @@ struct ErrorResponder {
 
 #[catch(500)]
 fn internal_server_error() -> ErrorResponder {
+    total_500_responses::inc();
     let theme = themes::DEFAULT_THEME.clone();
     ErrorResponder {
         inner: Template::render(

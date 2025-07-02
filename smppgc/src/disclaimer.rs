@@ -3,7 +3,7 @@ use std::ops::Deref;
 use rocket::request::{FromRequest, Outcome};
 use rocket::serde::Serialize;
 
-#[derive(Clone, Copy, Serialize)]
+#[derive(Clone, Eq, PartialEq, PartialOrd, Ord, Copy, Serialize)]
 #[serde(crate = "rocket::serde")]
 pub struct DisclaimerVer(usize);
 impl DisclaimerVer {

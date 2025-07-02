@@ -163,11 +163,20 @@ pub fn parse_c2s(data: Vec<u8>) -> Result<C2SPacket, ()> {
             Ok(C2SPacket::AdminCmd(AdminCmd::DelMsg(snowflake)))
         }
         PACKET_C2S_BANMSGAUTHOR => {
+            //|    u8     | const PACKET_C2S_BANMSGAUTHOR
+            //| Snowflake | message id
+            //|    u32    | duration (seconds)
+            //|           | reason
+
             let snowflake = parse_snowflake(&data[..8])?;
             let data = &data[8..];
             let duration = parse_dur(&data[..4])?;
             let data = &data[4..];
             let reason = parse_str(&data);
+            if reason.len() >= 1000 {
+                error!("Invalid PACKET_C2S_BANMSGAUTHOR packet: Reason field too large");
+                return Err(());
+            }
             Ok(C2SPacket::AdminCmd(AdminCmd::BanMsgAuthor {
                 mesg: snowflake,
                 duration,
