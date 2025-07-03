@@ -28,8 +28,11 @@ small_len=150
 large_penalty=2
 max_spam=2
 
-[default.oauth]
-debug=true
+[default.oauth.smartschool]
+redirect_uri="http://localhost/oauth/return"
+client_id="debug_client_id"
+client_secret_file="/debug_client_secret"
+[default.oauth.google]
 redirect_uri="http://localhost/oauth/return"
 client_id="debug_client_id"
 client_secret_file="/debug_client_secret"
@@ -46,9 +49,6 @@ log_level="normal"
 debug=false
 root_url="/smpp/gc"
 log_level = "critical"
-
-[release.oauth]
-debug=false
 
 [release.databases.sqlx]
 url="postgres://smpp:smpppasswd@db/smpp"
