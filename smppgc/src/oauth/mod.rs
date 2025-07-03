@@ -25,7 +25,11 @@ use crate::disclaimer::DisclaimerVer;
 use crate::themes::{self, Theme};
 use crate::users::{SesId, UserConfig};
 
+use self::client::{OAuthClient, OAuthProviderConfig, Provider};
+
 pub const REDIRECT_URL_COOKIE: &'static str = "login_continue_url";
+
+mod client;
 
 metrics!(
     pub counter total_started_oauth_flows("Total count of started oauth flows");
@@ -123,11 +127,8 @@ impl OAuth {
 #[derive(Deserialize)]
 #[serde(crate = "rocket::serde")]
 pub struct OAuthConfig {
-    #[serde(default)]
-    debug: bool,
-    redirect_uri: String,
-    client_id: String,
-    client_secret_file: String,
+    google: Option<OAuthProviderConfig>,
+    smartschool: Option<OAuthProviderConfig>,
 }
 
 #[derive(Responder)]
@@ -331,24 +332,30 @@ pub fn set_continue_url_cookie(cookiejar: &CookieJar<'_>, url: String) {
     );
 }
 
+pub struct OAuthManager {
+    clients: Vec<OAuthClient>,
+}
+impl OAuthManager {
+    pub fn get_client(&self, provider: Provider) -> Option<&OAuthClient> {
+        self.clients.iter().find(|c| c.provider == provider)
+    }
+}
+
 pub fn stage() -> AdHoc {
     AdHoc::on_ignite("oauth", |r| async {
         let config: OAuthConfig = r.figment().extract_inner("oauth").unwrap();
-
-        let client_secret = if config.debug {
-            String::new()
-        } else {
-            std::fs::read_to_string(&config.client_secret_file)
-                .expect("Failed to load client_secret_file")
-        };
+        let mut clients = Vec::with_capacity(2);
+        if let Some(smartschool) = config.smartschool {
+            clients.push(OAuthClient::new(Provider::Smartschool, smartschool));
+        }
+        if let Some(google) = config.google {
+            clients.push(OAuthClient::new(Provider::Google, google));
+        }
 
         r.mount(
             "/",
             routes![oauth_start, oauth_return, oauth_debug, oauth_debug_post],
         )
-        .manage(OAuth {
-            config,
-            client_secret,
-        })
+        .manage(OAuthManager { clients })
     })
 }
