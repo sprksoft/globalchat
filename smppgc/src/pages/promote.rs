@@ -1,16 +1,6 @@
 use rocket::{
-    fairing::AdHoc,
-    get,
-    http::{
-        uri::{Origin, Uri},
-        Cookie,
-    },
-    response::Debug,
-    response::{status::BadRequest, Redirect},
-    routes,
-    serde::Serialize,
-    time::Duration,
-    uri, Request, Responder,
+    fairing::AdHoc, get, http::uri::Origin, response::Redirect, routes, serde::Serialize, uri,
+    Responder,
 };
 use rocket_db_pools::Connection;
 use rocket_dyn_templates::{context, Template};
