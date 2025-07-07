@@ -1,7 +1,5 @@
 use lmetrics::metrics;
-use rocket::form::Form;
-use rocket::time::Duration;
-use rocket::{post, FromForm};
+use rocket::{post, time::Duration, FromForm};
 
 use log::*;
 use rocket::{
@@ -10,26 +8,23 @@ use rocket::{
     http::{Cookie, CookieJar},
     response::{self, Redirect},
     routes,
-    serde::{Deserialize, Serialize},
+    serde::Deserialize,
     Responder, State,
 };
 use rocket_db_pools::Connection;
 use rocket_dyn_templates::{context, Template};
 use sqlx;
-use thiserror::Error;
-use url::Url;
-use uuid::Uuid;
 
-use crate::db::Db;
-use crate::disclaimer::DisclaimerVer;
 use crate::themes::{self, Theme};
-use crate::users::{SesId, UserConfig};
+use crate::{db::Db, users::UserConfig};
+use crate::{disclaimer::DisclaimerVer, users::SesId};
 
-use self::client::{OAuthClient, OAuthProviderConfig, Provider};
+use self::client::{OAuth, OAuthError, OAuthProviderConfig, Provider};
 
 pub const REDIRECT_URL_COOKIE: &'static str = "login_continue_url";
 
 mod client;
+mod jwt;
 
 metrics!(
     pub counter total_started_oauth_flows("Total count of started oauth flows");
@@ -38,91 +33,56 @@ metrics!(
     pub counter total_logins("Total amount of logins");
 );
 
-#[derive(Deserialize)]
-#[serde(crate = "rocket::serde")]
-struct OAuthTokenResponse {
-    access_token: String,
-    expires_in: usize,
-}
-
-struct OAuth {
-    config: OAuthConfig,
-    client_secret: String,
-}
-
-#[derive(Deserialize, Serialize, FromForm)]
-#[serde(crate = "rocket::serde")]
-pub struct SmUserInfo {
-    #[serde(rename = "userID")]
-    pub user_id: String,
-    #[serde(rename = "actualUserName")]
-    pub name: String,
-    #[serde(rename = "actualUserSurname")]
-    pub surname: String,
-}
-
-#[derive(Debug, Error)]
-enum OAuthError {
-    #[error("{0}")]
-    Reqwest(#[from] reqwest::Error),
-    #[error("{0}")]
-    Sqlx(#[from] sqlx::Error),
-    #[error("{0}")]
-    Url(#[from] url::ParseError),
-}
-
-impl OAuth {
-    pub const STATE_COOKIE_NAME: &'static str = "oauth_state";
-
-    pub fn get_auth_url(&self, state: &str) -> Result<Url, OAuthError> {
-        let config = &self.config;
-        Ok(Url::parse_with_params(
-            "https://oauth.smartschool.be/OAuth",
-            &[
-                ("response_type", "code"),
-                ("client_id", &config.client_id),
-                ("redirect_uri", &config.redirect_uri),
-                ("scope", "userinfo"),
-                ("state", state),
-            ],
-        )?)
-    }
-
-    pub async fn fetch_access_token(
-        &self,
-        client: &reqwest::Client,
-        code: &str,
-    ) -> Result<String, OAuthError> {
-        let url = Url::parse_with_params(
-            "https://oauth.smartschool.be/OAuth/index/token",
-            &[
-                ("grant_type", "authorization_code"),
-                ("redirect_uri", &self.config.redirect_uri),
-                ("client_id", &self.config.client_id),
-                ("client_secret", &self.client_secret),
-                ("code", code),
-            ],
-        )?;
-        let res = client.post(url).send().await?.error_for_status()?;
-        let json: OAuthTokenResponse = res.json().await?;
-        Ok(json.access_token)
-    }
-    pub async fn fetch_userinfo(
-        &self,
-        client: &reqwest::Client,
-        access_token: &str,
-    ) -> Result<SmUserInfo, OAuthError> {
-        let res = client
-            .get(Url::parse_with_params(
-                "https://oauth.smartschool.be/Api/V1/userinfo",
-                &[("access_token", access_token)],
-            )?)
-            .send()
-            .await?
-            .error_for_status()?;
-        Ok(res.json().await?)
-    }
-}
+// impl OAuth {
+//     pub fn get_auth_url(&self, state: &str) -> Result<Url, OAuthError> {
+//         let config = &self.config;
+//         Ok(Url::parse_with_params(
+//             "https://oauth.smartschool.be/OAuth",
+//             &[
+//                 ("response_type", "code"),
+//                 ("client_id", &config.client_id),
+//                 ("redirect_uri", &config.redirect_uri),
+//                 ("scope", "userinfo"),
+//                 ("state", state),
+//             ],
+//         )?)
+//     }
+//
+//     pub async fn fetch_access_token(
+//         &self,
+//         client: &reqwest::Client,
+//         code: &str,
+//     ) -> Result<String, OAuthError> {
+//         let url = Url::parse_with_params(
+//             "https://oauth.smartschool.be/OAuth/index/token",
+//             &[
+//                 ("grant_type", "authorization_code"),
+//                 ("redirect_uri", &self.config.redirect_uri),
+//                 ("client_id", &self.config.client_id),
+//                 ("client_secret", &self.client_secret),
+//                 ("code", code),
+//             ],
+//         )?;
+//         let res = client.post(url).send().await?.error_for_status()?;
+//         let json: OAuthTokenResponse = res.json().await?;
+//         Ok(json.access_token)
+//     }
+//     pub async fn fetch_userinfo(
+//         &self,
+//         client: &reqwest::Client,
+//         access_token: &str,
+//     ) -> Result<SmUserInfo, OAuthError> {
+//         let res = client
+//             .get(Url::parse_with_params(
+//                 "https://oauth.smartschool.be/Api/V1/userinfo",
+//                 &[("access_token", access_token)],
+//             )?)
+//             .send()
+//             .await?
+//             .error_for_status()?;
+//         Ok(res.json().await?)
+//     }
+// }
 
 #[derive(Deserialize)]
 #[serde(crate = "rocket::serde")]
@@ -138,7 +98,7 @@ enum OAuthResponse {
     #[response(status = 422)]
     UnprocessableEntity(Template),
 
-    #[response(status = 422)]
+    #[response(status = 403)]
     Forbidden(Template),
 }
 impl OAuthResponse {
@@ -174,52 +134,39 @@ fn oauth_start(
         ));
     }
 
-    let state = Uuid::new_v4().as_simple().to_string();
-    let mut url = match oauth.get_auth_url(&state) {
-        Ok(us) => us,
-        Err(e) => {
+    // if oauth.config.debug {
+    //     url.set_host(Some("localhost")).unwrap();
+    //     url.set_scheme("http").unwrap();
+    // }
+    Ok(OAuthResponse::Redirect(
+        oauth.begin_flow(provider, cookiejar).map_err(|e| {
             total_failed_oauth_flows::inc("get_auth_url: OAuth error");
-            return Err(response::Debug(e));
-        }
-    };
-    if oauth.config.debug {
-        url.set_host(Some("localhost")).unwrap();
-        url.set_scheme("http").unwrap();
-    }
-    cookiejar.add(
-        Cookie::build((OAuth::STATE_COOKIE_NAME, state))
-            .secure(true)
-            .max_age(Duration::new(300, 0))
-            .http_only(true)
-            .same_site(rocket::http::SameSite::Strict)
-            .path("/")
-            .build(),
-    );
-    Ok(OAuthResponse::Redirect(Redirect::temporary(
-        url.to_string(),
-    )))
+            e
+        })?,
+    ))
 }
 
 #[get("/OAuth")]
 fn oauth_debug(theme: Theme) -> Template {
     Template::render("pages/oauth_debug", context! {theme_css: theme.css()})
 }
-#[post("/OAuth?<redirect_uri>&<state>", data = "<smuserinfo>")]
-fn oauth_debug_post(redirect_uri: &str, state: &str, smuserinfo: Form<SmUserInfo>) -> Redirect {
-    let code: &str = &serde_json::to_string(&smuserinfo.into_inner())
-        .expect("Failed to serialize sm_userinfo to json (oauth debug)");
+// #[post("/OAuth?<redirect_uri>&<state>", data = "<smuserinfo>")]
+// fn oauth_debug_post(redirect_uri: &str, state: &str, smuserinfo: Form<SmUserInfo>) -> Redirect {
+//     let code: &str = &serde_json::to_string(&smuserinfo.into_inner())
+//         .expect("Failed to serialize sm_userinfo to json (oauth debug)");
+//
+//     Redirect::to(
+//         Url::parse_with_params(&redirect_uri, &[("code", code), ("state", state)])
+//             .unwrap()
+//             .to_string(),
+//     )
+// }
 
-    Redirect::to(
-        Url::parse_with_params(&redirect_uri, &[("code", code), ("state", state)])
-            .unwrap()
-            .to_string(),
-    )
-}
-
-#[get("/oauth/return?<code>&<state>")]
+#[get("/oauth/return/<provider>?<code>&<state>")]
 async fn oauth_return(
     code: &str,
     state: &str,
+    provider: Option<&str>,
     oauth: &State<OAuth>,
     cookiejar: &CookieJar<'_>,
     user_config: &State<UserConfig>,
@@ -237,23 +184,14 @@ async fn oauth_return(
         ));
     }
 
-    let sm_uinfo = if oauth.config.debug {
-        serde_json::from_str(code)
-            .expect("Failed to deserialize sm_userinfo from json (oauth debug)")
-    } else {
-        let client = reqwest::Client::new();
-        let access_token = oauth.fetch_access_token(&client, code).await?;
-        oauth.fetch_userinfo(&client, &access_token).await?
-    };
-
-    let mut irl_name = sm_uinfo.name;
-    irl_name.push(' ');
-    irl_name.push_str(&sm_uinfo.surname);
+    let user_info = oauth
+        .fetch_userinfo(provider.unwrap_or("smartschool"), code)
+        .await?;
 
     let user = sqlx::query!(
         "INSERT INTO users (smid, irl_name) VALUES ($1, $2) ON CONFLICT (smid) DO UPDATE SET irl_name = $2 RETURNING *;",
-        sm_uinfo.user_id,
-        irl_name,
+        user_info.id,
+        user_info.irl_name,
     )
     .fetch_one(&mut **db)
     .await
@@ -332,30 +270,14 @@ pub fn set_continue_url_cookie(cookiejar: &CookieJar<'_>, url: String) {
     );
 }
 
-pub struct OAuthManager {
-    clients: Vec<OAuthClient>,
-}
-impl OAuthManager {
-    pub fn get_client(&self, provider: Provider) -> Option<&OAuthClient> {
-        self.clients.iter().find(|c| c.provider == provider)
-    }
-}
-
 pub fn stage() -> AdHoc {
     AdHoc::on_ignite("oauth", |r| async {
         let config: OAuthConfig = r.figment().extract_inner("oauth").unwrap();
-        let mut clients = Vec::with_capacity(2);
-        if let Some(smartschool) = config.smartschool {
-            clients.push(OAuthClient::new(Provider::Smartschool, smartschool));
-        }
-        if let Some(google) = config.google {
-            clients.push(OAuthClient::new(Provider::Google, google));
-        }
 
-        r.mount(
-            "/",
-            routes![oauth_start, oauth_return, oauth_debug, oauth_debug_post],
-        )
-        .manage(OAuthManager { clients })
+        let mut oauth = OAuth::with_capacity(2);
+        oauth.opt_provider(Provider::Smartschool, config.smartschool);
+        oauth.opt_provider(Provider::Google, config.google);
+
+        r.mount("/", routes![oauth_start]).manage(oauth)
     })
 }

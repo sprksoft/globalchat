@@ -1,6 +1,6 @@
 use rocket::{
     async_trait,
-    http::{uri::Uri, Header, Status},
+    http::Status,
     outcome::{try_outcome, Outcome},
     request::{self, FromRequest},
 };
