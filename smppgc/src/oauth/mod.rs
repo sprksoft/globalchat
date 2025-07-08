@@ -1,5 +1,5 @@
 use lmetrics::metrics;
-use rocket::{post, time::Duration, FromForm};
+use rocket::time::Duration;
 
 use log::*;
 use rocket::{
@@ -15,16 +15,18 @@ use rocket_db_pools::Connection;
 use rocket_dyn_templates::{context, Template};
 use sqlx;
 
-use crate::themes::{self, Theme};
+use crate::themes::{self};
 use crate::{db::Db, users::UserConfig};
 use crate::{disclaimer::DisclaimerVer, users::SesId};
 
-use self::client::{OAuth, OAuthError, OAuthProviderConfig, Provider};
-
-pub const REDIRECT_URL_COOKIE: &'static str = "login_continue_url";
+use self::client::{OAuthError, OAuthProviderConfig};
 
 mod client;
 mod jwt;
+
+pub use client::{OAuth, Provider};
+
+const REDIRECT_URL_COOKIE: &'static str = "login_continue_url";
 
 metrics!(
     pub counter total_started_oauth_flows("Total count of started oauth flows");
@@ -33,60 +35,9 @@ metrics!(
     pub counter total_logins("Total amount of logins");
 );
 
-// impl OAuth {
-//     pub fn get_auth_url(&self, state: &str) -> Result<Url, OAuthError> {
-//         let config = &self.config;
-//         Ok(Url::parse_with_params(
-//             "https://oauth.smartschool.be/OAuth",
-//             &[
-//                 ("response_type", "code"),
-//                 ("client_id", &config.client_id),
-//                 ("redirect_uri", &config.redirect_uri),
-//                 ("scope", "userinfo"),
-//                 ("state", state),
-//             ],
-//         )?)
-//     }
-//
-//     pub async fn fetch_access_token(
-//         &self,
-//         client: &reqwest::Client,
-//         code: &str,
-//     ) -> Result<String, OAuthError> {
-//         let url = Url::parse_with_params(
-//             "https://oauth.smartschool.be/OAuth/index/token",
-//             &[
-//                 ("grant_type", "authorization_code"),
-//                 ("redirect_uri", &self.config.redirect_uri),
-//                 ("client_id", &self.config.client_id),
-//                 ("client_secret", &self.client_secret),
-//                 ("code", code),
-//             ],
-//         )?;
-//         let res = client.post(url).send().await?.error_for_status()?;
-//         let json: OAuthTokenResponse = res.json().await?;
-//         Ok(json.access_token)
-//     }
-//     pub async fn fetch_userinfo(
-//         &self,
-//         client: &reqwest::Client,
-//         access_token: &str,
-//     ) -> Result<SmUserInfo, OAuthError> {
-//         let res = client
-//             .get(Url::parse_with_params(
-//                 "https://oauth.smartschool.be/Api/V1/userinfo",
-//                 &[("access_token", access_token)],
-//             )?)
-//             .send()
-//             .await?
-//             .error_for_status()?;
-//         Ok(res.json().await?)
-//     }
-// }
-
 #[derive(Deserialize)]
 #[serde(crate = "rocket::serde")]
-pub struct OAuthConfig {
+struct OAuthConfig {
     google: Option<OAuthProviderConfig>,
     smartschool: Option<OAuthProviderConfig>,
 }
@@ -100,8 +51,19 @@ enum OAuthResponse {
 
     #[response(status = 403)]
     Forbidden(Template),
+
+    #[response(status = 404)]
+    NotFound(Template),
 }
 impl OAuthResponse {
+    pub fn fail_flow_404(internal: &str) -> Self {
+        let dtheme = themes::DEFAULT_THEME.clone();
+        total_failed_oauth_flows::inc(internal);
+        Self::NotFound(Template::render(
+            "pages/error_page",
+            context! {title: "404 Not Found", theme_css: dtheme.css(), error: "Oei! Er ging iets mis tijdens het inloggen.", internal: internal},
+        ))
+    }
     pub fn fail_flow_403(internal: &str) -> Self {
         let dtheme = themes::DEFAULT_THEME.clone();
         total_failed_oauth_flows::inc(internal);
@@ -134,33 +96,18 @@ fn oauth_start(
         ));
     }
 
-    // if oauth.config.debug {
-    //     url.set_host(Some("localhost")).unwrap();
-    //     url.set_scheme("http").unwrap();
-    // }
-    Ok(OAuthResponse::Redirect(
-        oauth.begin_flow(provider, cookiejar).map_err(|e| {
-            total_failed_oauth_flows::inc("get_auth_url: OAuth error");
-            e
-        })?,
-    ))
+    match oauth.begin_flow(provider, cookiejar) {
+        Ok(r) => Ok(OAuthResponse::Redirect(r)),
+        Err(OAuthError::ProviderNotFound(p)) => {
+            error!("oauth provider '{}' not found", p);
+            Ok(OAuthResponse::fail_flow_404("provider not found"))
+        }
+        Err(e) => {
+            total_failed_oauth_flows::inc("begin_flow: OAuth error");
+            Err(e.into())
+        }
+    }
 }
-
-#[get("/OAuth")]
-fn oauth_debug(theme: Theme) -> Template {
-    Template::render("pages/oauth_debug", context! {theme_css: theme.css()})
-}
-// #[post("/OAuth?<redirect_uri>&<state>", data = "<smuserinfo>")]
-// fn oauth_debug_post(redirect_uri: &str, state: &str, smuserinfo: Form<SmUserInfo>) -> Redirect {
-//     let code: &str = &serde_json::to_string(&smuserinfo.into_inner())
-//         .expect("Failed to serialize sm_userinfo to json (oauth debug)");
-//
-//     Redirect::to(
-//         Url::parse_with_params(&redirect_uri, &[("code", code), ("state", state)])
-//             .unwrap()
-//             .to_string(),
-//     )
-// }
 
 #[get("/oauth/return/<provider>?<code>&<state>")]
 async fn oauth_return(
@@ -172,13 +119,7 @@ async fn oauth_return(
     user_config: &State<UserConfig>,
     mut db: Connection<Db>,
 ) -> Result<OAuthResponse, response::Debug<OAuthError>> {
-    cookiejar.remove(OAuth::STATE_COOKIE_NAME);
-
-    if !cookiejar
-        .get(OAuth::STATE_COOKIE_NAME)
-        .map(|c| c.value_trimmed() == state)
-        .unwrap_or(false)
-    {
+    if !OAuth::check_state(cookiejar, state) {
         return Ok(OAuthResponse::fail_flow_422(
             "'state' is niet dezelfde als de cookie.",
         ));
@@ -188,14 +129,28 @@ async fn oauth_return(
         .fetch_userinfo(provider.unwrap_or("smartschool"), code)
         .await?;
 
-    let user = sqlx::query!(
-        "INSERT INTO users (smid, irl_name) VALUES ($1, $2) ON CONFLICT (smid) DO UPDATE SET irl_name = $2 RETURNING *;",
-        user_info.id,
-        user_info.irl_name,
-    )
-    .fetch_one(&mut **db)
-    .await
-    .map_err(|e| response::Debug(e.into()))?;
+    let user_id = match user_info.provider {
+        Provider::Smartschool => {
+            sqlx::query!(
+                "INSERT INTO users (smid, irl_name) VALUES ($1, $2) ON CONFLICT (smid) DO UPDATE SET irl_name = $2 RETURNING *;",
+                user_info.id,
+                user_info.irl_name,
+            )
+            .fetch_one(&mut **db)
+            .await
+            .map_err(|e| response::Debug(e.into()))?.id
+        }
+        Provider::Google => {
+            sqlx::query!(
+                "INSERT INTO users (googleid, irl_name) VALUES ($1, $2) ON CONFLICT (googleid) DO UPDATE SET irl_name = $2 RETURNING *;",
+                user_info.id,
+                user_info.irl_name,
+            )
+            .fetch_one(&mut **db)
+            .await
+            .map_err(|e| response::Debug(e.into()))?.id
+        }
+    };
 
     // Cleanup sessions
     sqlx::query!(
@@ -210,7 +165,7 @@ async fn oauth_return(
     sqlx::query!(
         "INSERT INTO sessions (id, user_id) VALUES ($1, $2)",
         ses_id.inner(),
-        user.id
+        user_id
     )
     .execute(&mut **db)
     .await
@@ -220,7 +175,7 @@ async fn oauth_return(
         Cookie::build(("session", ses_id.to_string()))
             .http_only(true)
             .secure(true)
-            .same_site(rocket::http::SameSite::Strict)
+            .same_site(rocket::http::SameSite::Lax)
             .max_age(Duration::seconds(
                 user_config.max_session_age.saturating_sub(10) as i64,
             ))
@@ -235,6 +190,7 @@ async fn oauth_return(
         .filter(|url| validate_redirect_url(&url));
     cookiejar.remove(REDIRECT_URL_COOKIE);
 
+    dbg!(&redirect_url);
     Ok(OAuthResponse::Redirect(Redirect::to(
         redirect_url.unwrap_or("/v1".to_string()),
     )))
@@ -242,16 +198,16 @@ async fn oauth_return(
 
 fn validate_redirect_url(url: &str) -> bool {
     if !url.starts_with("/") {
-        error!("invalid redirect url (no starting slash): {}", url);
+        error!("Invalid redirect url (no starting slash): {}", url);
         return false;
     }
-    if url.contains("://") {
-        error!("invalid redirect url (contains ://): {}", url);
+    if url.contains("://") || url.contains("javascript:") {
+        error!("Invalid redirect url (contains :// | javascript:): {}", url);
         return false;
     }
     for char in url.chars() {
         if !(char.is_alphanumeric() || ['/', '=', '_', '-', '?', '&'].contains(&char)) {
-            error!("invalid redirect url: '{}' invalid char: {}", url, char);
+            error!("Invalid redirect url: '{}' invalid char: {}", url, char);
             return false;
         }
     }
@@ -263,7 +219,7 @@ pub fn set_continue_url_cookie(cookiejar: &CookieJar<'_>, url: String) {
         Cookie::build((REDIRECT_URL_COOKIE, url))
             .http_only(true)
             .secure(true)
-            .same_site(rocket::http::SameSite::Strict)
+            .same_site(rocket::http::SameSite::Lax)
             .max_age(Duration::seconds(3600))
             .path("/")
             .build(),
@@ -278,6 +234,7 @@ pub fn stage() -> AdHoc {
         oauth.opt_provider(Provider::Smartschool, config.smartschool);
         oauth.opt_provider(Provider::Google, config.google);
 
-        r.mount("/", routes![oauth_start]).manage(oauth)
+        r.mount("/", routes![oauth_start, oauth_return])
+            .manage(oauth)
     })
 }

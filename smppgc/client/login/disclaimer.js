@@ -1,6 +1,7 @@
+import $ from "../common/jquery.js";
+
 const disclaimerEl = document.getElementById("disclaimer");
 const checkbox = document.getElementById("disclaimer-check");
-const smLoginBtn = document.getElementById("sm-login-btn");
 const countdownEl = document.getElementById("disclaimer-countdown");
 const countdownTextEl = document.getElementById("disclaimer-countdown-text");
 
@@ -17,15 +18,20 @@ function updateCountdown(count) {
   countdownEl.innerText = count + (count == 1 ? " seconde" : " seconden");
 }
 
+function setAccepted(accepted) {
+  if (accepted) {
+    checkEnable();
+  }
+  $("#disclaimer-check").prop("checked", accepted);
+  $(".oauth-btns *").prop("disabled", !accepted);
+}
+
 let disclaimerInterval;
 if (ENABLE_CHECK) {
-  checkEnable();
-  checkbox.checked = true;
-  smLoginBtn.disabled = false;
+  setAccepted(true);
 } else {
+  setAccepted(false);
   checkbox.disabled = true;
-  smLoginBtn.disabled = true;
-  checkbox.checked = false;
   updateCountdown(disclaimerCountdown);
   disclaimerInterval = setInterval(() => {
     disclaimerCountdown--;
@@ -39,10 +45,10 @@ if (ENABLE_CHECK) {
 
 checkbox.addEventListener("change", (e) => {
   if (e.target.checked) {
-    smLoginBtn.disabled = false;
+    setAccepted(true);
     document.cookie = "accepted_disclaimer="+disclaimerEl.dataset.disclaimerVer+" ;expires=Wed, 20 May 2026 15:06:13 GMT";
   } else {
-    smLoginBtn.disabled = true;
+    setAccepted(false);
     document.cookie = "accepted_disclaimer=0 ;expires=Wed, 20 May 2026 15:06:13 GMT";
   }
 });

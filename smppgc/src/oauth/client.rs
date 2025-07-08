@@ -47,7 +47,7 @@ impl Provider {
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 #[serde(crate = "rocket::serde")]
 pub struct OAuthProviderConfig {
     redirect_uri: String,
@@ -86,6 +86,7 @@ impl SmUserInfo {
         UserInfo {
             irl_name,
             id: self.user_id,
+            provider: Provider::Smartschool,
         }
     }
 }
@@ -101,27 +102,53 @@ impl GoogleJwt {
         UserInfo {
             irl_name: self.name.unwrap_or("".to_string()),
             id: self.sub,
+            provider: Provider::Google,
         }
     }
 }
 
 #[derive(Debug, Error)]
 pub enum OAuthError {
-    #[error("OAuth error: {0}")]
-    Reqwest(#[from] reqwest::Error),
-    #[error("OAuth error: {0}")]
-    Sqlx(#[from] sqlx::Error),
-    #[error("OAuth error: {0}")]
-    Url(#[from] url::ParseError),
+    #[error("OAuth http error: {0}\n\nbody:\n{1}")]
+    Status(String, reqwest::StatusCode, String),
+
     #[error("'{0}' was not and enabled oauth provider")]
     ProviderNotFound(Box<str>),
+
+    #[error("OAuth reqwest error: {0}")]
+    Reqwest(#[from] reqwest::Error),
+
+    #[error("OAuth error: {0}")]
+    Sqlx(#[from] sqlx::Error),
+
+    #[error("OAuth error: {0}")]
+    Url(#[from] url::ParseError),
+
     #[error("OAuth error: {0}")]
     Jwt(#[from] jwt::Error),
+}
+impl OAuthError {
+    async fn check_res(res: reqwest::Response) -> Result<reqwest::Response, OAuthError> {
+        if res.status().is_server_error() || res.status().is_client_error() {
+            Err(Self::from_request(res).await)
+        } else {
+            Ok(res)
+        }
+    }
+    async fn from_request(res: reqwest::Response) -> OAuthError {
+        let url = res.url().to_string();
+        let status = res.status();
+        match res.text().await {
+            Ok(body) => OAuthError::Status(url, status, body),
+            Err(_) => OAuthError::Status(url, status, "<error reading body>".to_string()),
+        }
+    }
 }
 
 pub struct UserInfo {
     pub irl_name: String,
     pub id: String,
+    pub provider: Provider,
 }
 
 struct OAuthClient {
@@ -132,10 +159,12 @@ struct OAuthClient {
 
 impl OAuthClient {
     pub fn new(provider: Provider, config: OAuthProviderConfig) -> Self {
-        let client_secret = std::fs::read_to_string(&config.client_secret_file).expect(&format!(
-            "Failed to read client_secret_file: ({})",
-            &config.client_secret_file
-        ));
+        let mut client_secret =
+            std::fs::read_to_string(&config.client_secret_file).expect(&format!(
+                "Failed to read client_secret_file: ({})",
+                &config.client_secret_file
+            ));
+        client_secret.truncate(client_secret.trim_end().len());
         Self {
             provider,
             config,
@@ -148,7 +177,7 @@ pub struct OAuth {
     clients: Vec<OAuthClient>,
 }
 impl OAuth {
-    pub const STATE_COOKIE_NAME: &'static str = "oauth_state";
+    const STATE_COOKIE_NAME: &'static str = "oauth_state";
 
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
@@ -168,8 +197,15 @@ impl OAuth {
             .ok_or_else(|| OAuthError::ProviderNotFound(provider.to_string().into()))
     }
 
+    pub fn has_provider(&self, provider: Provider) -> bool {
+        self.clients
+            .iter()
+            .find(|c| c.provider == provider)
+            .is_some()
+    }
+
     /// Begins the flow by setting the state cookie and returning the redirect.
-    pub fn begin_flow(
+    pub(super) fn begin_flow(
         &self,
         provider: &str,
         cookiejar: &CookieJar,
@@ -192,40 +228,58 @@ impl OAuth {
                 .secure(true)
                 .max_age(Duration::new(300, 0))
                 .http_only(true)
-                .same_site(rocket::http::SameSite::Strict)
+                .same_site(rocket::http::SameSite::Lax)
                 .path("/")
                 .build(),
         );
 
-        Ok(Redirect::temporary(url.to_string()))
+        Ok(Redirect::to(url.to_string()))
     }
 
-    pub async fn fetch_userinfo(&self, provider: &str, code: &str) -> Result<UserInfo, OAuthError> {
+    pub(super) fn check_state(cookiejar: &CookieJar, state: &str) -> bool {
+        cookiejar.remove(Self::STATE_COOKIE_NAME);
+        cookiejar
+            .get(Self::STATE_COOKIE_NAME)
+            .map(|c| c.value_trimmed() == state.trim())
+            .unwrap_or(false)
+    }
+
+    pub(super) async fn fetch_userinfo(
+        &self,
+        provider: &str,
+        code: &str,
+    ) -> Result<UserInfo, OAuthError> {
         let client = self.get_client(provider)?;
         let http_client = reqwest::Client::new();
 
-        let url = Url::parse_with_params(
-            client.provider.token_url(),
-            &[
-                ("grant_type", "authorization_code"),
-                ("redirect_uri", &client.config.redirect_uri),
-                ("client_id", &client.config.client_id),
-                ("client_secret", &client.client_secret),
-                ("code", code),
-            ],
-        )?;
-        let res = http_client.post(url).send().await?.error_for_status()?;
+        let form = &[
+            ("grant_type", "authorization_code"),
+            ("redirect_uri", &client.config.redirect_uri.trim()),
+            ("client_id", &client.config.client_id.trim()),
+            ("client_secret", &client.client_secret.trim()),
+            ("code", code),
+        ];
+        let res = OAuthError::check_res(
+            http_client
+                .post(client.provider.token_url())
+                .form(&form)
+                .send()
+                .await?,
+        )
+        .await?;
         match client.provider {
             Provider::Smartschool => {
                 let json: OAuthTokenResponse = res.json().await?;
-                let res = http_client
-                    .get(Url::parse_with_params(
-                        "https://oauth.smartschool.be/Api/V1/userinfo",
-                        &[("access_token", json.access_token)],
-                    )?)
-                    .send()
-                    .await?
-                    .error_for_status()?;
+                let res = OAuthError::check_res(
+                    http_client
+                        .get(Url::parse_with_params(
+                            "https://oauth.smartschool.be/Api/V1/userinfo",
+                            &[("access_token", json.access_token)],
+                        )?)
+                        .send()
+                        .await?,
+                )
+                .await?;
                 let sm_uinfo: SmUserInfo = res.json().await?;
                 Ok(sm_uinfo.to_userinfo())
             }

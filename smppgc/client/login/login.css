@@ -1,5 +1,8 @@
 html {
   --logo-animation-delay: 0s;
+
+  --oauth-btn-border-radius: 10px;
+  --oauth-btn-logo-size: 30px;
 }
 
 main {
@@ -17,10 +20,106 @@ main {
   flex-direction: column;
 }
 
-.warning {
-  text-align: center;
+
+.oauth-btns {
+  margin: 2rem 0rem 1rem 0rem;
+  display: flex;
+  flex-direction: column;
 }
 
 #sm-login-btn {
-  margin: 2rem 0rem 1rem 0rem;
+  background: linear-gradient(#ff760e, #f20900, #f20900);
+  border-radius: var(--oauth-btn-border-radius);
+  font-weight: bold;
+  font-family: "Open Sans";
+  padding: 0px;
+  transition: filter 0.5s;
+  filter: brightness(100%);
+  cursor: pointer;
+  font-size: 1rem;
+
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+#sm-login-btn:not(:disabled):hover {
+  filter: brightness(150%);
+  text-decoration: none;
+}
+#sm-login-btn:disabled {
+  cursor: default;
+  filter: brightness(50%);
+}
+
+#sm-login-btn img {
+  height: var(--oauth-btn-logo-size);
+  width: var(--oauth-btn-logo-size);
+  margin: 10px;
+}
+#sm-login-btn .sepatator {
+  background: #fff;
+  border-radius: 100000px;
+  width: 2px;
+  height: calc(100% - 15px);
+  margin: 0px;
+  margin-right: 10px;
+}
+#sm-login-btn span {
+  color: #ffff;
+  margin-right: 1em;
+}
+
+#google-login-btn {
+  color: #1f1f1f;
+  cursor: pointer;
+  font-family: 'Roboto', arial, sans-serif;
+  background: #fff;
+  border-radius: var(--oauth-btn-border-radius);
+  box-sizing: border-box;
+  color: #1f1f1f;
+  cursor: pointer;
+  font-family: 'Roboto', arial, sans-serif;
+  font-size: 1rem;
+  letter-spacing: 0.25px;
+  outline: none;
+  overflow: hidden;
+  padding: 0px;
+  position: relative;
+  text-align: center;
+  transition: filter 0.5s, background-color 0.5s;
+  vertical-align: middle;
+  white-space: nowrap;
+  width: auto;
+  min-width: min-content;
+}
+#google-login-btn span {
+  flex-grow: 1;
+  text-align: left;
+  font-family: 'Roboto', arial, sans-serif;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: top;
+}
+
+#google-login-btn .google-logo {
+  height: var(--oauth-btn-logo-size);
+  width: var(--oauth-btn-logo-size);
+  min-width: var(--oauth-btn-logo-size);
+  margin: 10px;
+  margin-left: 15px;
+}
+
+#google-login-btn:disabled {
+  cursor: default;
+  background-color: #ffffff61;
+}
+
+#google-login-btn:disabled span,
+#google-login-btn:disabled .google-logo {
+  opacity: 38%;
+}
+
+#google-login-btn:not(:disabled):hover {
+  filter: brightness(80%);
 }

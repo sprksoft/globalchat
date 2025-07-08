@@ -53,11 +53,6 @@ a.goto-chat-link {
 }
 
 
-.warning {
-  font-weight: bold;
-  color: var(--color-accent);
-  margin: 0px 0px 0px 0px;
-}
 .text-accent {
   color: var(--color-accent);
 }

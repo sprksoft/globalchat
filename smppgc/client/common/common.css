@@ -3,7 +3,7 @@ html {
   --color-shadow: var(--color-base00);
   --color-error: #c03010;
   --color-ok: #6faa50;
-  --border-radius: 15px;
+  --border-radius: 20px;
   --border-size: 3px;
   --dialog-border-radius: 30px;
   height: 100%;

@@ -12,7 +12,7 @@ use rocket_dyn_templates::{context, Template};
 use crate::{
     chat::MessageLimiter,
     disclaimer::DisclaimerVer,
-    oauth,
+    oauth::{self, OAuth},
     themes::Theme,
     users::{role::Role, User, UserConfig},
     utils::AllowSmIFrame,
@@ -28,12 +28,15 @@ fn login(
     theme: Theme,
     cookiejar: &CookieJar<'_>,
     redirect: String,
+    oauth: &State<OAuth>,
     accepted_disclaimer: DisclaimerVer,
 ) -> AllowSmIFrame<Template> {
     oauth::set_continue_url_cookie(&cookiejar, redirect);
     AllowSmIFrame(Template::render(
         "pages/login",
         context! {
+            oauth_smartschool: oauth.has_provider(oauth::Provider::Smartschool),
+            oauth_google: oauth.has_provider(oauth::Provider::Google),
             theme_css:theme.css(),
             accepted_disclaimer:accepted_disclaimer,
             disclaimer_ver:DisclaimerVer::LATEST
