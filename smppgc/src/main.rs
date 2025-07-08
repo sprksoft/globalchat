@@ -55,7 +55,7 @@ fn internal_server_error() -> ErrorResponder {
     ErrorResponder {
         inner: Template::render(
             "pages/error_page",
-            context! { title: "500 Internal Server Error", error: "Oei! Er ging iets mis.", theme_css: theme.css(), internal:"500",},
+            context! { title: "500 Internal Server Error", error: "Oei! Er ging iets mis.", theme_css: theme.css(), internal:"500" },
         ),
         csp: CSPFrameAncestors::SMARTSCHOOL_PLAT,
     }
@@ -67,10 +67,15 @@ fn err_test() -> rocket::response::Debug<()> {
 }
 
 #[get("/version")]
-fn server_version() -> String {
+fn server_version(conf: &rocket::Config) -> String {
+    let profile = conf.profile.to_string();
     let ver_str = concat!(env!("CARGO_PKG_NAME"), "-", env!("CARGO_PKG_VERSION"));
-
-    format!("{} debug_assertions: {} ", ver_str, cfg!(debug_assertions),)
+    format!(
+        "{} ({}) debug_assertions: {} ",
+        ver_str,
+        profile,
+        cfg!(debug_assertions)
+    )
 }
 
 #[launch]
