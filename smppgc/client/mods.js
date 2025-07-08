@@ -16,7 +16,7 @@ $(".copyable").after(function() {
   let key = this.innerText;
   return $("<button class='pillbtn copybtn'>copy</button>").on("click", function() {
     navigator.clipboard.writeText(
-      "https://gc.smartschoolplusplus.com/promote?key=" + key,
+      location.origin+"/promote?key=" + key,
     );
     this.innerText = "copied!";
     setTimeout(() => {

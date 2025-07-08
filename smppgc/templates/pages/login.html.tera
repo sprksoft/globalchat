@@ -44,7 +44,7 @@
             <path fill="none" d="M0 0h48v48H0z"></path>
           </svg>
         </div>
-        <span>Sign in with Google</span>
+        <span>Inloggen met Google</span>
       </button>
       {% endif %}
     </div>
