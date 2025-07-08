@@ -15,8 +15,14 @@
 <dialog id="login">
   {% include "logo_header" %}
   {% if is_mod %}
-  <label for="show-mod-badge"><input id="show-mod-badge" type="checkbox"> Moderator badge</label>
+  <label for="show-mod-badge" style="text-align:center"><input id="show-mod-badge" type="checkbox"> Moderator badge</label>
   {% endif %}
+  <div class="layered-section" id="ban" style="display:none">
+    <h1 class="center-title">Je bent verbannen</h1>
+    <p>Je bent verbannen door een moderator met de volgende reden:</p>
+    <p id="ban-reason">Bliep bloep blaap<br>Je bent stout</p>
+    <small>Je kunt terug joinen over <span id="ban-release-time">55 minuten</span></small>
+  </div>
   <span id="err-mesg" class="err"></span>
   <div class="container">
     {% if readonly %}
@@ -46,22 +52,7 @@
   <button class="pillbtn" id="profane-message-ok">Ok</button>
 </dialog>
 
-<dialog id="ban-dialog">
-  <h1>Verban <code id="ban-dialog-user"></code></h1>
-  <select autocomplete="off" id="ban-dialog-preset">
-    <option selected disabled hidden>Kies een reden</option>
-    <option data-duration="3600" data-fullreason="Je hebt een waarschuwing ontvangen wegens ongepast gedrag.">Waarschuwing</option> {# 1 uur #}
-    <option data-duration="18000" data-fullreason="Spammen of het plaatsen van racistische, seksistische of andere ongepaste berichten.">Spam, racistische of seksistische uitingen, ...</option> {# 5 uur #}
-    <option data-duration="86400" data-fullreason="Herhaaldelijk spammen of het plaatsen van racistische, seksistische of andere kwetsende inhoud.">Herhaaldelijke spam, racistische of seksistische uitingen, ...</option> {# 1 dag #}
-    <option data-duration="604800" data-fullreason="Racistische, seksistische of discriminerende opmerkingen tegenover andere gebruikers.">Racistische of seksistische uitingen tegenover andere gebruikers</option> {# 1 week #}
-    <option data-duration="31536000" data-fullreason="Ernstige overtredingen zoals doxing of pesten van andere gebruikers.">Ernstig, Doxing, pesten</option> {# 1 jaar #}
-  </select>
-  <textarea id="ban-dialog-reason"></textarea>
-  <div id="ban-dialog-buttons">
-    <button onclick="document.getElementById('ban-dialog').close()" class="pillbtn">Annuleren</button>
-    <button id="ban-dialog-ban-button" class="pillbtn dangerbtn">Verban</button>
-  </div>
-</dialog>
+{% include "ban-dialog" %}
 
 <template id="message-template">
   <div class="message">

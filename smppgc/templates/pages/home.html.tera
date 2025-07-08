@@ -28,7 +28,7 @@ Home - Global Chat
   <a class="button" href="/v1"><img class="btnicon" src="{{ url(path="/static/logo.webp")}}"><span>Chat</span></a>
   {% else %}
   <button class="button" onclick="location.href='/login?redirect=/'">login</button>
-  {% endif%}
+  {% endif %}
 
   <a class="button" href="/rochat"><img style="filter: saturate(0%)" class="btnicon" src="{{ url(path="/static/logo.webp")}}"><span>Alleen Lezen Chat</span></a>
 

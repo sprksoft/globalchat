@@ -33,3 +33,27 @@
   min-height: 4rem;
 }
 
+
+#ban {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 1rem;
+}
+#ban h1 {
+  margin: 0px;
+}
+
+#ban small {
+  margin-top: 2rem;
+  text-align: center;
+  font-weight: bold;
+}
+
+#ban .layered-section {
+  margin: 0px;
+  margin-bottom: 0.5rem;
+}
+
+#ban-release-time {
+  color: var(--color-accent);
+}

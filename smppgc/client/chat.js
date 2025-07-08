@@ -1,8 +1,9 @@
-import * as utils from "./common/utils.js";
+import { log, hasVirtKb } from "./common/utils.js";
 import * as common from "./common/common.js";
 import * as proto from "./chat/protocol.js";
 import * as mk from "./chat/mkels.js";
 import * as sflake from "./chat/snowflake.js";
+import * as ban from "./chat/ban.js";
 import { Message, createMessage } from "./chat/mesg.js";
 
 import "./common/common.css";
@@ -12,8 +13,8 @@ import "./chat/css/chat.css";
 import "./chat/css/login_popup.css";
 import "./chat/css/stickers.css";
 import "./chat/css/ban.css";
+import $ from "./common/jquery.js";
 
-const mesgs = document.getElementById("mesgs");
 const sendinput = document.getElementById("send-input");
 const username_field = document.getElementById("name-input");
 const leavebtn = document.getElementById("leavebtn");
@@ -21,7 +22,6 @@ const sendbtn = document.getElementById("sendbtn");
 const showModBadgeCheck = document.getElementById("show-mod-badge");
 const connectbtn = document.getElementById("connectbtn");
 const constatus = document.getElementById("connection-status");
-const err_mesg = document.getElementById("err-mesg");
 const login_popup = document.getElementById("login");
 const profaneMessageDialog = document.getElementById("profane-message-dialog");
 const profaneMessage = document.getElementById("profane-message");
@@ -30,11 +30,6 @@ const profaneMessageCountdown = document.getElementById(
   "profane-message-countdown",
 );
 const profaneMessageBadWord = document.getElementById("badword");
-const banDialog = document.getElementById("ban-dialog");
-const banDialogUser = document.getElementById("ban-dialog-user");
-const banDialogPreset = document.getElementById("ban-dialog-preset");
-const banDialogBanButton = document.getElementById("ban-dialog-ban-button");
-const banDialogReason = document.getElementById("ban-dialog-reason");
 
 let profanityCoolDown = 0;
 let profanityCoolDownInterval;
@@ -48,6 +43,7 @@ function add_message(message, scroll = false, controls = true) {
   }
   let msgEl = createMessage(message, onControls, (highlight = null));
 
+  let mesgs = $("#mesgs").get(0);
   let should_scroll =
     Math.abs(mesgs.scrollHeight - mesgs.clientHeight - mesgs.scrollTop) <= 3 ||
     scroll;
@@ -77,37 +73,9 @@ function onMessageAction(e, message) {
   if (e.target.classList.contains("delbtn")) {
     socketmgr.deleteMessage(message.snowflake);
   } else if (e.target.classList.contains("banbtn")) {
-    showBanDialog(message.snowflake, message.sender);
+    ban.showDialog(message.snowflake, message.sender);
   }
 }
-
-function showBanDialog(snowflake, sender) {
-  banDialog.dataset.snowflake = snowflake;
-  banDialogUser.innerText = sender;
-  banDialogPreset.selectedIndex = 0;
-  banDialogBanButton.disabled = true;
-  banDialogReason.value = "";
-  banDialog.showModal();
-}
-
-banDialogPreset.addEventListener("change", () => {
-  if (banDialogPreset.selectedIndex !== 0) {
-    banDialogBanButton.disabled = false;
-    banDialogReason.value =
-      banDialogPreset.selectedOptions[0].dataset.fullreason;
-  }
-});
-banDialogBanButton.addEventListener("click", async () => {
-  const preset = banDialogPreset.selectedOptions[0];
-  const reason = banDialogReason.value;
-  const snowflake = BigInt(banDialog.dataset.snowflake);
-  await socketmgr.banMessageAuthor(
-    snowflake,
-    parseInt(preset.dataset.duration),
-    reason,
-  );
-  banDialog.close();
-});
 
 // Are we currently trying to reconnect in the background
 let background_reconnect = false;
@@ -119,7 +87,8 @@ socketmgr.on_join = () => {
 
 let last_retry = 0;
 let in_cooldown = false;
-function cool_down(time) {
+// Create a cool down for 'time' milliseconds on the join button to prevent people from spamming the join and leave buttons
+function cooldown(time) {
   if (!login_popup.open) {
     login_popup.showModal();
   }
@@ -127,6 +96,9 @@ function cool_down(time) {
 
   let oldVal = connectbtn.disabled;
   connectbtn.disabled = true;
+  if (time == -1) {
+    return;
+  }
   setTimeout(() => {
     connectbtn.disabled = oldVal;
     in_cooldown = false;
@@ -156,7 +128,7 @@ function mesgEasterEgg(content) {
 let last_message_snowflake = null;
 socketmgr.on_message = (me, sender_id, message) => {
   last_message_snowflake = message.snowflake;
-  utils.log(
+  log(
     `Got message from ${sender_id} (${message.snowflake}) mod: ${message.mod_badge}: ${message.content}`,
   );
   add_message(
@@ -188,7 +160,7 @@ socketmgr.on_message_del = (snowflake) => {
   }
 };
 
-socketmgr.on_leave = (reason, protoerr) => {
+socketmgr.on_leave = (data, protoerr) => {
   constatus.close();
 
   time = 1000;
@@ -202,27 +174,33 @@ socketmgr.on_leave = (reason, protoerr) => {
       connect(true, last_message_snowflake);
       return;
     }
+  }else if (protoerr == "err_banned") {
+    time = -1;
+    ban.setBan(data);
   }
-  err_mesg.innerText = reason;
-  cool_down(time);
+  if (typeof data === "string") {
+    $("#err-mesg").text(data);
+  }
+  cooldown(time);
 
   //reset everything
   last_message_snowflake = null;
-  mesgs.innerHTML = "";
+  $("#mesgs").empty();
+  ban.reset();
+
   login_popup.showModal();
   profanityCoolDown = 0;
   clearInterval(profanityCoolDownInterval);
   profaneMessageDialog.close();
-  banDialog.close();
 
-  console.log("Got no session error. Redirecting to login page...");
   if (protoerr == "err_no_session") {
+    log("Got no session error. Redirecting to login page...");
     location = "/login?redirect=/v1";
   }
 };
 
 socketmgr.on_profanity_warn = (message, badWord, start, end) => {
-  utils.log(`${message} contains the word '${badWord}' at ${start}..${end}'`);
+  log(`${message} contains the word '${badWord}' at ${start}..${end}'`);
 
   profanityCoolDown = 10;
   profanityCoolDownInterval = setInterval(() => {
@@ -244,7 +222,8 @@ socketmgr.on_profanity_warn = (message, badWord, start, end) => {
     (controls = false),
     (highlight = [start, end]),
   );
-  utils.setChild(profaneMessage, mesgEl);
+  profaneMessage.innerHTML="";
+  profaneMessage.appendChild(mesgEl);
   profaneMessageDialog.showModal();
 };
 
@@ -281,13 +260,13 @@ function get_name() {
 function connect(background, start_snowflake) {
   let show_mod_badge = showModBadgeCheck?.checked;
 
-  utils.log(
+  log(
     "connecting... in_background=" +
       background +
       ", mod_badge:" +
       show_mod_badge,
   );
-  let local_name=null;
+  let local_name = null;
   if (!READONLY) {
     local_name = get_name();
     localStorage.setItem("username", local_name);
@@ -300,7 +279,7 @@ function connect(background, start_snowflake) {
 }
 
 sendinput?.addEventListener("keypress", (e) => {
-  if (e.key == "Enter" && !e.shiftKey && !utils.has_virtkb()) {
+  if (e.key == "Enter" && !e.shiftKey && !hasVirtKb()) {
     e.preventDefault();
     send_message();
   }

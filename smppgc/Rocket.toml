@@ -3,8 +3,6 @@ address = "0.0.0.0"
 port = 8080
 ip_header="CF-Connecting-IP"
 
-root_url=""
-auth_file="/var/auth/authfile.txt"
 prof_filter_file="/var/proffilter/rules.txt"
 static_dir="/app/www"
 template_dir="/app/templates"
@@ -28,14 +26,15 @@ small_len=150
 large_penalty=2
 max_spam=2
 
-[default.oauth.smartschool]
-redirect_uri="http://localhost/oauth/return"
-client_id="debug_client_id"
-client_secret_file="/debug_client_secret"
+# [default.oauth.smartschool]
+# redirect_uri="http://localhost/oauth/return"
+# client_id="debug_client_id"
+# client_secret_file="/debug_client_secret"
+
 [default.oauth.google]
-redirect_uri="http://localhost/oauth/return"
-client_id="debug_client_id"
-client_secret_file="/debug_client_secret"
+redirect_uri="http://localhost/oauth/return/google"
+client_id="174379466053-6ob48jh8hfjdpmu726173d7iqabcdmcu.apps.googleusercontent.com"
+client_secret_file="/run/secrets/oauth_secret_google"
 
 [default.databases.sqlx]
 url="postgres://postgres:smpppasswd@db/postgres"
@@ -47,7 +46,6 @@ log_level="normal"
 
 [release]
 debug=false
-root_url="/smpp/gc"
 log_level = "critical"
 
 [release.databases.sqlx]

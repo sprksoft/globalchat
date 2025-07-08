@@ -117,24 +117,6 @@ function handle_version_check(protocol_ver, ver) {
   }
 }
 
-function secondsToString(sec) {
-  const SEC_DAY = 24 * 60 * 60;
-  const SEC_HOUR = 60 * 60;
-  const SEC_MIN = 60;
-  if (sec > SEC_DAY) {
-    const days = Math.ceil(sec / SEC_DAY);
-    return days == 1 ? "1 dag" : days + " dagen";
-  } else if (sec > SEC_HOUR) {
-    const hour = Math.ceil(sec / SEC_HOUR);
-    return hour + " uur";
-  } else if (sec > SEC_MIN) {
-    const min = Math.ceil(sec / SEC_MIN);
-    return min == 1 ? "1 minuut" : min + " minuten";
-  } else {
-    return sec == 1 ? "1 seconde" : sec + " seconden";
-  }
-}
-
 function parseBan(str) {
   const match = str.match(/^err_banned:([0-9]*):(.*)$/);
   const ban = {
@@ -238,7 +220,7 @@ export class SocketMgr {
     if (this.ws !== undefined) {
       await this.ws.close();
     }
-    let query="";
+    let query = "";
     if (username) {
       let encoded_username = encodeURIComponent(username);
       query += `&username=${encoded_username}`;
@@ -259,27 +241,22 @@ export class SocketMgr {
       let protoerr = e.reason;
       log("disconnect protoerr: " + protoerr);
 
-      let reason;
+      let data;
       if (this.#user_wants_leave || (protoerr == "" && e.code == 1000)) {
         // Normal Closure or the user wants to leave
-        reason = "";
+        data = "";
       } else if (e.code == 1006 && protoerr == "") {
         protoerr = "retry";
-        reason = "Kon niet verbinden met de server.";
+        data = "Kon niet verbinden met de server.";
       } else if (protoerr.startsWith("err_banned:")) {
-        const ban = parseBan(e.reason);
-        const seconds = secondsToString(
-          (ban.expirationTime.getTime() - new Date().getTime())/1000,
-        );
-        reason = `Je bent verbannen. reden:\n'${
-          ban.reason
-        }'\nJe kunt terug joinen over ${seconds}`;
+        data = parseBan(e.reason);
+        protoerr = "err_banned";
       } else {
-        reason = human_err(e.reason);
+        data = human_err(e.reason);
       }
 
-      log("disconnect reason: " + reason);
-      this.on_leave(reason, protoerr);
+      log("disconnect reason: " + JSON.stringify(data));
+      this.on_leave(data, protoerr);
     };
 
     this.ws.onmessage = async (e) => {
@@ -314,8 +291,8 @@ export class SocketMgr {
     const dv = new DataView(data);
     dv.setUint8(0, PACKET_C2S_BANMSGAUTHOR);
     dv.setBigUint64(1, snowflake);
-    dv.setUint32(1+8, duration);
-    array.set(messageData, 1+8+4);
+    dv.setUint32(1 + 8, duration);
+    array.set(messageData, 1 + 8 + 4);
 
     await this.ws.send(data);
   }
@@ -329,7 +306,7 @@ export class SocketMgr {
     }
     const tencoder = new TextEncoder();
     const messageData = tencoder.encode(message);
-    const data = new ArrayBuffer(messageData.length+1);
+    const data = new ArrayBuffer(messageData.length + 1);
     const array = new Uint8Array(data);
     array.set(0, PACKET_C2S_MESSAGE);
     array.set(messageData, 1);

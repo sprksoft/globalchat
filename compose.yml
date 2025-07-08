@@ -21,7 +21,8 @@ services:
       - 80:8080
     volumes:
       - proffilter:/var/proffilter
-      - auth:/var/auth
+    secrets:
+      - oauth_secret_google
     develop:
       watch:
         - action: sync
@@ -33,13 +34,26 @@ services:
           target: /app/www
 
         - action: sync+restart
+          path: smppgc/Rocket.toml
+          target: /app/Rocket.toml
+
+        - action: sync+restart
           path: smppgc/templates
           target: /app/templates
+
+        - action: rebuild
+          path: smppgc/src
+
+        - action: rebuild
+          path: smppgc/migrations
 
 volumes:
   db-data:
   proffilter:
-  auth:
+
+secrets:
+  oauth_secret_google:
+    file: /etc/smppserver/oauth_secret_google
 
 networks:
   main:

@@ -1,29 +1,33 @@
 set dotenv-load
 set export
 
-alias b := build-run
+alias b := build
 alias r := run
-alias sqlx := sqlx-build-run
+alias prep := sqlx-prepare
 
-# rebuild and run
-build-run: build run
-# run sqlx prepare, rebuild and run
-sqlx-build-run: sqlx-prepare build run
+run: _docker-check
+  $DOCKER_COMPOSE up --watch
 
-run: check
-  $DOCKER_COMPOSE -f compose.yml up --watch
+build: _docker-check
+  $DOCKER_COMPOSE build
+  $DOCKER_COMPOSE up --watch
 
-build: check
-  $DOCKER_COMPOSE -f compose.yml build
-
-sqlx-prepare: check sqlx-check
-  @echo "pulling db up..."
+db-up: _docker-check
   $DOCKER_COMPOSE -f db.compose.yml up --detach
-  @echo "sqlx prepare..."
+
+sqlx-prepare: _docker-check _rust-check db-up
   $CARGO sqlx prepare --workspace
 
+  $DOCKER_COMPOSE up --watch
+
+[working-directory: 'smppgc']
+sqlx-reset-db: _rust-check db-up
+  $CARGO sqlx database reset
+
+
+
 # checks that cargo and sqlx are installed
-sqlx-check:
+_rust-check:
   #!/usr/bin/env bash
   if ! $CARGO version >> /dev/null ; then
     echo "Cargo not found"
@@ -35,7 +39,7 @@ sqlx-check:
   fi
 
 # checks that docker and docker-compose are working
-check:
+_docker-check:
   #!/usr/bin/env bash
   if ! $DOCKER version >> /dev/null ; then
   echo "failed to run $DOCKER version. posible reasons:"
