@@ -33,6 +33,10 @@
   min-height: 4rem;
 }
 
+#ban-dialog-confirm {
+  float: right;
+}
+
 
 #ban {
   display: flex;
