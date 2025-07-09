@@ -42,7 +42,7 @@ build ()
 
   export SQLX_OFFLINE=true
   export RUSTUP_TOOLCHAIN=stable
-  export RUSTFLAGS="-Clink-self-contained=yes -Clinker=rust-lld"
+  export RUSTFLAGS="-Clink-self-contained=yes"
 
   cross build --target $RUSTTARGET --release --locked
   mkdir -p .artifacts
