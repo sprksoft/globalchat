@@ -96,6 +96,13 @@ impl ProfRuleset {
 
         Ok(me)
     }
+    pub fn empty_with_path(path: PathBuf) -> Self {
+        Self {
+            filter_path: Some(path),
+            rep_rules: Vec::new(),
+            match_rules: Vec::new(),
+        }
+    }
     pub fn empty() -> Self {
         Self {
             filter_path: None,
@@ -387,10 +394,10 @@ pub fn stage() -> AdHoc {
             .extract::<ProfConfig>()
             .expect("No profanity config found");
 
-        let ruleset = match ProfRuleset::new(config.prof_filter_file) {
+        let ruleset = match ProfRuleset::new(config.prof_filter_file.clone()) {
             Ok(r) => r,
             Err(RulesetError::IO(err)) if err.kind() == std::io::ErrorKind::NotFound => {
-                ProfRuleset::empty()
+                ProfRuleset::empty_with_path(config.prof_filter_file)
             }
             Err(e) => panic!("Failed to load profanity filter rules: {}", e),
         };
