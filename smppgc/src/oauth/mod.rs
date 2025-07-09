@@ -154,7 +154,7 @@ async fn oauth_return(
 
     // Cleanup sessions
     sqlx::query!(
-        "DELETE FROM sessions WHERE EXTRACT(epoch from now())-created_at < $1",
+        "DELETE FROM sessions WHERE EXTRACT(epoch from now())-created_at > $1",
         user_config.max_session_age as i64
     )
     .execute(&mut **db)
