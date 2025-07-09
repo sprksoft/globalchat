@@ -73,9 +73,7 @@ echo "Building prod images"
 ./prod_images.sh build
 
 echo "Pushing prod images..."
-./prod_images.sh push "$PROD_SERVER"
+./prod_images.sh push-deploy "$PROD_SERVER"
 
-echo "redeploying containers on prod server..."
-$SSH $PROD_SERVER "~/source/repos/ldeveuorg-infra/deploy.sh"
 
 echo "done"
