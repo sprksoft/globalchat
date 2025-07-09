@@ -1,0 +1,63 @@
+#ban-dialog {
+  display: flex;
+  flex-direction: column;
+}
+#ban-dialog h1 {
+  text-align: center;
+}
+#ban-dialog-user {
+  color: var(--color-accent);
+}
+#ban-dialog-ban-button {
+  float: right;
+}
+
+#ban-dialog-preset {
+  background-color: var(--color-base01);
+  border: solid var(--color-base02) var(--border-size);
+  border-radius: 10000px;
+  padding: 0.5rem 1.5rem;
+  margin-bottom: 0.5rem;
+  color: var(--color-text);
+  font-weight: bold;
+  font-size: inherit;
+}
+
+#ban-dialog-reason {
+  background-color: var(--color-base01);
+  border: solid var(--color-base02) var(--border-size);
+  border-radius: var(--border-radius);
+  color: var(--color-text);
+  font-size: 1rem;
+  padding: 0.7rem;
+  min-height: 4rem;
+}
+
+#ban-dialog-confirm {
+  float: right;
+}
+
+
+#ban {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 1rem;
+}
+#ban h1 {
+  margin: 0px;
+}
+
+#ban small {
+  margin-top: 2rem;
+  text-align: center;
+  font-weight: bold;
+}
+
+#ban .layered-section {
+  margin: 0px;
+  margin-bottom: 0.5rem;
+}
+
+#ban-release-time {
+  color: var(--color-accent);
+}

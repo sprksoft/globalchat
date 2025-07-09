@@ -1,0 +1,100 @@
+/* General button styles */
+button {
+  font-family: inherit;
+  border: none;
+  cursor: pointer;
+}
+
+.pillbtn,
+.button {
+  margin: 3px;
+
+  background-color: var(--color-btn);
+  color: var(--color-accent);
+  border-radius: var(--border-radius);
+  border: none;
+  font-weight: bold;
+
+  padding: 1em 2em 1em 2em;
+  cursor: pointer;
+
+  transition:
+    color 0.5s,
+    background-color 0.5s;
+}
+
+.pillbtn:hover,
+.button:hover {
+  background-color: var(--color-btn-hover);
+}
+
+.pillbtn[disabled]:hover,
+.button[disabled]:hover {
+  background-color: var(--color-btn);
+}
+
+.pillbtn[disabled],
+.button[disabled] {
+  opacity: 0.5;
+  cursor: auto;
+  color: var(--color-base03);
+}
+
+/* Buttons */
+.button {
+  --color-btn: var(--color-base01);
+  --color-btn-hover: var(--color-base02);
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  text-align: center;
+}
+
+.pillbtn {
+  --color-btn: var(--color-base02);
+  --color-btn-hover: var(--color-base03);
+  border: solid var(--color-base03) var(--border-size);
+  border-radius: 10000px;
+  padding: 4px 10px 5px 10px;
+
+  cursor: pointer;
+  color: var(--color-accent);
+}
+
+.unimportantbtn {
+  font-weight: bold;
+  background: transparent;
+  color: var(--color-accent);
+  text-decoration: none;
+}
+
+.unimportantbtn:hover {
+  color: var(--color-accent);
+  text-decoration: var(--color-accent) underline 2px;
+}
+
+/* Modifiers */
+.dangerbtn {
+  color: var(--color-error);
+}
+
+/* Button related */
+.btnicon {
+  margin-right: 0.5em;
+  width: 20px;
+}
+
+.button-list {
+  display: flex;
+  flex-direction: column;
+  padding-top: 2em;
+  padding-bottom: 2em;
+}
+
+.button-row {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: end;
+}
+

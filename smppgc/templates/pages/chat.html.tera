@@ -1,0 +1,112 @@
+{% extends "base" %}
+
+<!-- vim: set ft=html: -->
+
+{% block head %}
+<style type="text/css">
+{{theme_css}}
+</style>
+
+<link rel="stylesheet" href="{{ url(path="/static/chat.css") }}" />
+{% endblock head %}
+
+{% block content %}
+
+<dialog id="login">
+  {% include "logo_header" %}
+  {% if is_mod %}
+  <label for="show-mod-badge" style="text-align:center"><input id="show-mod-badge" type="checkbox"> Moderator badge</label>
+  {% endif %}
+  <div class="layered-section" id="ban" style="display:none">
+    <h1 class="center-title">Je bent verbannen</h1>
+    <p>Je bent verbannen door een moderator met de volgende reden:</p>
+    <p id="ban-reason">Bliep bloep blaap<br>Je bent stout</p>
+    <small>Je kunt terug joinen over <span id="ban-release-time">55 minuten</span></small>
+  </div>
+  <span id="err-mesg" class="err"></span>
+  <div class="container">
+    {% if readonly %}
+    <div class="ro-name-input"><span>Alleen lezen</span></div>
+    {% else %}
+    <input autofocus maxlength="{{max_username_len}}" id="name-input" type="text" placeholder="({{ irl_name }})" data-default_username="{{ irl_name }}">
+    {% endif %}
+    <button id="connectbtn" class="button">
+      {% include "svg/arrow_r" %}
+    </button>
+  </div>
+  {% if readonly %}
+  <a class="goto-chat-link" href="/v1">Ga naar de echte chat</a>
+  {% endif %}
+</dialog>
+
+<dialog id="connection-status" class="loading-dialog">
+  <span>connecting</span>
+</dialog>
+
+<dialog id="profane-message-dialog">
+  <h1>Je bericht bevat een ongepast woord</h1>
+  <p>Jou bericht bevat het scheld woord <mark id="badword" class="profanity-mark"></mark></p>
+  <div class="flex-col" id="profane-message"></div>
+  <p>Dit is een automatisch bericht maar je kunt nog steeds verbannen worden door menselijke moderators.<br>Je kunt weer chatten binnen <time id="profane-message-countdown"></time>.</p>
+
+  <button class="pillbtn" id="profane-message-ok">Ok</button>
+</dialog>
+
+{% include "ban-dialog" %}
+
+<template id="message-template">
+  <div class="message">
+    <svg class="driehoek_bubble" viewBox="0 0 8 13" height="13" width="8" preserveAspectRatio="xMidYMid meet" version="1.1" x="0px" y="0px" enable-background="new 0 0 8 13"><path fill="currentColor" d="M1.5,2.5L8,11.2V0L2.8,0C1,0,0.5,1.2,1.5,2.6z"></path></svg>
+    <div class="user_content">
+      <div class="message_top">
+        <span class="user"></span>
+        <small class="timestamp"></small>
+      </div>
+      <div class="content"></div>
+      <div class="message-actions">
+        {% if is_mod %}
+        <button class="delbtn unimportantbtn">delete</button>
+        <button class="banbtn unimportantbtn">verban</button>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</template>
+
+<header class="slim-header" id="topbar">
+  <button id="leavebtn" class="button">
+    {% include "svg/arrow_l" %}
+  </button>
+
+  <h1 class="header-title chat-name">Global chat</h1>
+</header>
+<div id="mesgs"></div>
+<div class="bottom">
+  {% if not readonly %}
+  <div id="botbar">
+    <div id="send-input" contenteditable data-plaintext="true" enterkeyhint="send" placeholder="Enter a message"></div> <!--Er is denk ik geen goede manier om textareas niet raar te laten zijn dus we moeten hier wel een div gebruiken :(-->
+    <button id="sendbtn" class="button">
+      {% include "svg/arrow_r" %}
+    </button>
+  </div>
+  {% endif %}
+</div>
+
+{% endblock content %}
+
+{% block scripts %}
+<script type="text/javascript">
+  var local_commands = [];
+
+  let protocol = "ws://"
+  if (location.protocol.endsWith("s:")){
+    protocol =  "wss://"
+  }
+  const VERSION_INT = {{ version_int() }}
+  const WEBSOCKET_URL=protocol+location.host+"/socket{% if readonly %}/rochat{% else %}/chat{% endif %}";
+  const READONLY = {% if readonly %}true{% else %}false{% endif %};
+  const MAX_MESSAGE_LEN="{{max_message_len}}";
+  const MIN_MESSAGE_LEN="{{min_message_len}}";
+</script>
+<script defer type="text/javascript" src="{{ url(path="/static/chat.js") }}"></script>
+{% endblock scripts %}

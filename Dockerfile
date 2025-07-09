@@ -1,16 +1,19 @@
-FROM rust:alpine AS dev
-RUN apk update && apk add esbuild musl-dev
+ARG ESBUILD_CMD="esbuild --bundle --minify --sourcemap --outdir=/app/www/ /client/chat.js /client/home.js /client/login.js /client/mods.js"
+ARG BINARY_SOURCE="builder"
 
-ENV SQLX_OFFLINE=true
-ENV RUSTUP_TOOLCHAIN=stable
+FROM rust:alpine AS builder
+  RUN apk update && apk add esbuild pkgconf openssl-dev openssl-libs-static musl-dev
 
-COPY . /build
-WORKDIR /build
+  ENV SQLX_OFFLINE=true
+  ENV RUSTUP_TOOLCHAIN=stable
 
-RUN --mount=type=cache,target=target/ \
-    --mount=type=cache,target=/usr/local/cargo/registry/ \
-    --mount=type=cache,target=/usr/local/rustup/ \
-    <<EOF
+  COPY . /build
+  WORKDIR /build
+
+  RUN --mount=type=cache,target=target/ \
+      --mount=type=cache,target=/usr/local/cargo/registry/ \
+      --mount=type=cache,target=/usr/local/rustup/ \
+      <<EOF
 set -e
 cargo build --locked --release --bin smppgc
 mkdir /app
@@ -18,38 +21,45 @@ mkdir /app
 cp target/release/smppgc /app/app
 EOF
 
-COPY smppgc/Rocket.toml /app/Rocket.toml
-COPY smppgc/templates /app/templates
-COPY smppgc/www /app/www
+FROM rust:alpine AS artifact
+  RUN apk update && apk add esbuild
+  COPY ./.artifacts/smppgc /app/app
 
-ENV ESBUILD_CMD="esbuild --bundle --minify --sourcemap --outdir=/app/www/ smppgc/client/v1.js smppgc/client/admin.js"
-RUN $ESBUILD_CMD
+FROM $BINARY_SOURCE AS late-builder
+  ARG ESBUILD_CMD
+  COPY smppgc/Rocket.toml /app/Rocket.toml
+  COPY smppgc/templates /app/templates
+  COPY smppgc/www /app/www
 
-WORKDIR /app
-STOPSIGNAL SIGINT
-EXPOSE 8080
+  COPY smppgc/client /client
+  RUN $ESBUILD_CMD
 
-ENV ROCKET_CONFIG=/app/Rocket.toml
-ENV ROCKET_PROFILE=debug
+FROM late-builder AS dev
+  ARG ESBUILD_CMD
 
-COPY --chmod=777 <<EOF /entry.sh
+  WORKDIR /app
+
+  EXPOSE 8080
+
+  ENV ROCKET_CONFIG=/app/Rocket.toml
+  ENV ROCKET_PROFILE=debug
+
+  COPY --chmod=777 <<EOF /entry.sh
 #!/bin/sh
 cd /build
 nohup $ESBUILD_CMD --watch=forever &
 cd /app
-/app/app
+exec /app/app
 EOF
 
-CMD [ "/entry.sh" ]
+  CMD [ "/entry.sh" ]
 
 
 FROM scratch AS prod
+  COPY --from=late-builder /app /app
 
-COPY --from=dev /app /app
-
-EXPOSE 8080
-STOPSIGNAL SIGINT
-WORKDIR /app
-ENV ROCKET_CONFIG=/app/Rocket.toml
-ENV ROCKET_PROFILE=release
-CMD [ "/app/app" ]
+  EXPOSE 8080
+  WORKDIR /app
+  ENV ROCKET_CONFIG=/app/Rocket.toml
+  ENV ROCKET_PROFILE=release
+  CMD [ "/app/app" ]

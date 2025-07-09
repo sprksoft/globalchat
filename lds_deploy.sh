@@ -73,9 +73,7 @@ echo "Building prod images"
 ./prod_images.sh build
 
 echo "Pushing prod images..."
-./prod_images.sh push "$PROD_SERVER"
+./prod_images.sh push-deploy "$PROD_SERVER"
 
-echo "Restarting containers on server..."
-$SSH $PROD_SERVER "cd ~/source/repos/$PROJECT ; ./run_prod.sh"
 
 echo "done"

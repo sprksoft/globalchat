@@ -1,35 +1,55 @@
-use crate::users::UserSid;
-use std::{net::IpAddr, time::Instant};
+use std::{num::ParseIntError, str::FromStr, time::Instant};
 
 use dashmap::DashMap;
 use log::*;
-use rocket::{fairing::AdHoc, serde::Deserialize};
+use rocket::serde::{de::Visitor, Deserialize};
+use thiserror::Error;
 
-pub struct NewUserIpRateLimiters(pub RateLimiters<IpAddr>);
-pub struct MesgIpRateLimiters(pub RateLimiters<IpAddr>);
-pub struct MesgRateLimiters(pub RateLimiters<UserSid>);
-
-pub struct RateLimiters<T: std::hash::Hash> {
-    conf: RateLimitConfig,
-    limiters: DashMap<T, RateLimiter>,
+#[derive(Copy, Clone, Debug)]
+pub struct RateLimitConfig {
+    pub timeframe: u32,
+    pub amount: u32,
 }
-impl<T: std::hash::Hash + std::cmp::Eq> RateLimiters<T> {
-    pub fn new(conf: RateLimitConfig) -> Self {
-        Self {
-            conf,
-            limiters: DashMap::with_capacity(1000),
-        }
+impl<'de> Deserialize<'de> for RateLimitConfig {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: rocket::serde::Deserializer<'de>,
+    {
+        deserializer.deserialize_str(RatelimitConfigVisitor)
     }
+}
 
-    pub fn update(&self, key: T, increase: u32) -> bool {
-        match self.limiters.get_mut(&key) {
-            Some(mut limiter) => limiter.update(increase),
-            None => {
-                self.limiters
-                    .insert(key, RateLimiter::new(self.conf.clone()));
-                true
-            }
-        }
+pub struct RatelimitConfigVisitor;
+impl<'de> Visitor<'de> for RatelimitConfigVisitor {
+    type Value = RateLimitConfig;
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str("a ratelimit config")
+    }
+    fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+    where
+        E: rocket::serde::de::Error,
+    {
+        RateLimitConfig::from_str(v).map_err(|e| E::custom(e))
+    }
+}
+
+#[derive(Debug, Error)]
+pub enum ParseRatelimitError {
+    #[error("{0}")]
+    ParseIntError(#[from] ParseIntError),
+    #[error("rate limit needs to be in the format: <amount>/<timeframe>")]
+    ExpectedSlash,
+}
+impl FromStr for RateLimitConfig {
+    type Err = ParseRatelimitError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let (amount_str, timeframe_str) = s
+            .split_once('/')
+            .ok_or(ParseRatelimitError::ExpectedSlash)?;
+        Ok(RateLimitConfig {
+            amount: amount_str.parse()?,
+            timeframe: timeframe_str.parse()?,
+        })
     }
 }
 
@@ -40,6 +60,10 @@ pub struct RateLimiter {
     last_reset: Instant,
 }
 impl RateLimiter {
+    pub fn from_str(str: &str) -> Result<Self, ParseRatelimitError> {
+        Ok(Self::new(RateLimitConfig::from_str(str)?))
+    }
+
     pub fn new(conf: RateLimitConfig) -> Self {
         Self {
             conf,
@@ -70,38 +94,36 @@ impl RateLimiter {
     }
 }
 
-#[derive(Deserialize, Debug, Clone)]
-#[serde(crate = "rocket::serde")]
-pub struct RateLimitConfig {
-    pub timeframe: u32,
-    pub amount: u32,
+impl<'de> Deserialize<'de> for RateLimiter {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: rocket::serde::Deserializer<'de>,
+    {
+        let config = deserializer.deserialize_str(RatelimitConfigVisitor)?;
+        Ok(RateLimiter::new(config))
+    }
 }
 
-#[derive(Deserialize, Debug, Clone)]
-#[serde(crate = "rocket::serde")]
-pub struct RateLimitIpPenalty {
-    pub xx_penalty: u32,
-    pub not_be_penalty: u32,
+pub struct RateLimiters<T: std::hash::Hash> {
+    conf: RateLimitConfig,
+    limiters: DashMap<T, RateLimiter>,
 }
+impl<T: std::hash::Hash + std::cmp::Eq> RateLimiters<T> {
+    pub fn new(conf: RateLimitConfig) -> Self {
+        Self {
+            conf,
+            limiters: DashMap::with_capacity(1000),
+        }
+    }
 
-pub fn stage() -> AdHoc {
-    AdHoc::on_ignite("ratelimiting", |r| async {
-        let mesg_ip_rate: RateLimitConfig = r
-            .figment()
-            .extract_inner("mesg_ip_rate")
-            .expect("Failed to read message ratelimiting config value");
-        let mesg_rate: RateLimitConfig = r
-            .figment()
-            .extract_inner("mesg_rate")
-            .expect("Failed to read message ratelimiting config value");
-        let new_user_ip_rate: RateLimitConfig = r
-            .figment()
-            .extract_inner("new_user_ip_rate")
-            .expect("Failed to read message ratelimiting config value");
-
-        r.attach(AdHoc::config::<RateLimitIpPenalty>())
-            .manage(MesgRateLimiters(RateLimiters::new(mesg_rate)))
-            .manage(MesgIpRateLimiters(RateLimiters::new(mesg_ip_rate)))
-            .manage(NewUserIpRateLimiters(RateLimiters::new(new_user_ip_rate)))
-    })
+    pub fn update(&self, key: T, increase: u32) -> bool {
+        match self.limiters.get_mut(&key) {
+            Some(mut limiter) => limiter.update(increase),
+            None => {
+                self.limiters
+                    .insert(key, RateLimiter::new(self.conf.clone()));
+                true
+            }
+        }
+    }
 }

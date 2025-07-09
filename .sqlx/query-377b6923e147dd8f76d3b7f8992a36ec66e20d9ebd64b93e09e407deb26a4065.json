@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE users SET ban_count = ban_count + 1 WHERE id=$1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "377b6923e147dd8f76d3b7f8992a36ec66e20d9ebd64b93e09e407deb26a4065"
+}

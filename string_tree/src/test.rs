@@ -84,14 +84,23 @@ fn contains_small(b: &mut Bencher) {
     })
 }
 
+fn contains_naive_impl(target: &str, tree: &Vec<String>) -> bool {
+    for item in tree.iter() {
+        if *item == target {
+            return true;
+        }
+    }
+    false
+}
+
 #[bench]
 fn contains_naive(b: &mut Bencher) {
     let list = gen_list();
     b.iter(|| {
-        assert!(!super::contains_naive("bo", &list));
-        assert!(!super::contains_naive("", &list));
+        assert!(!contains_naive_impl("bo", &list));
+        assert!(!contains_naive_impl("", &list));
         for word in list.iter() {
-            assert!(super::contains_naive(word, &list));
+            assert!(contains_naive_impl(word, &list));
         }
     })
 }

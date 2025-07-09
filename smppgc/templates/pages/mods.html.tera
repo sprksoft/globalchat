@@ -1,0 +1,74 @@
+{% extends "base" %}
+<!-- vim: set ft=html: -->
+
+{% block title %}
+Moderators - Global Chat
+{% endblock title %}
+
+{% block head %}
+
+<style type="text/css">
+{{theme_css}}
+</style>
+
+<link rel="stylesheet" href="{{ url(path="/static/home.css") }}" />
+{% endblock head %}
+
+{% block content %}
+
+<div class="view">
+<header class="slim-header">
+  <a href="/" class="button">
+    {% include "svg/arrow_l" %}
+  </a>
+  <h1 class="header-title">Moderators</h1>
+</header>
+<main>
+  <h2>Moderators</h2>
+  <table>
+    <thead>
+      <tr>
+        <th style="text-align:left;">Irl Name</th>
+        <th style="width: 6em;">Role</th>
+        <th style="width: 6em;">Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for user in users %}
+      <tr>
+        <td>{{ user.name }}</td>
+        <td>{{ user.role }}</td>
+        <td><button data-uid="{{ user.id }}" class="demote-btn pillbtn dangerbtn" {% if user.cantbedemoted %}disabled{% endif %}>demod</button></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <h2>Keys</h2>
+  <table>
+    <thead>
+      <tr>
+        <th style="text-align:left;">Key</th>
+        <th>Used by</th>
+        <th style="width: 6em;">Role</th>
+      </tr>
+    </thead>
+    <tbody class="key-table-body">
+      {% for key in keys %}
+      <tr>
+        <td><code class="copyable">{{ key.key }}</code></td>
+        <td>{{ key.used_by }}</td>
+        <td>{{ key.new_role }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <button id="newkey-btn" class="pillbtn">New Mod Key</button>
+</main>
+<div>
+
+{% endblock content %}
+
+{% block scripts %}
+<script defer type="text/javascript" src="{{ url(path="/static/mods.js") }}"></script>
+{% endblock scripts %}

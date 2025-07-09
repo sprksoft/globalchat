@@ -1,0 +1,32 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT irl_name,role,id FROM users WHERE role > 0",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "irl_name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 1,
+        "name": "role",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "id",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "c10191cd7259cb09b1674a83a3cf1215c4bfee1c5584c55e8bd3bfc109103465"
+}

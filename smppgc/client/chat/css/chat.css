@@ -1,3 +1,7 @@
+html {
+  --logo-animation-delay: 0.2s;
+}
+
 main {
   flex-grow:100;
   display:flex;
@@ -38,16 +42,17 @@ a:hover {
   max-height:300px;
 }
 
+a.goto-chat-link {
+  text-align: center;
+  font-weight: bold;
+  text-decoration-thickness: 2px;
+}
+
 .chat-name {
   margin: 0px;
 }
 
 
-.warning {
-  font-weight: bold;
-  color: var(--color-accent);
-  margin: 0px 0px 0px 0px;
-}
 .text-accent {
   color: var(--color-accent);
 }
@@ -180,23 +185,4 @@ a:hover {
   max-width: 600px;
   display: flex;
   flex-direction: column;
-}
-
-@keyframes notfound-anim{
-
-  0% {
-    transform: rotate(10deg)
-  }
-
-  50% {
-    transform: rotate(-10deg)
-  }
-
-  100% {
-    transform: rotate(10deg)
-  }
-
-}
-.notfound img:hover {
-  animation: notfound-anim 0.2s ease infinite;
 }

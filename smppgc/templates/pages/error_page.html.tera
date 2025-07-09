@@ -1,0 +1,29 @@
+{% extends "base" %}
+
+<!-- vim: set ft=html: -->
+
+{% block head %}
+<style>
+{{ theme_css }}
+</style>
+<link rel="stylesheet" href="{{ url(path="/static/home.css") }}" />
+{% endblock head %}
+
+{% block content %}
+<div class="view">
+  <main>
+    <h1>{{ title }}</h1>
+    <p>{{ error }}</p>
+    <p>
+      <code>
+        {{ internal }}
+      </code>
+    </p>
+    <a href="/v1">Ga terug naar de chat</a>
+  </main>
+</div>
+
+{% endblock content %}
+
+{% block scripts %}
+{% endblock scripts %}

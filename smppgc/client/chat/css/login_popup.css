@@ -17,21 +17,10 @@
   display:flex;
 }
 
-#disclaimer {
-  overflow: auto;
-  flex-shrink: 10;
-}
-
-#disclaimer-countdown-text {
-  margin-bottom:0px;
-  opacity: 0.8;
-}
-
 
 #login > .container {
   transition: transform 0.6s;
-  margin: 0.5em;
-  margin-top: 1em;
+  margin: 1em 0 .5em;
   display:flex;
   flex-direction: row;
   background: var(--color-base01);
@@ -62,27 +51,14 @@
   opacity: 0.7;
 }
 
-#login .logo {
-  margin: 1rem;
-  margin-left:auto;
-  margin-right:auto;
-  color: var(--color-accent);
+.ro-name-input {
+  color: var(--color-text);
+  opacity: 0.7;
+  font-weight: bold;
+
+  flex-grow: 1;
+  text-align: center;
   display: flex;
   justify-content: center;
-  max-width: 50vw;
-  transition: width 0.3s;
-  width: 100%;
-}
-
-#login[open] .logo {
-  width: 30%;
-}
-
-@starting-style {
-  #login .logo{
-    width: 100%;
-  }
-  #login[open] .container{
-    transform: scale(2);
-  }
+  align-items: center;
 }

@@ -1,0 +1,13 @@
+[package]
+name = "wordfilter"
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+
+[dependencies]
+bincode={version="2.0.1"}
+clap={ version = "4.5.4", features = ["derive"], optional = true }
+
+[features]
+default=["cli"]
+cli=["dep:clap"]

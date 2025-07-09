@@ -1,24 +1,26 @@
-use std::ops::Deref;
-
-use chat::Chat;
+#![allow(dead_code)]
+use lmetrics::metrics;
 use lmetrics::LMetrics;
-use pages::RootUrl;
-use rocket::response::Redirect;
+use rocket::catch;
+use rocket::catchers;
+use rocket::get;
+use rocket::launch;
 use rocket::routes;
 use rocket::serde::Deserialize;
-use rocket::{fairing::AdHoc, launch};
-use rocket::{get, State};
+use rocket::Responder;
+use rocket_dyn_templates::context;
+use rocket_dyn_templates::Template;
 use utils::static_routing;
+use utils::CSPFrameAncestors;
 
-mod auth;
 mod chat;
-mod csp;
-mod ipcountry;
+mod db;
+mod disclaimer;
+mod oauth;
 mod pages;
 mod profanity;
 mod ratelimit;
 mod snowflake;
-mod socket;
 mod themes;
 mod users;
 mod utils;
@@ -33,72 +35,76 @@ pub use version_int::*;
 pub struct ChatConfig {
     pub max_stored_messages: usize,
     pub max_users: u16,
+    pub max_ro_users: usize,
 }
 
-pub type MessageLen = u16;
-pub type BadWordLen = u8;
+metrics! {
+    pub counter total_500_responses("Total amount of 500 responses");
+}
 
-#[derive(Deserialize, Debug, Clone)]
-#[serde(crate = "rocket::serde")]
-pub struct MessageConfig {
-    pub small_message_len: usize,
-    pub max_message_len: MessageLen,
-    pub min_message_len: MessageLen,
-    pub large_message_penalty: u32,
+#[derive(Responder)]
+struct ErrorResponder {
+    inner: Template,
+    csp: CSPFrameAncestors<'static>,
+}
 
-    pub max_same_message_streak: u32,
-    pub same_message_penalty: u32,
+#[catch(500)]
+fn internal_server_error() -> ErrorResponder {
+    total_500_responses::inc();
+    let theme = themes::DEFAULT_THEME.clone();
+    ErrorResponder {
+        inner: Template::render(
+            "pages/error_page",
+            context! { title: "500 Internal Server Error", error: "Oei! Er ging iets mis.", theme_css: theme.css(), internal:"500" },
+        ),
+        csp: CSPFrameAncestors::SMARTSCHOOL_PLAT,
+    }
+}
+
+#[get("/err_test")]
+fn err_test() -> rocket::response::Debug<()> {
+    rocket::response::Debug(())
 }
 
 #[get("/version")]
-fn server_version(root_url: &State<RootUrl>) -> String {
+fn server_version(conf: &rocket::Config) -> String {
+    let profile = conf.profile.to_string();
     let ver_str = concat!(env!("CARGO_PKG_NAME"), "-", env!("CARGO_PKG_VERSION"));
-
     format!(
-        "{} debug_assertions: {} root_url: {} ",
+        "{} ({}) debug_assertions: {} ",
         ver_str,
-        cfg!(debug_assertions),
-        root_url.root_url
+        profile,
+        cfg!(debug_assertions)
     )
-}
-
-#[get("/")]
-fn index() -> Redirect {
-    Redirect::permanent("v1")
 }
 
 #[launch]
 fn rocket() -> _ {
-    let mut metrics = LMetrics::new(&[
+    let metrics = LMetrics::new(&[
+        &crate::total_500_responses::METRIC,
+        &oauth::total_started_oauth_flows::METRIC,
+        &oauth::total_failed_oauth_flows::METRIC,
+        &oauth::total_logins::METRIC,
         &static_routing::static_req_total::METRIC,
         &chat::joined_total::METRIC,
         &chat::left_total::METRIC,
+        &chat::ro_joined_total::METRIC,
+        &chat::ro_left_total::METRIC,
         &chat::history_events_lost_total::METRIC,
-        &socket::messages_total::METRIC,
-        &socket::messages_blocked::METRIC,
-        &socket::new_users::METRIC,
+        &chat::socket::messages_total::METRIC,
+        &chat::socket::messages_blocked::METRIC,
         &lmetrics::http_errors_total::METRIC,
         &lmetrics::http_req_total::METRIC,
     ]);
-    metrics.on_before_handle(|| {});
     rocket::build()
-        .mount("/", routes![index, server_version])
+        .register("/", catchers![internal_server_error])
+        .mount("/", routes![server_version, err_test])
         .mount("/metrics", metrics)
-        .attach(AdHoc::config::<MessageConfig>())
-        .attach(ratelimit::stage())
+        .attach(db::stage())
         .attach(static_routing::stage())
-        .attach(pages::stage())
         .attach(users::stage())
-        .attach(auth::stage())
-        .attach(AdHoc::on_ignite("chat", |r| async {
-            let config = r
-                .figment()
-                .extract::<ChatConfig>()
-                .expect("No chat config found");
-
-            r.mount("/", routes![socket::socket_v1])
-                .manage(Chat::new(config))
-        }))
+        .attach(pages::stage())
+        .attach(oauth::stage())
         .attach(profanity::stage())
-        .attach(AdHoc::config::<RootUrl>())
+        .attach(chat::stage())
 }

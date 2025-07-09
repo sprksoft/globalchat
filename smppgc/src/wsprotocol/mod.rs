@@ -1,23 +1,22 @@
-use std::{borrow::Cow, ops::Range};
-
+use crate::{
+    chat::{ChatUser, Message, MessageChangeType, MessageLen},
+    users::Ban,
+    Snowflake,
+};
 use futures_util::SinkExt;
+use log::*;
+use packets::parse_c2s;
 use rocket_ws::{
     frame::{CloseCode, CloseFrame},
     result::Result,
     stream::DuplexStream,
 };
+use std::{borrow::Cow, ops::Range};
 use thiserror::Error;
 use tokio_tungstenite::tungstenite;
 
-use crate::{
-    chat::{Message, MessageChangeType},
-    users::UserInfo,
-    Snowflake,
-};
-
-use log::*;
-
 mod packets;
+pub use packets::{AdminCmd, C2SPacket};
 
 #[derive(Debug, Error)]
 pub enum PacketsError {
@@ -62,10 +61,11 @@ macro_rules! kick_reason {
 }
 kick_reason! {
     pub KickReason{
-        Hard(Policy,""),
+        Kick(Policy,"err_kick"),
         Cmd(Abnormal,"err_cmd"),
+        NoSession(Policy, "err_no_session"),
+        AlreadyInChat(Policy, "err_already_in_chat"),
         IpRateLimit(Policy, "err_ipratelimit"),
-        TooManyUsers(Policy, "err_toomanyusers"),
         RateLimit(Policy,"err_ratelimit"),
         ServerShutdown(Away,"err_shutdown"),
         ChatFull(Again,"err_full"),
@@ -76,29 +76,18 @@ kick_reason! {
     }
 }
 
-pub struct RecievedMessage {
-    pub content: String,
-}
-impl RecievedMessage {
-    #[inline]
-    pub fn len(&self) -> usize {
-        self.content.len()
-    }
-}
-
 pub struct WsClient {
     ws: DuplexStream,
-    user_info: UserInfo,
+    ro: bool,
 }
 impl WsClient {
-    pub async fn new(
+    async fn send_setup_packets(
         mut ws: DuplexStream,
-        user_info: UserInfo,
-        clients: Vec<UserInfo>,
+        clients: Vec<ChatUser>,
         history: Vec<Message>,
-    ) -> Result<Self> {
-        ws.feed(packets::new_setup(user_info.static_id(), user_info.id()))
-            .await?;
+        local_id: u16,
+    ) -> Result<DuplexStream> {
+        ws.feed(packets::new_setup(local_id)).await?;
 
         for client in clients {
             ws.feed(packets::new_client_joined(&client)).await?;
@@ -109,18 +98,45 @@ impl WsClient {
         }
 
         ws.flush().await?;
-        Ok(Self { ws, user_info })
+        Ok(ws)
+    }
+    pub async fn new(
+        ws: DuplexStream,
+        clients: Vec<ChatUser>,
+        history: Vec<Message>,
+        user_info: &ChatUser,
+    ) -> Result<Self> {
+        Ok(Self {
+            ws: Self::send_setup_packets(ws, clients, history, user_info.local_id()).await?,
+            ro: false,
+        })
+    }
+    pub async fn new_ro(
+        ws: DuplexStream,
+        clients: Vec<ChatUser>,
+        history: Vec<Message>,
+    ) -> Result<Self> {
+        Ok(Self {
+            ws: Self::send_setup_packets(ws, clients, history, 0).await?,
+            ro: true,
+        })
     }
 
-    pub async fn kick(&mut self, reason: KickReason) -> Result<()> {
+    pub async fn disconnect(&mut self, reason: KickReason) -> Result<()> {
         self.ws.close(Some(reason.into_close_frame())).await
+    }
+    pub async fn ban(&mut self, ban: Ban) -> Result<()> {
+        self.ws.close(Some(ban.into_close_frame())).await
+    }
+    pub async fn system_message(&mut self, content: &str) -> Result<()> {
+        self.ws.send(packets::new_system_message(content)).await
     }
 
     pub async fn profanity_warning(
         &mut self,
         message: &str,
         bad_word: &str,
-        span: Range<crate::MessageLen>,
+        span: Range<MessageLen>,
     ) -> Result<()> {
         self.ws
             .send(packets::new_profanity_warn(message, bad_word, span))
@@ -139,13 +155,13 @@ impl WsClient {
         Ok(())
     }
 
-    pub async fn forward_client(&mut self, client: &UserInfo) -> Result<()> {
+    pub async fn forward_user(&mut self, client: &ChatUser) -> Result<()> {
         self.ws.send(packets::new_client_joined(client)).await?;
         Ok(())
     }
-    pub async fn forward_all_clients(
+    pub async fn forward_multiple_users(
         &mut self,
-        clients: impl Iterator<Item = &UserInfo>,
+        clients: impl Iterator<Item = &ChatUser>,
     ) -> Result<()> {
         for client in clients {
             self.ws.feed(packets::new_client_joined(client)).await?;
@@ -157,34 +173,35 @@ impl WsClient {
         self.ws.send(packets::new_message(mesg)).await?;
         Ok(())
     }
-    pub async fn forward_all(&mut self, messages: impl Iterator<Item = &Message>) -> Result<()> {
+    pub async fn forward_multiple(
+        &mut self,
+        messages: impl Iterator<Item = &Message>,
+    ) -> Result<()> {
         for message in messages {
             self.ws.feed(packets::new_message(message)).await?;
         }
         self.ws.flush().await?;
         Ok(())
     }
-    pub async fn try_recv(&mut self) -> Result<Option<RecievedMessage>> {
+    pub async fn try_recv(&mut self) -> Result<Option<C2SPacket>> {
         let Some(message) = futures_util::StreamExt::next(&mut self.ws).await else {
             return Err(rocket_ws::result::Error::ConnectionClosed);
         };
         let message = message?;
-
-        if message.is_text() {
-            let content = String::from_utf8_lossy(&message.into_data()).to_string();
-
-            Ok(Some(RecievedMessage { content: content }))
-        } else if message.is_binary() {
-            error!("Closing connection because: Received binary message");
-            self.ws
-                .close(Some(CloseFrame {
-                    code: CloseCode::Unsupported,
-                    reason: Cow::Borrowed("INT: No binary messages."),
-                }))
-                .await?;
-            Ok(None)
-        } else {
-            Ok(None)
+        if !self.ro && message.is_binary() {
+            match parse_c2s(message.into_data()) {
+                Ok(p) => return Ok(Some(p)),
+                Err(()) => {}
+            }
         }
+
+        error!("Closing connection because: invalid packet");
+        self.ws
+            .close(Some(CloseFrame {
+                code: CloseCode::Invalid,
+                reason: Cow::Borrowed("INT: invalid packet"),
+            }))
+            .await?;
+        Ok(None)
     }
 }

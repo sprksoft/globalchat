@@ -16,7 +16,6 @@ RUSTUP="rustup"
 SSH="ssh"
 DOCKER="docker"
 PROD_SERVER_DOCKER="sudo docker"
-ESBUILD="esbuild"
 
 
 setup ()
@@ -45,33 +44,26 @@ build ()
   export RUSTUP_TOOLCHAIN=stable
   export RUSTFLAGS="-Clink-self-contained=yes -Clinker=rust-lld"
 
-  for image in "${RUST_IMAGES[@]}" ; do
+  cross build --target $RUSTTARGET --release --locked
+  mkdir -p .artifacts
+  cp -rf target/$RUSTTARGET/release/smppgc .artifacts/smppgc # Copy artifacts because target/ is in .dockerignore
 
-    echo "Building $image using cross..."
-    cross build --target $RUSTTARGET --release --bin $image
+  $DOCKER buildx build --platform $DOCKERTARGET --build-arg BINARY_SOURCE=artifact -f smppgc/Dockerfile -t "smppserver_smppgc:prod" .
 
-    mkdir -p $IMAGES_DIR
-    mkdir -p $IMAGES_DIR/$image
-    cp -f $image/Rocket.toml $IMAGES_DIR/$image/Rocket.toml
-    cp -rf $image/templates/* $IMAGES_DIR/$image/templates || true
-    cp -rf $image/www/* $IMAGES_DIR/$image/www || true
-
-    if ls $image/client > /dev/null ; then
-      $ESBUILD --bundle --minify --sourcemap --outdir=$IMAGES_DIR/$image/www/ $image/client/v1.js $image/client/admin.js
-    fi
-
-    cp ./target/$RUSTTARGET/release/$image $IMAGES_DIR/$image/app
-    $DOCKER buildx build --platform $DOCKERTARGET --build-arg APP=./$IMAGES_DIR/$image -t "${PROJECT}_$image:prod" -f prod.Dockerfile .
-
-  done
 }
 
-push ()
+push_image () {
+  echo "Sending $1 image to $2..."
+  $DOCKER save $1 | $SSH $2 $PROD_SERVER_DOCKER load
+}
+
+push-deploy ()
 {
-  for image in ${RUST_IMAGES[@]} ; do
-    echo "Sending $image image to $1..."
-    $DOCKER save ${PROJECT}_$image:prod | $SSH $1 $PROD_SERVER_DOCKER load
-  done
+  image="smppserver_smppgc:beta"
+  push_image $image $1
+
+  echo "redeploying service on prod server..."
+  $SSH $PROD_SERVER "~/source/repos/ldeveuorg-infra/deploy.sh $image"
 }
 
 USAGE="Usage: $0 <cmd>
@@ -79,7 +71,7 @@ USAGE="Usage: $0 <cmd>
     install required tools
   build
     build images
-  push username@host
+  push-deploy username@host
     push the build production images to the server
 "
 case "$1" in
@@ -89,8 +81,8 @@ case "$1" in
   build)
     build
     ;;
-  push)
-    push $2
+  push-deploy)
+    push-deploy $2
     ;;
   *)
     echo "invalid cmd: $1"

@@ -1,7 +1,21 @@
 [workspace]
 resolver="2"
-members= ["smppgc", "lmetrics", "string_tree", "profanity"]
+members= ["smppgc", "lmetrics", "string_tree", "profanity", "wordfilter"]
 
 [workspace.package]
 authors=["ldev <ldev@ldev.eu.org>"]
 edition = "2021"
+
+[workspace.metadata.cross.target.armv7-unknown-linux-musleabihf]
+pre-build = [
+  "apk add pkgconf openssl-dev"
+]
+
+[patch.crates-io]
+rocket = { git="https://github.com/Xgames123/Rocket.git", branch="v0.5" }
+rocket_ws = { git="https://github.com/Xgames123/Rocket.git", branch="v0.5" }
+rocket_dyn_templates = { git="https://github.com/Xgames123/Rocket.git", branch="v0.5" }
+rocket_db_pools = { git="https://github.com/Xgames123/Rocket.git", branch="v0.5" }
+
+[profile.dev.package.sqlx-macros]
+opt-level = 3

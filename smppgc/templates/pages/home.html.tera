@@ -1,0 +1,41 @@
+{% extends "base" %}
+<!-- vim: set ft=html: -->
+
+{% block title %}
+Home - Global Chat
+{% endblock title %}
+{% block head %}
+
+<style type="text/css">
+{{theme_css}}
+</style>
+
+<link rel="stylesheet" href="{{ url(path="/static/home.css") }}" />
+{% endblock head %}
+
+{% block content %}
+
+<header>
+  <h1 class="header-title">Home</h1>
+  {% if logged_in %}
+  <span class="role" data-role="{{role}}">
+    {{role}}
+  </span>
+  {% endif%}
+</header>
+<main class="button-list">
+  {% if logged_in %}
+  <a class="button" href="/v1"><img class="btnicon" src="{{ url(path="/static/logo.webp")}}"><span>Chat</span></a>
+  {% else %}
+  <button class="button" onclick="location.href='/login?redirect=/'">login</button>
+  {% endif %}
+
+  <a class="button" href="/rochat"><img style="filter: saturate(0%)" class="btnicon" src="{{ url(path="/static/logo.webp")}}"><span>Alleen Lezen Chat</span></a>
+
+  {% if is_admin %}
+  <a class="button" href="/prof">Profanity filter</a>
+  <a class="button" href="/mods">Moderators</a>
+  {% endif %}
+</main>
+
+{% endblock content %}

@@ -1,0 +1,42 @@
+{% extends "base" %}
+
+<!-- vim: set ft=html: -->
+
+{% block head %}
+<style>
+{{ theme_css }}
+</style>
+<link rel="stylesheet" href="{{ url(path="/static/home.css") }}" />
+{% endblock head %}
+
+{% block content %}
+<div class="view">
+  <main>
+    {% if status == "invalidkey" %}
+    <h1>Ongeldige sleutel</h1>
+    <p>Vraag aan de persoon die jou de link heeft gestuurd om een nieuwe.</p>
+
+    {% elif status == "keyused" %}
+    <h1>De sleutel is al in gebruik</h1>
+    <p>Vraag aan de persoon die jou de link heeft gestuurd om een nieuwe.</p>
+
+    {% elif status == "higherrole" %}
+    <h1>Je hebt al een andere sleutel gebruikt</h1>
+    <p>Deze sleutel is gelig en nog niet gebruikt maar je bent al een moderator of hoger.</p>
+
+    {% elif status == "lostcookie" %}
+    <h1>Oei! er ging iets mis. Probeer het opnieuw</h1>
+    <p>Het koekje is verloren.</p>
+
+    {% else %}
+    <h1>Ongeldige status</h1>
+    <p>Wat???</p>
+
+    {% endif %}
+  </main>
+</div>
+
+{% endblock content %}
+
+{% block scripts %}
+{% endblock scripts %}

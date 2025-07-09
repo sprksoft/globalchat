@@ -1,0 +1,123 @@
+{% extends "base" %}
+<!-- vim: set ft=html: -->
+
+{% macro ruleBase(rule_flags) %}
+<div class="bot-row">
+  {% if rule_flags %}
+  <div class="rule-options">
+    {% for flag in flagsinfo %}
+    <button class="pillbtn rule-option" data-flagname="{{ flag.0 }}" title="{{ flag.2 }}" onclick="if (this.classList.contains('checked')){ this.classList.remove('checked'); }else{ this.classList.add('checked'); }">{{ flag.0 }}</button>
+    {% endfor %}
+  </div>
+  {% endif %}
+  <div class="rule-buttons">
+    <button class="pillbtn dangerbtn rule-del-btn" disabled>Delete rule</button>
+    <button class="pillbtn rule-disable-toggle">Disable rule</button>
+  </div>
+</div>
+<div class="lints">
+</div>
+<span class="changes-text">Unsaved changes *</span>
+{% endmacro ruleBase %}
+
+{% macro insertRuleBtn(id) %}
+<div class="insert-rule"><div></div><button id="{{ id }}">{% include "svg/plus" %}</button><div></div></div>
+{% endmacro insertRuleBtn %}
+
+{% block title %}
+Profanity filter - Global Chat
+{% endblock title %}
+
+{% block head %}
+
+<style type="text/css">
+{{theme_css}}
+</style>
+
+<link rel="stylesheet" href="{{ url(path="/static/home.css") }}" />
+{% endblock head %}
+
+{% block content %}
+
+<dialog id="loading-dialog" class="loading-dialog">
+  <span>loading</span>
+</dialog>
+
+<dialog id="save-dialog">
+  <h1 id="save-dialog-title" class="center-title"></h1>
+  <p id="save-dialog-message"></p>
+
+  <p class="hints">
+  <b>Hint:</b> Press <kbd>ctrl</kbd> + <kbd>s</kbd> to save changes.
+  </p>
+
+  <div class="button-row">
+    <button id="show-lints-btn2" class="dangerbtn pillbtn" disabled>Show problems</button>
+    <button autofocus onclick="document.getElementById('save-dialog').close()" class="pillbtn">Continue editing</button>
+  </div>
+</dialog>
+
+<dialog id="lints-dialog">
+  <h2 class="center-title">Problems</h2>
+  <div id="lints"></div>
+
+  <p class="hints">
+    <b>Hint:</b> Press <kbd>ctrl</kbd> + <kbd>e</kbd> to show this menu again.
+  </p>
+
+  <div class="button-row">
+    <button autofocus onclick="document.getElementById('lints-dialog').close()" class="pillbtn">Ok</button>
+  </div>
+</dialog>
+
+<template id="rule-template">
+  <div class="rule">
+    <div class="top-row">
+      <div data-lang="tokengroup" class="match-input rule-input" type="text"></div>
+    </div>
+    {{ self::ruleBase(rule_flags=true) }}
+  </div>
+</template>
+
+<template id="replace-rule-template">
+  <div class="rule">
+    <div class="top-row">
+        <div data-lang="none" class="match-input rule-input char-rule-input" type="text"></div>
+        <span class="replace-arrow">=&gt;</span>
+        <div data-lang="tokengroup" class="replace-input rule-input" type="text"></div>
+    </div>
+    {{ self::ruleBase(rule_flags=false) }}
+  </div>
+</template>
+
+<div class="view">
+<header class="slim-header">
+  <a href="/" class="button">
+    {% include "svg/arrow_l" %}
+  </a>
+  <h1 class="header-title">Profanity filter</h1>
+</header>
+<main>
+  <h2>Replace Rules</h2>
+  {{ self::insertRuleBtn(id="replace-rule-add-btn") }}
+  <div id="replace-rules-list">
+  </div>
+  <h2>Match Rules</h2>
+  {{ self::insertRuleBtn(id="rule-add-btn") }}
+  <div id="rules-list">
+  </div>
+</main>
+</div>
+<div class="toolbar button-row">
+  <button class="pillbtn dangerbtn" id="show-lints-btn" disabled>Show problems</button>
+  <button class="pillbtn" id="save-btn">Save rules</button>
+</div>
+
+{% endblock content %}
+
+{% block scripts %}
+<script id="tokenInfo" type="application/json">
+  {{ tokeninfo | json_encode | safe }}
+</script>
+<script defer type="text/javascript" src="{{ url(path="/static/home.js") }}"></script>
+{% endblock scripts %}

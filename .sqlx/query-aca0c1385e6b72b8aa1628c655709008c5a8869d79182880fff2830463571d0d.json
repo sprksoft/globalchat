@@ -1,0 +1,53 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO users (googleid, irl_name) VALUES ($1, $2) ON CONFLICT (googleid) DO UPDATE SET irl_name = $2 RETURNING *;",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "smid",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "googleid",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "irl_name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "role",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 5,
+        "name": "ban_count",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Varchar"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      true,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "aca0c1385e6b72b8aa1628c655709008c5a8869d79182880fff2830463571d0d"
+}

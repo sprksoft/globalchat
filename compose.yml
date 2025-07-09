@@ -1,22 +1,59 @@
 services:
+  db:
+    image: postgres
+    user: postgres
+    networks:
+      - main
+    ports:
+      - 5432:5432
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_PASSWORD=smpppasswd
+
   smppgc:
     build:
       dockerfile: Dockerfile
+      target: dev
     networks:
-      - ldeveuorg_gc
-      - gc
+      - main
+    ports:
+      - 80:8080
     volumes:
       - proffilter:/var/proffilter
-      - auth:/var/auth
+    secrets:
+      - oauth_secret_google
+    develop:
+      watch:
+        - action: sync
+          path: smppgc/client
+          target: /client
 
-    expose:
-      - 8080
+        - action: sync+restart
+          path: smppgc/www
+          target: /app/www
+
+        - action: sync+restart
+          path: smppgc/Rocket.toml
+          target: /app/Rocket.toml
+
+        - action: sync+restart
+          path: smppgc/templates
+          target: /app/templates
+
+        - action: rebuild
+          path: smppgc/src
+
+        - action: rebuild
+          path: smppgc/migrations
 
 volumes:
+  db-data:
   proffilter:
-  auth:
+
+secrets:
+  oauth_secret_google:
+    file: /etc/smppserver/oauth_secret_google
 
 networks:
-  gc:
-  ldeveuorg_gc:
-    external: true
+  main:
