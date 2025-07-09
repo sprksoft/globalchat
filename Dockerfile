@@ -2,7 +2,7 @@ ARG ESBUILD_CMD="esbuild --bundle --minify --sourcemap --outdir=/app/www/ /clien
 ARG BINARY_SOURCE="builder"
 
 FROM rust:alpine AS builder
-  RUN apk update && apk add esbuild musl-dev
+  RUN apk update && apk add esbuild musl-dev ca-certificates
 
   ENV SQLX_OFFLINE=true
   ENV RUSTUP_TOOLCHAIN=stable
@@ -15,14 +15,14 @@ FROM rust:alpine AS builder
       --mount=type=cache,target=/usr/local/rustup/ \
       <<EOF
 set -e
-cargo build --locked --release --bin smppgc
+cargo build --locked --bin smppgc
 mkdir /app
 
 cp target/release/smppgc /app/app
 EOF
 
-FROM rust:alpine AS artifact
-  RUN apk update && apk add esbuild
+FROM --platform=$BUILDPLATFORM rust:alpine AS artifact
+  RUN apk update && apk add esbuild ca-certificates
   COPY ./.artifacts/smppgc /app/app
 
 FROM $BINARY_SOURCE AS late-builder
@@ -42,7 +42,6 @@ FROM late-builder AS dev
   EXPOSE 8080
 
   ENV ROCKET_CONFIG=/app/Rocket.toml
-  ENV ROCKET_PROFILE=debug
 
   COPY --chmod=777 <<EOF /entry.sh
 #!/bin/sh
@@ -57,9 +56,9 @@ EOF
 
 FROM scratch AS prod
   COPY --from=late-builder /app /app
+  COPY --from=late-builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 
   EXPOSE 8080
   WORKDIR /app
   ENV ROCKET_CONFIG=/app/Rocket.toml
-  ENV ROCKET_PROFILE=release
   CMD [ "/app/app" ]

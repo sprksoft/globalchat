@@ -48,7 +48,7 @@ build ()
   mkdir -p .artifacts
   cp -rf target/$RUSTTARGET/release/smppgc .artifacts/smppgc # Copy artifacts because target/ is in .dockerignore
 
-  $DOCKER buildx build --platform $DOCKERTARGET --build-arg BINARY_SOURCE=artifact -f smppgc/Dockerfile -t "smppserver_smppgc:prod" .
+  $DOCKER buildx build --platform $DOCKERTARGET --build-arg BINARY_SOURCE=artifact -t "smppserver_smppgc:beta" .
 
 }
 
@@ -57,13 +57,13 @@ push_image () {
   $DOCKER save $1 | $SSH $2 $PROD_SERVER_DOCKER load
 }
 
-push-deploy ()
+push_deploy ()
 {
   image="smppserver_smppgc:beta"
   push_image $image $1
 
   echo "redeploying service on prod server..."
-  $SSH $PROD_SERVER "~/source/repos/ldeveuorg-infra/deploy.sh $image"
+  $SSH $1 "~/source/repos/ldeveuorg-infra/deploy.sh $image"
 }
 
 USAGE="Usage: $0 <cmd>
@@ -82,7 +82,7 @@ case "$1" in
     build
     ;;
   push-deploy)
-    push-deploy $2
+    push_deploy $2
     ;;
   *)
     echo "invalid cmd: $1"
