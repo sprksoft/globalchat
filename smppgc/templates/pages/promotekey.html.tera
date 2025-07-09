@@ -24,13 +24,10 @@
     <h1>Je hebt al een andere sleutel gebruikt</h1>
     <p>Deze sleutel is gelig en nog niet gebruikt maar je bent al een moderator of hoger.</p>
 
-    {% elif status == "lostcookie" %}
-    <h1>Oei! er ging iets mis. Probeer het opnieuw</h1>
-    <p>Het koekje is verloren.</p>
-
     {% else %}
     <h1>Ongeldige status</h1>
-    <p>Wat???</p>
+    <p>Oops klein foutje van mij (of groot)</p>
+    <code>status: {{ status }}</code>
 
     {% endif %}
   </main>

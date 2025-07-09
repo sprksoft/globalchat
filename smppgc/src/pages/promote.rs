@@ -22,16 +22,26 @@ enum PromoteResponse {
 async fn promote(
     key: &str,
     theme: Theme<'_>,
-    ses_id: SesId,
+    ses_id: Option<SesId>,
     mut db: Connection<Db>,
+    origin: &Origin<'_>,
 ) -> DbResult<PromoteResponse> {
-    let result = query!("SELECT claim_key($1,$2)", ses_id.inner(), key)
-        .fetch_one(&mut **db)
-        .await?;
-    let status: String = result.claim_key.unwrap_or("invaliderror".to_string());
+    let status: String = match ses_id {
+        Some(ses_id) => {
+            let result = query!("SELECT claim_key($1,$2)", ses_id.inner(), key)
+                .fetch_one(&mut **db)
+                .await?;
+            result.claim_key.unwrap_or("invaliderror".to_string())
+        }
+        None => "notloggedin".to_string(),
+    };
 
     Ok(if status == "ok" {
         PromoteResponse::Redirect(Redirect::to("/"))
+    } else if status == "notloggedin" {
+        PromoteResponse::Redirect(Redirect::to(uri!(crate::pages::login(
+            redirect = origin.to_string()
+        ))))
     } else {
         PromoteResponse::Template(Template::render(
             "pages/promotekey",
@@ -41,11 +51,6 @@ async fn promote(
             },
         ))
     })
-}
-#[allow(unused_variables)]
-#[get("/promote?<key>", rank = 0)]
-fn promote_nologin(key: &str, origin: &Origin<'_>) -> Redirect {
-    Redirect::to(uri!(crate::pages::login(redirect = origin.to_string())))
 }
 
 fn shorten_name(name: &str) -> String {
@@ -120,6 +125,6 @@ async fn mods(
 
 pub fn stage() -> AdHoc {
     AdHoc::on_ignite("promote", |r| async {
-        r.mount("/", routes![promote, promote_nologin, mods])
+        r.mount("/", routes![promote, mods])
     })
 }

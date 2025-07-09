@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM sessions WHERE EXTRACT(epoch from now())-created_at > $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Numeric"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "51aca196ce4c3878861aeb54aa55a1562fd4e78707480ab4550d5f63b60b6daa"
+}
