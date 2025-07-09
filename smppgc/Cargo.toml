@@ -1,6 +1,6 @@
 [package]
 name = "smppgc"
-version="2025.7.0"
+version="2025.7.1"
 authors.workspace = true
 edition.workspace = true
 
@@ -30,3 +30,4 @@ rocket={version="0.5.1"}
 rocket_ws={version="0.1.1"}
 rocket_dyn_templates={version="0.2.0", features=["tera"]}
 rocket_db_pools={version="0.2.0", features=["sqlx_postgres"]}
+openssl = { version = "0.10", features = ["vendored"] }
