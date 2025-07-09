@@ -40,13 +40,30 @@ client_secret_file="/run/secrets/oauth_secret_google"
 url="postgres://postgres:smpppasswd@db/postgres"
 
 
+############## DEBUG ##############
 [debug]
 debug=true
 log_level="normal"
 
+############## BETA ##############
+[beta]
+debug=false
+log_level = "critical"
+
+[beta.oauth.google]
+redirect_uri="https://gcbeta.smartschoolplusplus.com/oauth/return/google"
+
+[beta.databases.sqlx]
+url="postgres://smpp:smpppasswd@db/smppbeta"
+
+
+############## RELEASE ##############
 [release]
 debug=false
 log_level = "critical"
+
+[release.oauth.google]
+redirect_uri="https://gc.smartschoolplusplus.com/oauth/return/google"
 
 [release.databases.sqlx]
 url="postgres://smpp:smpppasswd@db/smpp"
