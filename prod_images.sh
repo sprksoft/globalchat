@@ -57,9 +57,13 @@ push_image () {
   $DOCKER save $1 | $SSH $2 $PROD_SERVER_DOCKER load
 }
 
-push ()
+push-deploy ()
 {
-  push_image smppserver_smppgc:prod $1
+  image="smppserver_smppgc:beta"
+  push_image $image $1
+
+  echo "redeploying service on prod server..."
+  $SSH $PROD_SERVER "~/source/repos/ldeveuorg-infra/deploy.sh $image"
 }
 
 USAGE="Usage: $0 <cmd>
@@ -67,7 +71,7 @@ USAGE="Usage: $0 <cmd>
     install required tools
   build
     build images
-  push username@host
+  push-deploy username@host
     push the build production images to the server
 "
 case "$1" in
@@ -77,8 +81,8 @@ case "$1" in
   build)
     build
     ;;
-  push)
-    push $2
+  push-deploy)
+    push-deploy $2
     ;;
   *)
     echo "invalid cmd: $1"
