@@ -1452,7 +1452,7 @@ checksum = "23fb14cb19457329c82206317a5663005a4d404783dc74f4252769b0d5f42856"
 
 [[package]]
 name = "lmetrics"
-version = "2025.3.9"
+version = "2025.7.0"
 dependencies = [
  "log",
  "once_cell",
@@ -1764,6 +1764,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d05e27ee213611ffe7d6348b942e8f942b37114c00cc03cec254295a4a17852e"
 
 [[package]]
+name = "openssl-src"
+version = "300.5.1+3.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "735230c832b28c000e3bc117119e6466a663ec73506bc0a9907ea4187508e42a"
+dependencies = [
+ "cc",
+]
+
+[[package]]
 name = "openssl-sys"
 version = "0.9.107"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1771,6 +1780,7 @@ checksum = "8288979acd84749c744a9014b4382d42b8f7b2592847b5afb2ed29e5d16ede07"
 dependencies = [
  "cc",
  "libc",
+ "openssl-src",
  "pkg-config",
  "vcpkg",
 ]
@@ -2018,7 +2028,7 @@ dependencies = [
 
 [[package]]
 name = "profanity"
-version = "2025.3.9"
+version = "2025.7.0"
 dependencies = [
  "bitflags 2.9.0",
  "censor",
@@ -2585,7 +2595,7 @@ checksum = "3c5e1a9a646d36c3599cd173a41282daf47c44583ad367b8e6837255952e5c67"
 
 [[package]]
 name = "smppgc"
-version = "2025.3.9"
+version = "2025.7.0"
 dependencies = [
  "base64 0.22.1",
  "bincode 1.3.3",
@@ -2595,6 +2605,7 @@ dependencies = [
  "lazy_static",
  "lmetrics",
  "log",
+ "openssl",
  "profanity",
  "reqwest",
  "rocket",

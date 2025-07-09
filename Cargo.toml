@@ -6,11 +6,6 @@ members= ["smppgc", "lmetrics", "string_tree", "profanity", "wordfilter"]
 authors=["ldev <ldev@ldev.eu.org>"]
 edition = "2021"
 
-[workspace.metadata.cross.target.armv7-unknown-linux-musleabihf]
-pre-build = [
-  "apk add pkgconf openssl-dev"
-]
-
 [patch.crates-io]
 rocket = { git="https://github.com/Xgames123/Rocket.git", branch="v0.5" }
 rocket_ws = { git="https://github.com/Xgames123/Rocket.git", branch="v0.5" }
