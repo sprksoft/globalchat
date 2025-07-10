@@ -26,6 +26,7 @@ enum SyncResponse {
 #[post("/prof/ruleset", data = "<changes>")]
 async fn sync_ruleset(
     _ses: AdminUser,
+    _csrf: CSRFProtect,
     changes: Json<RulesetChanges>,
     global_ruleset: &State<Mutex<ProfRuleset>>,
     global_filter: &State<RwLock<ProfanityFilter>>,
@@ -67,7 +68,7 @@ async fn sync_ruleset(
 }
 
 #[get("/role")]
-fn role(user: Option<User>, _csrf: CSRFProtect) -> &'static str {
+fn role(user: Option<User>) -> &'static str {
     match user.map(|u| u.role()) {
         None => "not logged in",
         Some(Role::Owner) => "owner",
@@ -103,7 +104,12 @@ async fn new_key(
 }
 
 #[post("/demote?<id>")]
-async fn demote(user: User, id: i32, mut db: Connection<Db>) -> DbResult<DemoteResponder> {
+async fn demote(
+    user: User,
+    id: i32,
+    _csrf: CSRFProtect,
+    mut db: Connection<Db>,
+) -> DbResult<DemoteResponder> {
     let result = query!(
         "UPDATE users SET role=0 WHERE id=$1 AND role < $2",
         id,

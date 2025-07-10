@@ -1,11 +1,11 @@
-import * as common from './common/common.js'
-import { log } from './common/utils.js'
-import * as syntax from './home/syntax.js'
-import * as rule from './home/rule.js'
+import * as common from './common/text.js'
+import { log, getCSRFToken } from './common/utils.js'
+import * as syntax from './prof/syntax.js'
+import * as rule from './prof/rule.js'
 
 import './common/common.css'
 import './common/buttons.css'
-import './home/css/home.css'
+import './prof/css/prof.css'
 
 const loadingDialog = document.getElementById("loading-dialog");
 const saveDialog = document.getElementById("save-dialog");
@@ -178,6 +178,7 @@ async function apiCall(changes) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        "X-CSRF-Protect": getCSRFToken(),
       },
       body:JSON.stringify(changes),
     });

@@ -2,11 +2,15 @@
 
 <!-- vim: set ft=html: -->
 
+{% block title %}
+Claim Promotion - Global Chat
+{% endblock title %}
+
 {% block head %}
 <style>
 {{ theme_css }}
 </style>
-<link rel="stylesheet" href="{{ url(path="/static/home.css") }}" />
+<link rel="stylesheet" href="{{ url(path="/static/basic.css") }}" />
 {% endblock head %}
 
 {% block content %}

@@ -36,6 +36,16 @@ fn login(
     ))
 }
 
+#[get("/login_complete")]
+fn login_complete(theme: Theme) -> Template {
+    Template::render(
+        "pages/login_complete",
+        context! {
+            theme_css: theme.css(),
+        },
+    )
+}
+
 #[get("/")]
 fn home(theme: Theme, user: Option<User>) -> AllowSmFrame<Template> {
     let logged_in = user.is_some();
@@ -92,14 +102,23 @@ fn chat_noses(_theme: Theme) -> Redirect {
 
 pub fn stage() -> AdHoc {
     AdHoc::on_ignite("templates", |r| async {
+        let profile_name = r.figment().profile().to_string();
         r.mount(
             "/",
-            routes![login, chat, ro_chat, chat_noses, prof::prof, home],
+            routes![
+                login,
+                login_complete,
+                chat,
+                ro_chat,
+                chat_noses,
+                prof::prof,
+                home
+            ],
         )
         .attach(promote::stage())
         .attach(api::stage())
         .attach(Template::custom(move |engines| {
-            templating::setup(&mut engines.tera);
+            templating::setup(&mut engines.tera, profile_name.clone());
         }))
     })
 }

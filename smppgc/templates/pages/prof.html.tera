@@ -34,7 +34,7 @@ Profanity filter - Global Chat
 {{theme_css}}
 </style>
 
-<link rel="stylesheet" href="{{ url(path="/static/home.css") }}" />
+<link rel="stylesheet" href="{{ url(path="/static/prof.css") }}" />
 {% endblock head %}
 
 {% block content %}
@@ -119,5 +119,5 @@ Profanity filter - Global Chat
 <script id="tokenInfo" type="application/json">
   {{ tokeninfo | json_encode | safe }}
 </script>
-<script defer type="text/javascript" src="{{ url(path="/static/home.js") }}"></script>
+<script defer type="text/javascript" src="{{ url(path="/static/prof.js") }}"></script>
 {% endblock scripts %}

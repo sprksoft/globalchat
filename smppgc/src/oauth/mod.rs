@@ -1,5 +1,5 @@
 use lmetrics::metrics;
-use rocket::time::Duration;
+use rocket::{http::SameSite, time::Duration};
 
 use log::*;
 use rocket::{
@@ -175,7 +175,7 @@ async fn oauth_return(
         Cookie::build(("session", ses_id.to_string()))
             .http_only(true)
             .secure(true)
-            .same_site(rocket::http::SameSite::Lax)
+            .same_site(SameSite::None)
             .max_age(Duration::seconds(
                 user_config.max_session_age.saturating_sub(10) as i64,
             ))
@@ -219,7 +219,7 @@ pub fn set_continue_url_cookie(cookiejar: &CookieJar<'_>, url: String) {
         Cookie::build((REDIRECT_URL_COOKIE, url))
             .http_only(true)
             .secure(true)
-            .same_site(rocket::http::SameSite::Lax)
+            .same_site(SameSite::None)
             .max_age(Duration::seconds(3600))
             .path("/")
             .build(),
