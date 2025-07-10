@@ -1,4 +1,5 @@
 use rocket_dyn_templates::tera::{self, Tera};
+use serde_json::Value;
 struct UrlFunction;
 impl tera::Function for UrlFunction {
     fn call(
@@ -30,7 +31,21 @@ impl tera::Function for VersionIntFunction {
     }
 }
 
-pub fn setup(tera: &mut Tera) {
+struct ProfileFunction(String);
+impl tera::Function for ProfileFunction {
+    fn call(
+        &self,
+        _args: &std::collections::HashMap<String, serde_json::Value>,
+    ) -> tera::Result<serde_json::Value> {
+        Ok(Value::String(self.0.clone()))
+    }
+    fn is_safe(&self) -> bool {
+        true
+    }
+}
+
+pub fn setup(tera: &mut Tera, profile_name: String) {
     tera.register_function("version_int", VersionIntFunction);
     tera.register_function("url", UrlFunction);
+    tera.register_function("rocket_profile", ProfileFunction(profile_name));
 }

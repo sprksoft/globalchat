@@ -1,5 +1,3 @@
-import './utils.js'
-
 document.addEventListener("input", (e) =>{
   if (e.target.dataset.plaintext == "true" && e.dataTransfer !== null) {
     let input = e.target;

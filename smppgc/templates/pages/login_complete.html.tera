@@ -2,6 +2,10 @@
 
 <!-- vim: set ft=html: -->
 
+{% block title %}
+Login Compleet - Global Chat
+{% endblock title %}
+
 {% block head %}
 <style>
 {{ theme_css }}
@@ -12,15 +16,8 @@
 {% block content %}
 <div class="view">
   <main>
-    <h1>{{ title }}</h1>
-    <p>{{ error }}</p>
-    <code>
-      {{ internal }}
-    </code>
-    <p>
-      Probeer eens je pagina te refreshen of
-      <a href="/v1">Ga terug naar de chat</a>
-    </p>
+    <h1>Je bent ingelogd</h1>
+    <p>Keer terug naar de pagina waar je vandaan komt</p>
   </main>
 </div>
 

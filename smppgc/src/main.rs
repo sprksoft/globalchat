@@ -68,7 +68,7 @@ fn err_test() -> rocket::response::Debug<()> {
 }
 
 #[get("/csrf_protect_test")]
-fn test(_csrf: CSRFProtect) -> &'static str {
+fn csrf_test(_csrf: CSRFProtect) -> &'static str {
     "200 ok"
 }
 
@@ -104,7 +104,7 @@ fn rocket() -> _ {
     ]);
     rocket::build()
         .register("/", catchers![internal_server_error, forbidden])
-        .mount("/", routes![server_version, err_test, test])
+        .mount("/", routes![server_version, err_test, csrf_test])
         .mount("/metrics", metrics)
         .attach(db::stage())
         .attach(static_routing::stage())

@@ -224,10 +224,16 @@ dialog {
   border-radius: 100px;
   background-color: var(--color-base01);
   padding: 1rem;
+}
+
+.loading-dialog,
+.loading-spinner {
   animation: spinner 3s ease infinite;
 }
 
-.loading-dialog span {
+.loading-dialog span,
+.loading-spinner {
+  text-align: center;
   font-weight: bold;
   color: var(--color-accent);
   margin-top: auto;

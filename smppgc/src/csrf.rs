@@ -1,4 +1,4 @@
-use std::{convert::Infallible, ops::Deref};
+use std::convert::Infallible;
 
 use rocket::{
     async_trait,

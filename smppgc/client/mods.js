@@ -2,7 +2,9 @@ import $ from "./common/jquery.js";
 import {getCSRFToken} from './common/utils.js';
 
 $(".demote-btn").on("click", async function() {
-  await fetch("/api/demote?id=" + this.dataset.uid, { method: "POST" });
+  await fetch("/api/demote?id=" + this.dataset.uid, { method: "POST", headers: {
+    "X-CSRF-Protect": getCSRFToken(),
+  } });
   this.parentElement.parentElement.remove();
 });
 
