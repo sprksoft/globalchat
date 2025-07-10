@@ -12,6 +12,9 @@ build: _docker-check
   $DOCKER_COMPOSE build
   $DOCKER_COMPOSE up --watch
 
+check: db-up
+  $CARGO check
+
 db-up: _docker-check
   $DOCKER_COMPOSE -f db.compose.yml up --detach
 

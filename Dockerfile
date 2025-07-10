@@ -18,7 +18,7 @@ set -e
 cargo build --locked --bin smppgc
 mkdir /app
 
-cp target/release/smppgc /app/app
+cp target/debug/smppgc /app/app
 EOF
 
 FROM --platform=$BUILDPLATFORM rust:alpine AS artifact

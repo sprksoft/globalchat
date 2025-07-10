@@ -1,12 +1,4 @@
-use rocket::{
-    fairing::AdHoc,
-    get,
-    http::{Cookie, CookieJar, SameSite},
-    response::Redirect,
-    routes,
-    time::{Duration, OffsetDateTime},
-    State,
-};
+use rocket::{fairing::AdHoc, get, http::CookieJar, response::Redirect, routes, State};
 use rocket_dyn_templates::{context, Template};
 
 use crate::{
@@ -15,7 +7,7 @@ use crate::{
     oauth::{self, OAuth},
     themes::Theme,
     users::{role::Role, User, UserConfig},
-    utils::AllowSmIFrame,
+    utils::AllowSmFrame,
 };
 
 mod api;
@@ -30,9 +22,9 @@ fn login(
     redirect: String,
     oauth: &State<OAuth>,
     accepted_disclaimer: DisclaimerVer,
-) -> AllowSmIFrame<Template> {
+) -> AllowSmFrame<Template> {
     oauth::set_continue_url_cookie(&cookiejar, redirect);
-    AllowSmIFrame(Template::render(
+    AllowSmFrame(Template::render(
         "pages/login",
         context! {
             oauth_smartschool: oauth.has_provider(oauth::Provider::Smartschool),
@@ -45,10 +37,10 @@ fn login(
 }
 
 #[get("/")]
-fn home(theme: Theme, user: Option<User>) -> AllowSmIFrame<Template> {
+fn home(theme: Theme, user: Option<User>) -> AllowSmFrame<Template> {
     let logged_in = user.is_some();
     let role = user.map(|u| u.role()).unwrap_or(Role::User);
-    AllowSmIFrame(Template::render(
+    AllowSmFrame(Template::render(
         "pages/home",
         context! {
             role,
@@ -59,27 +51,15 @@ fn home(theme: Theme, user: Option<User>) -> AllowSmIFrame<Template> {
     ))
 }
 
-fn set_cookie_theme(cookiejar: &CookieJar<'_>, theme: &Theme) {
-    let theme_string = serde_json::to_string(&theme).expect("Failed to convert theme to json");
-    cookiejar.add(
-        Cookie::build(("smpptheme", theme_string))
-            .same_site(SameSite::None)
-            .expires(OffsetDateTime::now_utc() + Duration::hours(100_000)),
-    );
-}
-
 #[get("/v1")]
 fn chat(
     theme: Theme,
     user: User,
     message_limiter: &State<MessageLimiter>,
     user_config: &State<UserConfig>,
-    cookiejar: &CookieJar<'_>,
-) -> AllowSmIFrame<Template> {
-    set_cookie_theme(cookiejar, &theme);
-
+) -> AllowSmFrame<Template> {
     let (min_message_len, max_message_len) = message_limiter.message_size_range();
-    AllowSmIFrame(Template::render(
+    AllowSmFrame(Template::render(
         "pages/chat",
         context! (theme_css:theme.css(),
             readonly: false,
@@ -92,10 +72,8 @@ fn chat(
 }
 
 #[get("/rochat")]
-fn ro_chat(cookiejar: &CookieJar<'_>, theme: Theme) -> AllowSmIFrame<Template> {
-    set_cookie_theme(cookiejar, &theme);
-
-    AllowSmIFrame(Template::render(
+fn ro_chat(theme: Theme) -> AllowSmFrame<Template> {
+    AllowSmFrame(Template::render(
         "pages/chat",
         context! (theme_css:theme.css(),
             readonly: true,
@@ -108,7 +86,7 @@ fn ro_chat(cookiejar: &CookieJar<'_>, theme: Theme) -> AllowSmIFrame<Template> {
 }
 
 #[get("/v1", rank = 0)]
-fn chat_noses() -> Redirect {
+fn chat_noses(_theme: Theme) -> Redirect {
     Redirect::to("/login?redirect=/v1")
 }
 

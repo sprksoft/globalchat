@@ -36,14 +36,15 @@ redirect_uri="http://localhost/oauth/return/google"
 client_id="174379466053-6ob48jh8hfjdpmu726173d7iqabcdmcu.apps.googleusercontent.com"
 client_secret_file="/run/secrets/oauth_secret_google"
 
-[default.databases.sqlx]
-url="postgres://postgres:smpppasswd@db/postgres"
 
 
 ############## DEBUG ##############
 [debug]
 debug=true
 log_level="normal"
+
+[debug.databases.sqlx]
+url="postgres://postgres:smpppasswd@db/postgres"
 
 ############## BETA ##############
 [beta]
