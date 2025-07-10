@@ -1,9 +1,10 @@
 use lazy_static::lazy_static;
 use log::*;
 use rocket::{
-    http::Status,
+    http::{Cookie, SameSite, Status},
     request::{FromRequest, Outcome},
     serde::{de::Visitor, ser::SerializeMap, Deserialize, Serialize},
+    time::Duration,
     Request,
 };
 
@@ -130,12 +131,19 @@ impl<'a> Theme<'a> {
         out.push_str("}");
         out
     }
-    pub fn set_value(&mut self, value: CssColorVar<'static, 'a>) {
+    /// Returns true if the value is modified
+    pub fn set_value(&mut self, value: CssColorVar<'static, 'a>) -> bool {
         for col in self.colors.iter_mut() {
             if col.name() == value.name() {
-                col.value = value.value;
+                return if col.value != value.value {
+                    col.value = value.value;
+                    true
+                } else {
+                    false
+                };
             }
         }
+        false
     }
 }
 
@@ -187,6 +195,7 @@ impl<'r> FromRequest<'r> for Theme<'r> {
     type Error = String;
 
     async fn from_request(req: &'r Request<'_>) -> Outcome<Self, Self::Error> {
+        let mut set_theme_cookie = false;
         let mut theme = req
             .cookies()
             .get("smpptheme")
@@ -208,7 +217,11 @@ impl<'r> FromRequest<'r> for Theme<'r> {
                 continue;
             };
             match CssColorVar::new(color_name, value) {
-                Ok(colvar) => theme.set_value(colvar),
+                Ok(colvar) => {
+                    if theme.set_value(colvar) {
+                        set_theme_cookie = true; // Set the cookie if the theme is modified.
+                    }
+                }
                 Err(_) => {
                     return Outcome::Error((
                         Status::BadRequest,
@@ -216,6 +229,16 @@ impl<'r> FromRequest<'r> for Theme<'r> {
                     ))
                 }
             }
+        }
+
+        if set_theme_cookie {
+            let theme_string =
+                serde_json::to_string(&theme).expect("Failed to convert theme to json");
+            req.cookies().add(
+                Cookie::build(("smpptheme", theme_string))
+                    .same_site(SameSite::None)
+                    .max_age(Duration::days(365)),
+            );
         }
 
         Outcome::Success(theme)

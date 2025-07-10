@@ -14,12 +14,13 @@
   <main>
     <h1>{{ title }}</h1>
     <p>{{ error }}</p>
+    <code>
+      {{ internal }}
+    </code>
     <p>
-      <code>
-        {{ internal }}
-      </code>
+      Probeer eens je pagina te refreshen of
+      <a href="/v1">Ga terug naar de chat</a>
     </p>
-    <a href="/v1">Ga terug naar de chat</a>
   </main>
 </div>
 

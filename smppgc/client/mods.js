@@ -1,4 +1,5 @@
 import $ from "./common/jquery.js";
+import {getCSRFToken} from './common/utils.js';
 
 $(".demote-btn").on("click", async function() {
   await fetch("/api/demote?id=" + this.dataset.uid, { method: "POST" });
@@ -8,6 +9,9 @@ $(".demote-btn").on("click", async function() {
 $("#newkey-btn").on("click", async function() {
   await fetch("/api/new_key?role=mod", {
     method: "POST",
+    headers: {
+      "X-CSRF-Protect": getCSRFToken(),
+    }
   });
   location.reload();
 });

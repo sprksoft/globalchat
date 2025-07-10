@@ -18,6 +18,8 @@ enum PromoteResponse {
     Template(Template),
 }
 
+///NOTE: This endpoint is not csrf protected because promotekeys can only be obtained by trusted
+///users
 #[get("/promote?<key>")]
 async fn promote(
     key: &str,

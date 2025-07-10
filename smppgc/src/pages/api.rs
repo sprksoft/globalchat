@@ -5,6 +5,7 @@ use uuid::Uuid;
 
 use crate::{
     chat::Chat,
+    csrf::CSRFProtect,
     db::{Db, DbResult},
     profanity::{ProfRuleset, RuleLintSet, RulesetChanges, RulesetError},
     users::{role::Role, AdminUser, User},
@@ -66,7 +67,7 @@ async fn sync_ruleset(
 }
 
 #[get("/role")]
-fn role(user: Option<User>) -> &'static str {
+fn role(user: Option<User>, _csrf: CSRFProtect) -> &'static str {
     match user.map(|u| u.role()) {
         None => "not logged in",
         Some(Role::Owner) => "owner",
@@ -84,7 +85,12 @@ enum DemoteResponder {
 }
 
 #[post("/new_key?<role>")]
-async fn new_key(_admin: AdminUser, role: Role, mut db: Connection<Db>) -> DbResult<String> {
+async fn new_key(
+    _admin: AdminUser,
+    role: Role,
+    mut db: Connection<Db>,
+    _csrf: CSRFProtect,
+) -> DbResult<String> {
     let new_key = Uuid::new_v4().simple().to_string();
     query!(
         "INSERT INTO promote_keys(key,new_role) VALUES ($1, $2)",
