@@ -18,7 +18,7 @@ Home - Global Chat
 <header>
   <h1 class="header-title">Home</h1>
   {% if logged_in %}
-  <span class="role" data-role="{{role}}">
+  <span class="role" data-role="{{role}}" style="font-weight:bold;color:var(--color-accent);">
     {{role}}
   </span>
   {% endif%}

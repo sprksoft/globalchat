@@ -1,6 +1,10 @@
 import $ from "./common/jquery.js";
 import {getCSRFToken} from './common/utils.js';
 
+import './common/common.css'
+import './common/buttons.css'
+import './common/copybtn.css'
+
 $(".demote-btn").on("click", async function() {
   await fetch("/api/demote?id=" + this.dataset.uid, { method: "POST", headers: {
     "X-CSRF-Protect": getCSRFToken(),
@@ -8,15 +12,15 @@ $(".demote-btn").on("click", async function() {
   this.parentElement.parentElement.remove();
 });
 
-$("#newkey-btn").on("click", async function() {
-  await fetch("/api/new_key?role=mod", {
+$(".new-key-btn").on("click", async function() {
+  await fetch("/api/new_key?role="+$(this).attr("data-role"), {
     method: "POST",
     headers: {
       "X-CSRF-Protect": getCSRFToken(),
     }
   });
   location.reload();
-});
+})
 
 $(".copyable").after(function() {
   let key = this.innerText;
@@ -30,3 +34,4 @@ $(".copyable").after(function() {
     }, 1000);
   });
 });
+

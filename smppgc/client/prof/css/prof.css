@@ -3,23 +3,6 @@ body {
   color: var(--color-text);
 }
 
-.header-title{
-  margin: 0px;
-}
-
-main {
-  margin-left: auto;
-  margin-right: auto;
-  padding: 0.5em;
-  min-width: 100em;
-}
-
-@media screen and (max-width: 100rem) {
-  main {
-    min-width: auto;
-    margin: 0px;
-  }
-}
 .toolbar {
   background: var(--color-base01);
   border-top: solid var(--color-base02) var(--border-size);
@@ -238,11 +221,6 @@ main {
   opacity: 0.8;
 }
 
-.role {
-  font-weight: bold;
-  color: var(--color-accent);
-}
-
 .changes-text {
   opacity: 0;
   font-size: 0.9em;
@@ -256,20 +234,3 @@ main {
 }
 
 
-.copybtn,.copybtn:hover {
-  opacity: 0;
-  transition: opacity 0.5s;
-  margin: 0px;
-  margin-left: 0.5em;
-
-  background-color: var(--color-accent);
-  color: var(--color-base00);
-  border: none;
-}
-td:hover > .copybtn {
-  opacity: 1;
-}
-
-td:has(.copybtn) {
-  padding-right: 0px;
-}

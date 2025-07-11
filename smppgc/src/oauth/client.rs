@@ -7,7 +7,6 @@ use rocket::{
 };
 use thiserror::Error;
 use url::Url;
-use uuid::Uuid;
 
 use super::jwt;
 
@@ -207,11 +206,11 @@ impl OAuth {
     /// Begins the flow by setting the state cookie and returning the redirect.
     pub(super) fn begin_flow(
         &self,
+        state: String,
         provider: &str,
         cookiejar: &CookieJar,
     ) -> Result<Redirect, OAuthError> {
         let client = self.get_client(provider)?;
-        let state = Uuid::new_v4().simple().to_string();
         let url = Url::parse_with_params(
             client.provider.redirect_url_base(),
             &[
