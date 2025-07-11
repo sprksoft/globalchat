@@ -24,4 +24,7 @@ Login Compleet - Global Chat
 {% endblock content %}
 
 {% block scripts %}
+<script>
+  window.opener.postMessage( { type:'login-complete' }, location.origin);
+</script>
 {% endblock scripts %}

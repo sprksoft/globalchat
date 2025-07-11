@@ -79,19 +79,24 @@ fn role(user: Option<User>) -> &'static str {
 }
 
 #[derive(Responder)]
-enum DemoteResponder {
-    Ok(&'static str),
-    #[response(status = 401)]
-    Unauthorized(&'static str),
+enum NewKeyResponder {
+    Ok(String),
+    #[response(status = 403)]
+    Forbidden(&'static str),
 }
 
 #[post("/new_key?<role>")]
 async fn new_key(
-    _admin: AdminUser,
+    admin_user: AdminUser,
     role: Role,
     mut db: Connection<Db>,
     _csrf: CSRFProtect,
-) -> DbResult<String> {
+) -> DbResult<NewKeyResponder> {
+    if !(admin_user.0.role() > role) {
+        return Ok(NewKeyResponder::Forbidden(
+            "Can't create role higher or equal to yourself",
+        ));
+    }
     let new_key = Uuid::new_v4().simple().to_string();
     query!(
         "INSERT INTO promote_keys(key,new_role) VALUES ($1, $2)",
@@ -100,7 +105,14 @@ async fn new_key(
     )
     .execute(&mut **db)
     .await?;
-    return Ok(new_key);
+    return Ok(NewKeyResponder::Ok(new_key));
+}
+
+#[derive(Responder)]
+enum DemoteResponder {
+    Ok(&'static str),
+    #[response(status = 403)]
+    Forbidden(&'static str),
 }
 
 #[post("/demote?<id>")]
@@ -119,7 +131,7 @@ async fn demote(
     .await?;
 
     if result.rows_affected() == 0 {
-        Ok(DemoteResponder::Unauthorized("unauthorized"))
+        Ok(DemoteResponder::Forbidden("unauthorized"))
     } else {
         Ok(DemoteResponder::Ok("ok"))
     }

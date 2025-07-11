@@ -121,7 +121,12 @@ async fn mods(
         .collect();
     Ok(Template::render(
         "pages/mods",
-        context! {theme_css:theme.css(), users:users, keys:keys},
+        context! {
+            theme_css:theme.css(),
+            users:users,
+            keys:keys,
+            can_create_admin_keys: admin_user.0.role() > Role::Admin
+        },
     ))
 }
 
