@@ -10,7 +10,7 @@ Home - Global Chat
 {{theme_css}}
 </style>
 
-<link rel="stylesheet" href="{{ url(path="/static/home.css") }}" />
+<link rel="stylesheet" href="{{ url(path="/static/basic.css") }}" />
 {% endblock head %}
 
 {% block content %}
@@ -18,7 +18,7 @@ Home - Global Chat
 <header>
   <h1 class="header-title">Home</h1>
   {% if logged_in %}
-  <span class="role" data-role="{{role}}">
+  <span class="role" data-role="{{role}}" style="font-weight:bold;color:var(--color-accent);">
     {{role}}
   </span>
   {% endif%}
@@ -27,7 +27,7 @@ Home - Global Chat
   {% if logged_in %}
   <a class="button" href="/v1"><img class="btnicon" src="{{ url(path="/static/logo.webp")}}"><span>Chat</span></a>
   {% else %}
-  <button class="button" onclick="location.href='/login?redirect=/'">login</button>
+  <a class="button" href="/login?redirect=/">login</a>
   {% endif %}
 
   <a class="button" href="/rochat"><img style="filter: saturate(0%)" class="btnicon" src="{{ url(path="/static/logo.webp")}}"><span>Alleen Lezen Chat</span></a>

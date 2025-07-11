@@ -19,12 +19,31 @@ body {
   flex-direction: column;
   scroll-behavior: smooth;
 }
+
+main {
+  margin-left: auto;
+  margin-right: auto;
+  padding: 0.5em;
+  min-width: 100em;
+}
+
+@media screen and (max-width: 100rem) {
+  main {
+    min-width: auto;
+    margin: 0px;
+  }
+}
 .view {
   flex-grow: 1;
   overflow: auto;
   display: flex;
   flex-direction: column;
 }
+
+.header-title{
+  margin: 0px;
+}
+
 svg {
   display: block;
 }
@@ -224,10 +243,16 @@ dialog {
   border-radius: 100px;
   background-color: var(--color-base01);
   padding: 1rem;
+}
+
+.loading-dialog,
+.loading-spinner {
   animation: spinner 3s ease infinite;
 }
 
-.loading-dialog span {
+.loading-dialog span,
+.loading-spinner {
+  text-align: center;
   font-weight: bold;
   color: var(--color-accent);
   margin-top: auto;

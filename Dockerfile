@@ -1,4 +1,4 @@
-ARG ESBUILD_CMD="esbuild --bundle --minify --sourcemap --outdir=/app/www/ /client/chat.js /client/home.js /client/login.js /client/mods.js"
+ARG ESBUILD_CMD="esbuild --bundle --minify --sourcemap --outdir=/app/www/ /client/chat.js /client/prof.js /client/login.js /client/mods.js /client/basic.js"
 ARG BINARY_SOURCE="builder"
 
 FROM rust:alpine AS builder
@@ -18,7 +18,7 @@ set -e
 cargo build --locked --bin smppgc
 mkdir /app
 
-cp target/release/smppgc /app/app
+cp target/debug/smppgc /app/app
 EOF
 
 FROM --platform=$BUILDPLATFORM rust:alpine AS artifact

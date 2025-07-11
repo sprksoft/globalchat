@@ -1,5 +1,5 @@
 use lmetrics::metrics;
-use rocket::time::Duration;
+use rocket::{http::SameSite, time::Duration};
 
 use log::*;
 use rocket::{
@@ -14,6 +14,7 @@ use rocket::{
 use rocket_db_pools::Connection;
 use rocket_dyn_templates::{context, Template};
 use sqlx;
+use uuid::Uuid;
 
 use crate::themes::{self};
 use crate::{db::Db, users::UserConfig};
@@ -23,10 +24,10 @@ use self::client::{OAuthError, OAuthProviderConfig};
 
 mod client;
 mod jwt;
+mod pses_store;
 
 pub use client::{OAuth, Provider};
-
-const REDIRECT_URL_COOKIE: &'static str = "login_continue_url";
+pub use pses_store::{LoginType, PendingSessionStore};
 
 metrics!(
     pub counter total_started_oauth_flows("Total count of started oauth flows");
@@ -82,8 +83,9 @@ impl OAuthResponse {
     }
 }
 
-#[get("/oauth/start?<provider>")]
+#[get("/oauth/start?<provider>&<pses_id>")]
 fn oauth_start(
+    pses_id: &str,
     oauth: &State<OAuth>,
     cookiejar: &CookieJar<'_>,
     provider: &str,
@@ -96,7 +98,7 @@ fn oauth_start(
         ));
     }
 
-    match oauth.begin_flow(provider, cookiejar) {
+    match oauth.begin_flow(pses_id.to_string(), provider, cookiejar) {
         Ok(r) => Ok(OAuthResponse::Redirect(r)),
         Err(OAuthError::ProviderNotFound(p)) => {
             error!("oauth provider '{}' not found", p);
@@ -116,6 +118,7 @@ async fn oauth_return(
     provider: Option<&str>,
     oauth: &State<OAuth>,
     cookiejar: &CookieJar<'_>,
+    ses_store: &State<PendingSessionStore>,
     user_config: &State<UserConfig>,
     mut db: Connection<Db>,
 ) -> Result<OAuthResponse, response::Debug<OAuthError>> {
@@ -124,6 +127,9 @@ async fn oauth_return(
             "'state' is niet dezelfde als de cookie.",
         ));
     }
+    let Ok(pending_id) = Uuid::parse_str(state) else {
+        return Ok(OAuthResponse::fail_flow_422("Invalid 'state'"));
+    };
 
     let user_info = oauth
         .fetch_userinfo(provider.unwrap_or("smartschool"), code)
@@ -171,59 +177,48 @@ async fn oauth_return(
     .await
     .map_err(|e| response::Debug(e.into()))?;
 
+    set_ses_id(cookiejar, ses_id.clone(), &user_config);
+    total_logins::inc();
+
+    let Some(login_type) = ses_store.complete(pending_id, ses_id) else {
+        error!("oauth_return: No pending session found. Redirecting silently to chat...");
+        return Ok(OAuthResponse::Redirect(Redirect::to("/v1")));
+    };
+
+    Ok(OAuthResponse::Redirect(match login_type {
+        LoginType::External => Redirect::to("/login_complete"),
+        LoginType::Internal => ses_store
+            .get_completed(pending_id)
+            .map(|completed| Redirect::to(completed.redirect))
+            .unwrap_or(Redirect::to("/v1")),
+    }))
+}
+
+fn set_ses_id(cookiejar: &CookieJar<'_>, ses_id: SesId, user_config: &UserConfig) {
     cookiejar.add(
         Cookie::build(("session", ses_id.to_string()))
             .http_only(true)
             .secure(true)
-            .same_site(rocket::http::SameSite::Lax)
+            .same_site(SameSite::None)
             .max_age(Duration::seconds(
                 user_config.max_session_age.saturating_sub(10) as i64,
             ))
             .path("/"),
     );
-
-    total_logins::inc();
-
-    let redirect_url = cookiejar
-        .get(REDIRECT_URL_COOKIE)
-        .map(|c| c.value_trimmed().to_string())
-        .filter(|url| validate_redirect_url(&url));
-    cookiejar.remove(REDIRECT_URL_COOKIE);
-
-    dbg!(&redirect_url);
-    Ok(OAuthResponse::Redirect(Redirect::to(
-        redirect_url.unwrap_or("/v1".to_string()),
-    )))
 }
 
-fn validate_redirect_url(url: &str) -> bool {
-    if !url.starts_with("/") {
-        error!("Invalid redirect url (no starting slash): {}", url);
-        return false;
-    }
-    if url.contains("://") || url.contains("javascript:") {
-        error!("Invalid redirect url (contains :// | javascript:): {}", url);
-        return false;
-    }
-    for char in url.chars() {
-        if !(char.is_alphanumeric() || ['/', '=', '_', '-', '?', '&'].contains(&char)) {
-            error!("Invalid redirect url: '{}' invalid char: {}", url, char);
-            return false;
-        }
-    }
-    true
-}
-
-pub fn set_continue_url_cookie(cookiejar: &CookieJar<'_>, url: String) {
-    cookiejar.add(
-        Cookie::build((REDIRECT_URL_COOKIE, url))
-            .http_only(true)
-            .secure(true)
-            .same_site(rocket::http::SameSite::Lax)
-            .max_age(Duration::seconds(3600))
-            .path("/")
-            .build(),
-    );
+#[get("/setup_ses/<id>")]
+fn setup_session(
+    id: &str,
+    cookiejar: &CookieJar<'_>,
+    user_config: &State<UserConfig>,
+    ses_store: &State<PendingSessionStore>,
+) -> Option<Redirect> {
+    let id = Uuid::parse_str(id).ok()?;
+    ses_store.get_completed(id).map(|c| {
+        set_ses_id(cookiejar, c.ses_id, &user_config);
+        Redirect::to(c.redirect)
+    })
 }
 
 pub fn stage() -> AdHoc {
@@ -234,7 +229,8 @@ pub fn stage() -> AdHoc {
         oauth.opt_provider(Provider::Smartschool, config.smartschool);
         oauth.opt_provider(Provider::Google, config.google);
 
-        r.mount("/", routes![oauth_start, oauth_return])
+        r.mount("/", routes![oauth_start, oauth_return, setup_session])
             .manage(oauth)
+            .attach(pses_store::stage())
     })
 }

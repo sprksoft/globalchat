@@ -1,5 +1,5 @@
 import { log, hasVirtKb } from "./common/utils.js";
-import * as common from "./common/common.js";
+import * as common from "./common/text.js";
 import * as proto from "./chat/protocol.js";
 import * as mk from "./chat/mkels.js";
 import * as sflake from "./chat/snowflake.js";

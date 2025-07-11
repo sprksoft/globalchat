@@ -11,7 +11,7 @@ Moderators - Global Chat
 {{theme_css}}
 </style>
 
-<link rel="stylesheet" href="{{ url(path="/static/home.css") }}" />
+<link rel="stylesheet" href="{{ url(path="/static/mods.css") }}" />
 {% endblock head %}
 
 {% block content %}
@@ -63,7 +63,10 @@ Moderators - Global Chat
       {% endfor %}
     </tbody>
   </table>
-  <button id="newkey-btn" class="pillbtn">New Mod Key</button>
+  <button data-role="mod" class="new-key-btn pillbtn">New Mod Key</button>
+  {% if can_create_admin_keys %}
+  <button data-role="admin" class="new-key-btn pillbtn">New Admin Key</button>
+  {% endif %}
 </main>
 <div>
 

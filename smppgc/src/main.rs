@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+use csrf::CSRFProtect;
 use lmetrics::metrics;
 use lmetrics::LMetrics;
 use rocket::catch;
@@ -7,13 +8,13 @@ use rocket::get;
 use rocket::launch;
 use rocket::routes;
 use rocket::serde::Deserialize;
-use rocket::Responder;
 use rocket_dyn_templates::context;
 use rocket_dyn_templates::Template;
 use utils::static_routing;
-use utils::CSPFrameAncestors;
+use utils::AllowSmFrame;
 
 mod chat;
+mod csrf;
 mod db;
 mod disclaimer;
 mod oauth;
@@ -42,28 +43,33 @@ metrics! {
     pub counter total_500_responses("Total amount of 500 responses");
 }
 
-#[derive(Responder)]
-struct ErrorResponder {
-    inner: Template,
-    csp: CSPFrameAncestors<'static>,
-}
-
 #[catch(500)]
-fn internal_server_error() -> ErrorResponder {
+fn internal_server_error() -> AllowSmFrame<Template> {
     total_500_responses::inc();
     let theme = themes::DEFAULT_THEME.clone();
-    ErrorResponder {
-        inner: Template::render(
-            "pages/error_page",
-            context! { title: "500 Internal Server Error", error: "Oei! Er ging iets mis.", theme_css: theme.css(), internal:"500" },
-        ),
-        csp: CSPFrameAncestors::SMARTSCHOOL_PLAT,
-    }
+    AllowSmFrame(Template::render(
+        "pages/error_page",
+        context! { title: "500 Internal Server Error", error: "Oei! Er ging iets mis.", theme_css: theme.css(), internal:"500" },
+    ))
+}
+
+#[catch(403)]
+fn forbidden() -> AllowSmFrame<Template> {
+    let theme = themes::DEFAULT_THEME.clone();
+    AllowSmFrame(Template::render(
+        "pages/error_page",
+        context! { title: "403 Forbidden", error: "Je hebt geen toegang of je pagina is oud.", theme_css: theme.css(), internal:"403" },
+    ))
 }
 
 #[get("/err_test")]
 fn err_test() -> rocket::response::Debug<()> {
     rocket::response::Debug(())
+}
+
+#[get("/csrf_protect_test")]
+fn csrf_test(_csrf: CSRFProtect) -> &'static str {
+    "200 ok"
 }
 
 #[get("/version")]
@@ -97,8 +103,8 @@ fn rocket() -> _ {
         &lmetrics::http_req_total::METRIC,
     ]);
     rocket::build()
-        .register("/", catchers![internal_server_error])
-        .mount("/", routes![server_version, err_test])
+        .register("/", catchers![internal_server_error, forbidden])
+        .mount("/", routes![server_version, err_test, csrf_test])
         .mount("/metrics", metrics)
         .attach(db::stage())
         .attach(static_routing::stage())
@@ -107,4 +113,6 @@ fn rocket() -> _ {
         .attach(oauth::stage())
         .attach(profanity::stage())
         .attach(chat::stage())
+        .attach(csrf::stage())
+        .attach(csrf::stage())
 }
