@@ -11,7 +11,7 @@ use crate::{
     chat::{
         message_limits::LimitType, Chat, ChatEvent, MessageChangeType, MessageLen, NewClientError,
     },
-    users::{Ban, User, UserManager},
+    users::{Ban, BanError, User, UserManager},
     wsprotocol::{AdminCmd, C2SPacket, KickReason, WsClient},
     Snowflake,
 };
@@ -59,9 +59,9 @@ pub async fn chat_socket<'a>(
     };
 
     let start_time = start_time.unwrap_or(Snowflake::ZERO);
-    let is_mod = user.role().is_mod();
+    let my_role = user.role();
 
-    if !is_mod {
+    if !my_role.is_mod() {
         if let Some(ban) = user_manager.get_ban(user.id()).await? {
             return Ok(ChatSocketResponder::ws_ban(ws, ban));
         }
@@ -74,9 +74,9 @@ pub async fn chat_socket<'a>(
         }
     };
 
-    let mod_badge = is_mod && mod_badge.unwrap_or(false);
+    let mod_badge = my_role.is_mod() && mod_badge.unwrap_or(false);
     let mut chat_client = match chat
-        .new_client(&user, claimed_name, mod_badge, is_mod)
+        .new_client(&user, claimed_name, mod_badge, my_role.is_mod())
         .await
     {
         Ok(c) => c,
@@ -95,7 +95,7 @@ pub async fn chat_socket<'a>(
 
     Ok(ChatSocketResponder::Channel(ws.channel(move |stream| {
         Box::pin(async move {
-            let chat_hist = chat.history(start_time, is_mod).await;
+            let chat_hist = chat.history(start_time, my_role.is_mod()).await;
 
             let mut wsclient = WsClient::new(
                 stream,
@@ -143,7 +143,7 @@ pub async fn chat_socket<'a>(
 
                             },
                             C2SPacket::AdminCmd(cmd) => {
-                                if !is_mod {
+                                if !my_role.is_mod() {
                                     wsclient.system_message("Geen toegang tot admin cmd's").await?;
                                     continue;
                                 }
@@ -158,12 +158,13 @@ pub async fn chat_socket<'a>(
                                     AdminCmd::BanMsgAuthor{mesg, reason, duration} => {
                                         match chat.get_author_uid(mesg).await {
                                             Some(uid) =>
-                                                match user_manager.ban_user(uid, &reason, duration).await {
+                                                match user_manager.ban_user(uid, my_role, &reason, duration).await {
                                                     Ok(())=>{
                                                         chat.retain_messages(|m|m.sender.user_id() != uid).await;
                                                         chat.kick(uid);
                                                     },
-                                                    Err(e) => {error!("While trying to ban user: {}", e); wsclient.system_message("Interne SQL error").await?;}
+                                                    Err(BanError::Sqlx(e)) => {error!("While trying to ban user: {}", e); wsclient.system_message("Interne SQL error").await?;},
+                                                    Err(BanError::PermissionDenied) => {wsclient.system_message("Niet toegestaan deze persoon te verbannen").await?;}
                                                 },
                                             None => { wsclient.system_message("Bericht bestaat niet meer op de server").await?; }
                                         }
@@ -185,13 +186,13 @@ pub async fn chat_socket<'a>(
                             Ok(ChatEvent::Leave(_)) => {},
                             Ok(ChatEvent::Message(mesg)) => {
                                 if mesg.sender.local_id() != chat_client.user().local_id() {
-                                    if is_mod || !mesg.profanity {
+                                    if my_role.is_mod() || !mesg.profanity {
                                         wsclient.forward(&mesg).await?;
                                     }
                                 }
                             },
                             Ok(ChatEvent::MessageChange(snowflake, mut ty)) => {
-                                if !is_mod {
+                                if !my_role.is_mod() {
                                     ty = MessageChangeType::Deleted;
                                 }
                                 wsclient.forward_message_change(snowflake, ty).await?;

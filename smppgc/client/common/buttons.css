@@ -73,6 +73,15 @@ button {
   text-decoration: var(--color-accent) underline 2px;
 }
 
+.unimportantbtn:disabled {
+  color: var(--color-text);
+  filter: brightness(60%);
+  cursor: default;
+}
+.unimportantbtn:disabled:hover {
+  text-decoration: none;
+}
+
 /* Modifiers */
 .dangerbtn {
   color: var(--color-error);

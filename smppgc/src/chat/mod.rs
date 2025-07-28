@@ -202,6 +202,7 @@ impl Chat {
             local_id,
             user_id,
             mod_badge,
+            role: user.role(),
             username: username.into(),
         };
         let client = ChatClient {

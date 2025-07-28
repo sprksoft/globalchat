@@ -5,6 +5,7 @@ use tokio_tungstenite::tungstenite;
 
 use crate::{
     chat::{ChatUser, Message, MessageChangeType, MessageLen},
+    users::role::Role,
     Snowflake,
 };
 use log::*;
@@ -25,33 +26,41 @@ pub const PACKET_C2S_MESSAGE: u8 = 0;
 pub const PACKET_C2S_DELMSG: u8 = 1;
 pub const PACKET_C2S_BANMSGAUTHOR: u8 = 2;
 
-pub fn new_setup<'a, 'b>(id: u16) -> tokio_tungstenite::tungstenite::Message {
-    //|    u8    | const PACKET_SETUP
-    //| [u8; 3]  | version
-    //|    u16   | local id
-
-    let mut data = Vec::with_capacity(1 + size_of::<u8>() * 3 + size_of::<u16>());
-    data.push(PACKET_SETUP);
-    data.extend_from_slice(&crate::VERSION_INT.to_be_bytes());
-    data.extend_from_slice(&id.to_be_bytes());
-
-    tokio_tungstenite::tungstenite::Message::Binary(data)
+macro_rules! packet {
+    ($($expr:expr),*) => {
+        {
+            let size = 0 $(+size_of_val($expr))*;
+            let mut data = Vec::with_capacity(size);
+            $(
+            data.extend_from_slice($expr);
+            )*
+            tokio_tungstenite::tungstenite::Message::Binary(data)
+        }
+    };
 }
-pub fn new_client_joined(client: &ChatUser) -> tokio_tungstenite::tungstenite::Message {
-    //|  u8  | const PACKET_USERJOIN, const PACKET_MODJOIN
-    //| u16  | user id
-    //| [u8] | username
 
-    let username_bytes = client.username().as_bytes();
-    let mut data = Vec::with_capacity(username_bytes.len() + size_of::<u16>() + 1);
-    data.push(if client.mod_badge() {
+type Packet = tokio_tungstenite::tungstenite::Message;
+
+pub fn new_setup(id: u16) -> Packet {
+    packet! {
+        &[PACKET_SETUP],
+        &crate::VERSION_INT.to_be_bytes(),
+        &id.to_be_bytes()
+    }
+}
+pub fn new_client_joined(client: &ChatUser, mask_role: bool) -> Packet {
+    let packet_id = if client.mod_badge() {
         PACKET_MODJOIN
     } else {
         PACKET_USERJOIN
-    });
-    data.extend_from_slice(&client.local_id().to_be_bytes());
-    data.extend_from_slice(&username_bytes);
-    tokio_tungstenite::tungstenite::Message::Binary(data)
+    };
+    let role = if mask_role { Role::User } else { client.role() };
+    packet! {
+        &[packet_id],
+        &client.local_id().to_be_bytes(),
+        &[role.to_u8()],
+        client.username().as_bytes()
+    }
 }
 
 pub fn new_profanity_warn(
@@ -113,12 +122,11 @@ pub fn new_message(mesg: &Message) -> tokio_tungstenite::tungstenite::Message {
     data.extend_from_slice(content_bytes);
     tungstenite::Message::Binary(data)
 }
-pub fn new_system_message(content: &str) -> tokio_tungstenite::tungstenite::Message {
-    let content_bytes = content.as_bytes();
-    let mut data = Vec::with_capacity(1 + content_bytes.len());
-    data.push(PACKET_MESSAGE_SYSTEM);
-    data.extend_from_slice(content_bytes);
-    tungstenite::Message::Binary(data)
+pub fn new_system_message(content: &str) -> Packet {
+    packet! {
+        &[PACKET_MESSAGE_SYSTEM],
+        &content.as_bytes()
+    }
 }
 
 pub enum C2SPacket {
