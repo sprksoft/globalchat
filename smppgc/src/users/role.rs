@@ -27,6 +27,9 @@ impl Role {
         }
     }
     pub fn to_i32(self) -> i32 {
+        self.to_u8() as i32
+    }
+    pub fn to_u8(self) -> u8 {
         match self {
             Self::User => 0,
             Self::Mod => 1,

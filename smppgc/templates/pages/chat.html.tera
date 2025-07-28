@@ -60,14 +60,13 @@
     <div class="user_content">
       <div class="message_top">
         <span class="user"></span>
+        <span class="role"></span>
         <small class="timestamp"></small>
       </div>
       <div class="content"></div>
       <div class="message-actions">
-        {% if is_mod %}
         <button class="delbtn unimportantbtn">delete</button>
         <button class="banbtn unimportantbtn">verban</button>
-        {% endif %}
       </div>
     </div>
   </div>
@@ -107,6 +106,8 @@
   const READONLY = {% if readonly %}true{% else %}false{% endif %};
   const MAX_MESSAGE_LEN="{{max_message_len}}";
   const MIN_MESSAGE_LEN="{{min_message_len}}";
+  const ROLE="{{ role }}";
+  const IS_MOD={% if is_mod %}true{% else %}false{% endif %};
 </script>
 <script defer type="text/javascript" src="{{ url(path="/static/chat.js") }}"></script>
 {% endblock scripts %}

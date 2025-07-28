@@ -1,6 +1,6 @@
 use crate::{
     chat::{ChatUser, Message, MessageChangeType, MessageLen},
-    users::Ban,
+    users::{role::Role, Ban},
     Snowflake,
 };
 use futures_util::SinkExt;
@@ -79,6 +79,7 @@ kick_reason! {
 pub struct WsClient {
     ws: DuplexStream,
     ro: bool,
+    role: Role,
 }
 impl WsClient {
     async fn send_setup_packets(
@@ -86,11 +87,14 @@ impl WsClient {
         clients: Vec<ChatUser>,
         history: Vec<Message>,
         local_id: u16,
+        role: Role,
     ) -> Result<DuplexStream> {
         ws.feed(packets::new_setup(local_id)).await?;
 
         for client in clients {
-            ws.feed(packets::new_client_joined(&client)).await?;
+            let mask_role = !role.is_mod() && !client.mod_badge();
+            ws.feed(packets::new_client_joined(&client, mask_role))
+                .await?;
         }
 
         for msg in history {
@@ -107,8 +111,16 @@ impl WsClient {
         user_info: &ChatUser,
     ) -> Result<Self> {
         Ok(Self {
-            ws: Self::send_setup_packets(ws, clients, history, user_info.local_id()).await?,
+            ws: Self::send_setup_packets(
+                ws,
+                clients,
+                history,
+                user_info.local_id(),
+                user_info.role(),
+            )
+            .await?,
             ro: false,
+            role: user_info.role(),
         })
     }
     pub async fn new_ro(
@@ -117,8 +129,9 @@ impl WsClient {
         history: Vec<Message>,
     ) -> Result<Self> {
         Ok(Self {
-            ws: Self::send_setup_packets(ws, clients, history, 0).await?,
+            ws: Self::send_setup_packets(ws, clients, history, 0, Role::User).await?,
             ro: true,
+            role: Role::User,
         })
     }
 
@@ -156,7 +169,10 @@ impl WsClient {
     }
 
     pub async fn forward_user(&mut self, client: &ChatUser) -> Result<()> {
-        self.ws.send(packets::new_client_joined(client)).await?;
+        let mask_role = !self.role.is_mod() && !client.mod_badge();
+        self.ws
+            .send(packets::new_client_joined(client, mask_role))
+            .await?;
         Ok(())
     }
     pub async fn forward_multiple_users(
@@ -164,7 +180,10 @@ impl WsClient {
         clients: impl Iterator<Item = &ChatUser>,
     ) -> Result<()> {
         for client in clients {
-            self.ws.feed(packets::new_client_joined(client)).await?;
+            let mask_role = !self.role.is_mod() && !client.mod_badge();
+            self.ws
+                .feed(packets::new_client_joined(client, mask_role))
+                .await?;
         }
         self.ws.flush().await?;
         Ok(())

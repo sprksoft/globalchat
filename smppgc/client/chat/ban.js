@@ -20,7 +20,7 @@ $("#ban-dialog-reason").on("input", updateReason);
 
 export function showDialog(snowflake, sender) {
   $("#ban-dialog").attr("data-snowflake", snowflake);
-  $("#ban-dialog-user").text("@" + sender);
+  $("#ban-dialog-user").text("@" + sender.username);
 
   $("#ban-dialog-preset").get(0).selectedIndex = 0;
   updateReasonFromPreset();
