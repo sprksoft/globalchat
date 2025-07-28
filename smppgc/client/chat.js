@@ -36,12 +36,17 @@ let profanityCoolDownInterval;
 
 export let socketmgr = new proto.SocketMgr();
 
-function add_message(message, scroll = false, controls = true) {
-  let onControls = onMessageAction;
-  if (!controls) {
-    onControls = undefined;
+function add_message(message, scroll = false, adminControls = false) {
+  let delAction = onMessageDelete;
+  let banAction = onMessageBan;
+  if (message.sender.role >= ROLE) {
+    banAction = "disabled";
   }
-  let msgEl = createMessage(message, onControls, (highlight = null));
+  if (!adminControls) {
+    delAction = null;
+    banAction = null;
+  }
+  let msgEl = createMessage(message, delAction, banAction, (highlight = null));
 
   let mesgs = $("#mesgs").get(0);
   let should_scroll =
@@ -52,6 +57,13 @@ function add_message(message, scroll = false, controls = true) {
     msgEl.scrollIntoView();
   }
 }
+function onMessageDelete(e, message) {
+  socketmgr.deleteMessage(message.snowflake);
+}
+function onMessageBan(e, message) {
+  ban.showDialog(message.snowflake, message.sender);
+}
+
 
 local_commands.push([
   "/clearkey",
@@ -68,14 +80,6 @@ local_commands.push([
     return true;
   },
 ]);
-
-function onMessageAction(e, message) {
-  if (e.target.classList.contains("delbtn")) {
-    socketmgr.deleteMessage(message.snowflake);
-  } else if (e.target.classList.contains("banbtn")) {
-    ban.showDialog(message.snowflake, message.sender);
-  }
-}
 
 // Are we currently trying to reconnect in the background
 let background_reconnect = false;
@@ -133,8 +137,8 @@ socketmgr.on_message = (me, sender_id, message) => {
   );
   add_message(
     message,
-    (scroll = me || sender_id == -1),
-    (controls = sender_id !== -1),
+    (scroll = me || sender_id === -1),
+    (adminControls = IS_MOD && sender_id !== -1),
   ); // scroll if the message comes from me or system
 
   if (me) {
@@ -218,8 +222,9 @@ socketmgr.on_profanity_warn = (message, badWord, start, end) => {
   profaneMessageOk.disabled = true;
   profaneMessageBadWord.innerText = badWord;
   let mesgEl = createMessage(
-    new Message(message, get_name()),
-    (controls = false),
+    new Message(message, socketmgr.get_local_user()),
+    null,
+    null,
     (highlight = [start, end]),
   );
   profaneMessage.innerHTML="";

@@ -2,6 +2,7 @@ import * as sflake from "./snowflake.js";
 
 import { log } from "./../common/utils.js";
 import { Message } from "./mesg.js";
+import { User } from './user.js';
 
 const PACKET_MESSAGE = 0;
 const PACKET_MESSAGE_PROF = 1;
@@ -135,9 +136,10 @@ export class SocketMgr {
   on_leave;
   on_join;
 
-  #local_id;
+  local_id;
   #users;
   #user_wants_leave;
+  #modBadge;
 
   constructor() {
     this.users = {};
@@ -151,11 +153,11 @@ export class SocketMgr {
         const content = reader.getString(0);
         let sender = this.users[sender_id];
         if (!sender) {
-          sender = { username: "non existing person", isMod: false };
+          sender = new User("non existing person", false, 0);
         }
-        let message = new Message(content, sender.username, snowflake);
+        let message = new Message(content, sender, snowflake);
         message.profanity = packetId === PACKET_MESSAGE_PROF;
-        message.mod_badge = sender.isMod;
+        message.mod_badge = sender.modBadge;
         this.on_message(this.local_id == sender_id, sender_id, message);
         break;
       case PACKET_MESSAGE_SYSTEM: {
@@ -172,7 +174,7 @@ export class SocketMgr {
         handle_version_check(version, VERSION_INT);
 
         this.local_id = reader.getUint16();
-        this.users[this.local_id] = { username: this.username, isMod: false };
+        this.users[this.local_id] = new User(this.username, this.#modBadge, ROLE);
 
         log("Setup packet " + this.local_id);
         break;
@@ -180,12 +182,10 @@ export class SocketMgr {
       case PACKET_MODJOIN:
       case PACKET_USERJOIN:
         let id = reader.getUint16(0);
+        let role = reader.getUint8(0);
         let username = reader.getString(0);
-        log("user join: " + username + " (" + id + ")");
-        this.users[id] = {
-          username: username,
-          isMod: packetId === PACKET_MODJOIN,
-        };
+        log("user join: " + username + " (" + id + ")" + " role: " + role);
+        this.users[id] = new User(username, packetId === PACKET_MODJOIN, role);
         break;
 
       case PACKET_PROFANITY_WARN:
@@ -214,7 +214,12 @@ export class SocketMgr {
     }
   }
 
+  get_local_user() {
+    return this.users[this.local_id];
+  }
+
   async join(username, start_snowflake, show_admin_badge) {
+    this.#modBadge = show_admin_badge;
     this.#user_wants_leave = false;
     this.username = username;
     if (this.ws !== undefined) {

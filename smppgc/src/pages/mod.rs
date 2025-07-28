@@ -44,6 +44,7 @@ fn chat(
         context! (theme_css:theme.css(),
             readonly: false,
             irl_name: user.irl_name(),
+            role: user.role().to_i32(),
             is_mod: user.role().is_mod(),
             max_username_len: user_config.max_username_len,
             max_message_len: max_message_len,

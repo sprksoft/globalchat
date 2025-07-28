@@ -58,7 +58,7 @@ Login - Global Chat
       {% endif %}
     </div>
 
-    <span>Geen account account? <a href="/rochat">Alleen Lezen Chat</a></span>
+    <span>Geen account? <a href="/rochat">Alleen Lezen Chat</a></span>
   </main>
 </div>
 

@@ -5,7 +5,7 @@
 
     <title>{% block title%}Global Chat{% endblock title %}{% if rocket_profile() != "release" %} ({{ rocket_profile() }}){% endif %}</title>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1,interactive-widget=resizes-content">
+    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,interactive-widget=resizes-content">
     <link rel="icon" href="{{ url(path="/static/logo.webp") }}">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">

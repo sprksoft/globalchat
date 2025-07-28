@@ -12,7 +12,7 @@ use thiserror::Error;
 
 use crate::{db::Db, wsprotocol::KickReason};
 
-use super::{User, UserConfig, UserId};
+use super::{role::Role, User, UserConfig, UserId};
 
 #[derive(Error, Debug)]
 pub enum NameClaimError {
@@ -104,6 +104,14 @@ impl<'r> FromRequest<'r> for UserManager<'r> {
     }
 }
 
+#[derive(Debug, Error)]
+pub enum BanError {
+    #[error("Permission denied")]
+    PermissionDenied,
+    #[error("{0}")]
+    Sqlx(#[from] sqlx::Error),
+}
+
 impl<'r> UserManager<'r> {
     fn tokenized_to_normalized(tm: TokenizedMessage) -> String {
         let mut str = String::with_capacity(tm.len());
@@ -156,12 +164,25 @@ impl<'r> UserManager<'r> {
     pub async fn ban_user(
         &mut self,
         user_id: UserId,
+        banner_role: Role,
         reason: &str,
         duration: Duration,
-    ) -> Result<(), sqlx::Error> {
+    ) -> Result<(), BanError> {
         query!("DELETE FROM bans WHERE expiration_time-EXTRACT(epoch from now()) < 0")
             .execute(&mut **self.con)
             .await?;
+
+        let role = Role::from_i32(
+            query!("SELECT role FROM users WHERE id=$1", user_id.to_i32())
+                .fetch_one(&mut **self.con)
+                .await?
+                .role,
+        )
+        .unwrap_or(Role::User);
+        dbg!(role, banner_role);
+        if role >= banner_role {
+            return Err(BanError::PermissionDenied);
+        }
 
         query!(
             "INSERT INTO bans (user_id, reason, expiration_time) VALUES ($1, $2, EXTRACT(epoch from now())+$3)",
