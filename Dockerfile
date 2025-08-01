@@ -1,7 +1,10 @@
+FROM --platform=$BUILDPLATFORM tonistiigi/xx AS xx
+
+
 ARG ESBUILD_CMD="esbuild --bundle --minify --sourcemap --outdir=/app/www/ /client/chat.js /client/prof.js /client/login.js /client/mods.js /client/basic.js"
 ARG BINARY_SOURCE="builder"
 
-FROM rust:alpine AS builder
+FROM --platform=$BUILDPLATFORM rust:alpine AS builder
   RUN apk update && apk add esbuild musl-dev ca-certificates perl make
 
   ENV SQLX_OFFLINE=true
@@ -10,23 +13,18 @@ FROM rust:alpine AS builder
   COPY . /build
   WORKDIR /build
 
+  ARG TARGETPLATFORM
   RUN --mount=type=cache,target=target/ \
       --mount=type=cache,target=/usr/local/cargo/registry/ \
       --mount=type=cache,target=/usr/local/rustup/ \
       <<EOF
 set -e
-cargo build --locked --bin smppgc
+xx-cargo --release build --locked --bin smppgc
 mkdir /app
 
 cp target/debug/smppgc /app/app
 EOF
 
-FROM --platform=$BUILDPLATFORM rust:alpine AS artifact
-  RUN apk update && apk add esbuild ca-certificates
-  COPY ./.artifacts/smppgc /app/app
-
-FROM $BINARY_SOURCE AS late-builder
-  ARG ESBUILD_CMD
   COPY smppgc/Rocket.toml /app/Rocket.toml
   COPY smppgc/templates /app/templates
   COPY smppgc/www /app/www
