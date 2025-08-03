@@ -6,21 +6,10 @@ FROM --platform=$BUILDPLATFORM rust:alpine AS builder
 
   ENV RUSTUP_TOOLCHAIN=stable
   ENV SQLX_OFFLINE=true
-
-  COPY Cargo.toml build/
-  COPY Cargo.lock build/
-  COPY .sqlx build/.sqlx
-
-  COPY lmetrics build/lmetrics/
-  COPY profanity build/profanity/
-  COPY string_tree build/string_tree/
-  COPY wordfilter build/wordfilter/
+  
+  COPY . /build
 
   ARG BINARY=smppgc
-  COPY $BINARY/migrations build/$BINARY/migrations
-  COPY $BINARY/src build/$BINARY/src/
-  COPY $BINARY/Cargo.toml build/$BINARY/
-
   ARG RELEASE
   ARG TARGETPLATFORM
   RUN --mount=type=cache,target=/build/target \
