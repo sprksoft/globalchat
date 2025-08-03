@@ -16,7 +16,7 @@ check: db-up
   $CARGO check
 
 db-up: _docker-check
-  $DOCKER_COMPOSE -f db.compose.yml up --detach
+  $DOCKER_COMPOSE up --detach db
 
 sqlx-prepare: _docker-check _rust-check db-up
   $CARGO sqlx prepare --workspace

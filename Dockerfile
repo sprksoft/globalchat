@@ -1,62 +1,75 @@
 FROM --platform=$BUILDPLATFORM tonistiigi/xx AS xx
 
-
-ARG ESBUILD_CMD="esbuild --bundle --minify --sourcemap --outdir=/app/www/ /client/chat.js /client/prof.js /client/login.js /client/mods.js /client/basic.js"
-ARG BINARY_SOURCE="builder"
-
 FROM --platform=$BUILDPLATFORM rust:alpine AS builder
-  RUN apk update && apk add esbuild musl-dev ca-certificates perl make
+  COPY --from=xx / /
+  RUN apk update && apk add esbuild musl-dev clang lld perl make
 
-  ENV SQLX_OFFLINE=true
   ENV RUSTUP_TOOLCHAIN=stable
+  ENV SQLX_OFFLINE=true
 
-  COPY . /build
-  WORKDIR /build
+  COPY Cargo.toml build/
+  COPY Cargo.lock build/
+  COPY .sqlx build/.sqlx
 
+  COPY lmetrics build/lmetrics/
+  COPY profanity build/profanity/
+  COPY string_tree build/string_tree/
+  COPY wordfilter build/wordfilter/
+
+  ARG BINARY=smppgc
+  COPY $BINARY/migrations build/$BINARY/migrations
+  COPY $BINARY/src build/$BINARY/src/
+  COPY $BINARY/Cargo.toml build/$BINARY/
+
+  ARG RELEASE
   ARG TARGETPLATFORM
-  RUN --mount=type=cache,target=target/ \
-      --mount=type=cache,target=/usr/local/cargo/registry/ \
-      --mount=type=cache,target=/usr/local/rustup/ \
+  RUN --mount=type=cache,target=/build/target \
+      --mount=type=cache,sharing=locked,target=/usr/local/cargo/registry/ \
+      --mount=type=cache,sharing=locked,target=/usr/local/rustup/ \
       <<EOF
 set -e
-xx-cargo --release build --locked --bin smppgc
-mkdir /app
+cd /build
 
-cp target/debug/smppgc /app/app
+REL_ARG="--release"
+PROFILE="release"
+if [[ "$RELEASE" != "true" ]]
+then
+  REL_ARG=""
+  PROFILE="debug"
+fi
+
+mkdir /app
+xx-cargo build $REL_ARG --locked --bin $BINARY
+cp target/$(xx-cargo --print-target-triple)/$PROFILE/$BINARY /app/app
+xx-verify /app/app
 EOF
 
+
+FROM builder AS dev
   COPY smppgc/Rocket.toml /app/Rocket.toml
   COPY smppgc/templates /app/templates
   COPY smppgc/www /app/www
-
   COPY smppgc/client /client
-  RUN $ESBUILD_CMD
 
-FROM late-builder AS dev
-  ARG ESBUILD_CMD
-
-  WORKDIR /app
 
   EXPOSE 8080
 
-  ENV ROCKET_CONFIG=/app/Rocket.toml
+  WORKDIR /client
+  RUN esbuild --outdir=/app/www $(cat esbuild_cmd)
 
   COPY --chmod=777 <<EOF /entry.sh
 #!/bin/sh
-cd /build
-nohup $ESBUILD_CMD --watch=forever &
+nohup esbuild --outdir=/app/www --watch=forever $(cat esbuild_cmd) &
 cd /app
 exec /app/app
 EOF
 
   CMD [ "/entry.sh" ]
 
-
 FROM scratch AS prod
-  COPY --from=late-builder /app /app
-  COPY --from=late-builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+  COPY --from=dev /app /app
+  COPY --from=dev /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 
   EXPOSE 8080
   WORKDIR /app
-  ENV ROCKET_CONFIG=/app/Rocket.toml
   CMD [ "/app/app" ]
