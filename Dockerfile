@@ -6,7 +6,7 @@ FROM --platform=$BUILDPLATFORM rust:alpine AS builder
 
   ENV RUSTUP_TOOLCHAIN=stable
   ENV SQLX_OFFLINE=true
-  
+
   COPY . /build
 
   ARG BINARY=smppgc
@@ -28,20 +28,18 @@ then
 fi
 
 mkdir /app
-xx-cargo build $REL_ARG --locked --bin $BINARY
+xx-cargo build $REL_ARG --offline --bin $BINARY
 cp target/$(xx-cargo --print-target-triple)/$PROFILE/$BINARY /app/app
 xx-verify /app/app
 EOF
 
+############## SMPPGC ##############
 
 FROM builder AS dev
   COPY smppgc/Rocket.toml /app/Rocket.toml
   COPY smppgc/templates /app/templates
   COPY smppgc/www /app/www
   COPY smppgc/client /client
-
-
-  EXPOSE 8080
 
   WORKDIR /client
   RUN esbuild --outdir=/app/www $(cat esbuild_cmd)
@@ -53,6 +51,8 @@ cd /app
 exec /app/app
 EOF
 
+  EXPOSE 8080
+
   CMD [ "/entry.sh" ]
 
 FROM scratch AS prod
@@ -60,5 +60,6 @@ FROM scratch AS prod
   COPY --from=dev /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 
   EXPOSE 8080
+
   WORKDIR /app
   CMD [ "/app/app" ]
