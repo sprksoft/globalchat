@@ -2,7 +2,7 @@ FROM --platform=$BUILDPLATFORM tonistiigi/xx AS xx
 
 FROM --platform=$BUILDPLATFORM rust:alpine AS builder
   COPY --from=xx / /
-  RUN apk update && apk add esbuild musl-dev clang lld perl make
+  RUN apk update && apk add typescript esbuild musl-dev clang lld perl make
 
   ENV RUSTUP_TOOLCHAIN=stable
   ENV SQLX_OFFLINE=true
@@ -28,7 +28,7 @@ then
 fi
 
 mkdir /app
-xx-cargo build $REL_ARG --offline --bin $BINARY
+xx-cargo build $REL_ARG --bin $BINARY
 cp target/$(xx-cargo --print-target-triple)/$PROFILE/$BINARY /app/app
 xx-verify /app/app
 EOF
@@ -46,6 +46,7 @@ FROM builder AS dev
 
   COPY --chmod=777 <<EOF /entry.sh
 #!/bin/sh
+#nohup tsc --noEmit --watch &
 nohup esbuild --outdir=/app/www --watch=forever $(cat esbuild_cmd) &
 cd /app
 exec /app/app

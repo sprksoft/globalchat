@@ -1,6 +1,5 @@
 import * as disclaimer from "./login/disclaimer.js";
 import { getCSRFToken } from "./common/utils.js";
-import $ from "./common/jquery.js";
 
 import "./common/common.css";
 import "./common/buttons.css";
