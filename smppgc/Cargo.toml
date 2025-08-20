@@ -8,7 +8,7 @@ edition.workspace = true
 
 [dependencies]
 tokio-tungstenite={version="0.21.0"}
-tokio={version="1.38.0", features=["macros", "rt-multi-thread", "sync"]}
+tokio={version="1.47.1", features=["macros", "rt-multi-thread", "sync"]}
 futures-util={version="0.3.30"}
 log={version="0.4.21"}
 uuid={version="1.9.0", features=["v4", "serde"]}
@@ -24,7 +24,7 @@ serde_json={version="1.0.128"}
 
 reqwest={version="0.11.27", features=["json"]}
 url={version="2.5.4"}
-sqlx={version="0.7", features=["macros", "uuid", "tls-none"] }
+sqlx={version="0.7.4", features=["macros", "uuid", "tls-none"] }
 
 rocket={version="0.5.1"}
 rocket_ws={version="0.1.1"}

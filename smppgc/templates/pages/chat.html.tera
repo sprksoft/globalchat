@@ -65,8 +65,6 @@
       </div>
       <div class="content"></div>
       <div class="message-actions">
-        <button class="delbtn unimportantbtn">delete</button>
-        <button class="banbtn unimportantbtn">verban</button>
       </div>
     </div>
   </div>

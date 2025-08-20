@@ -1,4 +1,3 @@
-import $ from "./common/jquery.js";
 import {getCSRFToken} from './common/utils.js';
 
 import './common/common.css'

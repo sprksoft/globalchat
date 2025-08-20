@@ -1,1 +1,1 @@
---bundle --minify --sourcemap chat.js prof.js login.js mods.js basic.js
+--bundle --minify --sourcemap chat.ts prof.js login.js mods.js basic.js

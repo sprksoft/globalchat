@@ -1,3 +1,4 @@
+// @ts-nocheck
 const STICKERS=["404","spinny"];
 const IMAGE_STICKERS=["nightmarebirb", "smpp", "smppoud", "smpplite", "gc", "fire", "arch", "tux", "ferris", "gopher", "keith", "slonik", "mobydock", ]; // avail stickers (used to prevent unneeded 404s to the server)
 
@@ -59,7 +60,7 @@ export function mka(link, parent_el) {
     parent_el.appendChild(a);
 }
 
-export function mkimgsticker(name) {
+export function mkimgsticker(name: string) : HTMLElement {
   let img = document.createElement("img");
   if (name == "keith") {
     img.width=55;
@@ -70,7 +71,7 @@ export function mkimgsticker(name) {
   return img;
 }
 
-export function mksticker(name, parent_el) {
+export function mksticker(name: string) : HTMLElement {
   let el;
   if (IMAGE_STICKERS.includes(name)) {
     el = mkimgsticker(name);
@@ -88,10 +89,9 @@ export function mksticker(name, parent_el) {
         break;
     }
   }
-  el.classList.add("sticker-"+name);
-  el.dataset.sticker=name;
   if (el) {
-    parent_el.appendChild(el);
+    el.classList.add("sticker-"+name);
+    el.dataset.sticker=name;
   }
   return el;
 }
@@ -112,7 +112,7 @@ export function mkcontent(message, highlight, parent_el) {
       last_index = match.index;
       let name = match[0].substring(1, match[0].length-1);
       if (IMAGE_STICKERS.includes(name) || STICKERS.includes(name)) {
-        mksticker(name, parent_el);
+        parent_el.appendChild(mksticker(name));
         last_index += match[0].length;
       }
     }

@@ -1,5 +1,20 @@
-import $ from "../common/jquery.js";
+// @ts-nocheck
 import * as chat from "../chat.js";
+
+export interface Ban {
+  expirationTime: Date;
+  reason: string;
+}
+
+export function parseBan(str): Ban {
+  const match = str.match(/^err_banned:([0-9]*):(.*)$/);
+  const ban = {
+    expirationTime: new Date(parseInt(match[1]) * 1000),
+    reason: match[2],
+  };
+  log(`ban: ${JSON.stringify(ban)}`);
+  return ban;
+}
 
 function updateReasonFromPreset() {
   let reason = $("#ban-dialog-preset :selected").attr("data-fullreason");
@@ -62,7 +77,7 @@ function secondsToString(sec) {
     return sec == 1 ? "1 seconde" : Math.ceil(sec) + " seconden";
   }
 }
-export function setBan(ban) {
+export function setBan(ban: Ban) {
   let secsLeft = (ban.expirationTime.getTime() - new Date().getTime()) / 1000;
   $("#ban-reason").text(ban.reason);
   $("#ban-release-time").text(secondsToString(secsLeft));
