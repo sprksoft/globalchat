@@ -1,22 +1,34 @@
-import * as chat from "./../chat.js";
 import { log } from "./../common/utils.js";
 import { mksticker } from "./mkels.ts";
 import { Snowflake } from "./snowflake.ts";
 import { User, Role } from "./user.ts";
+import { markBad, markGood, WFTag } from "./wf.ts";
+
+
+export interface Word {
+  wf: WFTag,
+  word: string,
+}
 
 export class Message {
-  content: string[];
+  content: Word[];
   sender: User;
   snowflake: Snowflake;
-  profanity: boolean;
   mod_badge: boolean;
 
   constructor(
-    content: string[],
+    content: Word[] | string[],
     sender: User,
     snowflake: Snowflake | null = null,
   ) {
-    this.content = content;
+    this.content = [];
+    for (const word of content) {
+      if (typeof word === "string") {
+        this.content.push({ wf: WFTag.Good, word: word })
+      } else {
+        this.content.push(word);
+      }
+    }
     this.sender = sender;
 
     if (snowflake == null) {
@@ -24,13 +36,29 @@ export class Message {
     } else {
       this.snowflake = snowflake as Snowflake;
     }
-    this.profanity = false;
     this.mod_badge = false;
   }
 }
 export namespace Message {
   export function system(content: string): Message {
     return new Message([content], User.system(), Snowflake.now());
+  }
+  export function stringContent(mesg: Word[] | Message): string {
+    const content = mesg instanceof Message ? mesg.content : mesg;
+    return content.map((w) => w.word).join("");
+  }
+
+  export function containsProf(mesg: Word[] | Message): boolean {
+    if (mesg instanceof Message) {
+      return containsProf(mesg.content);
+    } else {
+      for (let word of mesg) {
+        if (word.wf == WFTag.Bad || word.wf == WFTag.Good) {
+          return true;
+        }
+      }
+      return false;
+    }
   }
 }
 
@@ -77,18 +105,31 @@ export function createMessage(
 
   const content = msgEl.find(".content");
   for (const word of message.content) {
-    const trimmed = word.trim();
+    const trimmed = word.word.trim();
     if (trimmed.startsWith(":") && trimmed.endsWith(":")) {
-      const el = mksticker(trimmed.substring(1,trimmed.length-1));
+      const el = mksticker(trimmed.substring(1, trimmed.length - 1));
       if (el) {
         content.append(el);
         continue;
       }
     }
-    content.append($("<span class='word '></span>").text(word).on("click", function () {
-      $(this).toggleClass("bad");
-      $(this).toggleClass("good");
-    }));
+    const span = $("<span></span>").text(word.word);
+    if (wfEdit) {
+      span.addClass("word");
+      span.addClass(WFTag.toString(word.wf));
+      span.on("click", function() {
+        const w = $(this);
+        if (w.hasClass("unknown")) {
+          markGood(this);
+        } else if (w.hasClass("good")) {
+          markBad(this);
+        } else if (w.hasClass("bad")) {
+          markGood(this);
+        }
+      });
+    }
+
+    content.append(span);
   }
 
   return msgEl.get(0)!;
