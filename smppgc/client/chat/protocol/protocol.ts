@@ -1,173 +1,127 @@
-// @ts-nocheck
-import { Snowflake } from "../snowflake.js";
+import { Snowflake } from "../snowflake.ts";
 import { log } from "../../common/utils.js";
-import { Message } from "./../mesg.js";
-import { User } from '../user.js';
-import { ProtoError } from './protoerr.ts';
-import { parseBan } from '../ban.js';
+import { Message } from "./../mesg.ts";
+import { User } from "../user.ts";
+import { ProtoError } from "./protoerr.ts";
+import { parseBan, type Ban } from "../ban.js";
+import { PacketC2SId, PacketId } from "./packets.ts";
+import { type LocalId, Role } from "../user.ts";
+import { Reader, Writer } from "./rw.ts";
+import type { WFTag } from "../wf.ts";
+export { ProtoError };
 
-const PACKET_MESSAGE = 0;
-const PACKET_MESSAGE_PROF = 1;
-const PACKET_MESSAGE_SYSTEM = 2;
+export declare const VERSION_INT: number;
+export declare const WEBSOCKET_URL: string;
+export declare const ROLE: Role;
 
-const PACKET_SETUP = 3;
-const PACKET_USERJOIN = 4;
-const PACKET_MODJOIN = 5;
-const PACKET_PROFANITY_WARN = 6;
-const PACKET_MESSAGE_DEL = 7;
-const PACKET_MESSAGE_CENSOR = 8;
-
-// C2S
-const PACKET_C2S_MESSAGE = 0;
-const PACKET_C2S_DELMSG = 1;
-const PACKET_C2S_BANMSGAUTHOR = 2;
-
-const CLOSED = 3;
-
-
-
-class Reader {
-  dv;
-  index;
-  constructor(dv) {
-    this.dv = dv;
-    this.index = 0;
-    this.tdecoder = new TextDecoder();
-  }
-
-  getString(offset, length) {
-    let len =
-      typeof length == "number"
-        ? length
-        : this.dv.byteLength - (this.index + offset);
-    let dv = new DataView(this.dv.buffer, this.index + offset, len);
-    this.index += len;
-    return this.tdecoder.decode(dv);
-  }
-
-  getUint8(offset = 0) {
-    let out = this.dv.getUint8(this.index + offset, false);
-    this.index += 1;
-    return out;
-  }
-  getUint16(offset = 0) {
-    let out = this.dv.getUint16(this.index + offset, false);
-    this.index += 2;
-    return out;
-  }
-  getUint32(offset = 0) {
-    let out = this.dv.getUint32(this.index + offset, false);
-    this.index += 4;
-    return out;
-  }
-  getSnowflake(offset = 0) {
-    let out = this.dv.getBigUint64(this.index + offset, false);
-    this.index += 8;
-    return out;
-  }
-
-  getDate(offset = 0) {
-    return new Date(this.getUint32(offset) * 1000 * 60);
-  }
-
-  end() {
-    return this.index >= this.dv.byteLength;
-  }
-}
-
-function handle_version_check(protocol_ver, ver) {
-  if (protocol_ver !== ver) {
+function handle_version_check(protocol_ver: number) {
+  if (protocol_ver !== VERSION_INT) {
     let last_reload_time = localStorage.getItem("last_client_outdated_reload");
     let now = new Date().getTime();
     if (last_reload_time == null || now - parseInt(last_reload_time) > 1000) {
-      localStorage.setItem("last_client_outdated_reload", now);
+      localStorage.setItem("last_client_outdated_reload", now.toString());
       console.log("NEW PROTOCOL VERSION. RELOADING PAGE TO UPDATE CLIENT");
       location.reload();
     } else {
-      console.log("protocol_ver: " + protocol_ver + " page_ver: " + ver);
+      console.log(
+        "protocol_ver: " + protocol_ver + " page_ver: " + VERSION_INT,
+      );
       console.error("Infinite reload loop detected");
       alert("Alles is kapot aaaaaaaaaaaaa.");
     }
   }
 }
 
-
 export class SocketMgr {
-  on_message;
-  on_message_del;
-  on_message_censor;
-  on_profanity_warn;
-  on_leave;
-  on_join;
+  on_message: ((sender_id: LocalId, message: Message) => void) | null = null;
+  on_message_del: ((snowflake: Snowflake) => void) | null = null;
+  on_message_censor: ((Snowflake: Snowflake) => void) | null = null;
+  on_profanity_warn:
+    | ((message: string, badWord: string, start: number, end: number) => void)
+    | null = null;
+  on_leave: ((data: string | Ban, protoerr: ProtoError) => void) | null = null;
+  on_join: (() => void) | null = null;
 
-  local_id;
-  #users;
-  #user_wants_leave;
-  #modBadge;
+  #ws: WebSocket | null = null;
+  #local_id: LocalId = -1;
+  #users: { [id: LocalId]: User } = {};
+  #user_wants_leave: boolean = false;
+  #modBadge: boolean = false;
+  #username: string = "";
 
-  constructor() {
-    this.users = {};
-  }
-  #on_packet(packetId, reader) {
+  #on_packet(packetId: PacketId, reader: Reader) {
     switch (packetId) {
-      case PACKET_MESSAGE_PROF:
-      case PACKET_MESSAGE:
+      case PacketId.MESSAGE:
         const sender_id = reader.getUint16(0);
         const snowflake = reader.getSnowflake(0);
-        const content = reader.getString(0);
-        let sender = this.users[sender_id];
-        if (!sender) {
-          sender = new User("non existing person", false, 0);
+
+        let content = [];
+        while (!reader.end()) {
+          const tag = reader.getUint8(0) as WFTag;
+          const len = reader.getUint16(0);
+          content.push({ wf: tag, word: reader.getString(0, len) })
         }
-        let message = new Message([content], sender, snowflake);
-        message.profanity = packetId === PACKET_MESSAGE_PROF;
+
+        let sender = this.#users[sender_id];
+        if (!sender) {
+          sender = User.nonExisting();
+        }
+        let message = new Message(content, sender, snowflake);
         message.mod_badge = sender.modBadge;
-        this.on_message(this.local_id == sender_id, sender_id, message);
+        this.on_message?.(sender_id, message);
         break;
-      case PACKET_MESSAGE_SYSTEM: {
+      case PacketId.MESSAGE_SYSTEM: {
         let content = reader.getString(0);
-        let message = new Message(content, "system", Snowflake.now());
-        this.on_message(false, -1, message);
+        let message = Message.system(content);
+        this.on_message?.(-1, message);
         break;
       }
 
-      case PACKET_SETUP:
-        this.on_join();
+      case PacketId.SETUP:
+        this.on_join?.();
         let version = reader.getUint16(0);
         log("Protocol version: " + version + " My version: " + VERSION_INT);
-        handle_version_check(version, VERSION_INT);
+        handle_version_check(version);
 
-        this.local_id = reader.getUint16();
-        this.users[this.local_id] = new User(this.username, this.#modBadge, ROLE);
+        this.#local_id = reader.getUint16();
+        this.#users[this.#local_id] = new User(
+          this.#username,
+          this.#modBadge,
+          ROLE,
+        );
 
-        log("Setup packet " + this.local_id);
+        log("Setup packet " + this.#local_id);
         break;
 
-      case PACKET_MODJOIN:
-      case PACKET_USERJOIN:
+      case PacketId.MODJOIN:
+      case PacketId.USERJOIN:
         let id = reader.getUint16(0);
         let role = reader.getUint8(0);
         let username = reader.getString(0);
         log("user join: " + username + " (" + id + ")" + " role: " + role);
-        this.users[id] = new User(username, packetId === PACKET_MODJOIN, role);
+        this.#users[id] = new User(
+          username,
+          packetId === PacketId.MODJOIN,
+          role,
+        );
         break;
 
-      case PACKET_PROFANITY_WARN:
+      case PacketId.PROFANITY_WARN:
         let start = reader.getUint16(0);
         let end = reader.getUint16(0);
         let msgLen = reader.getUint16(0);
         let msg = reader.getString(0, msgLen);
         let badWord = reader.getString(0);
-        this.on_profanity_warn(msg, badWord, start, end);
+        this.on_profanity_warn?.(msg, badWord, start, end);
         break;
 
-      case PACKET_MESSAGE_DEL:
+      case PacketId.MESSAGE_DEL:
         const msgId = reader.getSnowflake(0);
-        this.on_message_del(msgId);
+        this.on_message_del?.(msgId);
         break;
-      case PACKET_MESSAGE_CENSOR:
+      case PacketId.MESSAGE_CENSOR:
         const message_id = reader.getSnowflake(0);
-        this.on_message_censor(message_id);
+        this.on_message_censor?.(message_id);
         break;
 
       default:
@@ -178,114 +132,143 @@ export class SocketMgr {
     }
   }
 
-  get_local_user() {
-    return this.users[this.local_id];
+  local_user(): User {
+    // local user always exists
+    return this.#users[this.#local_id] as User;
+  }
+  local_id(): LocalId {
+    return this.#local_id;
   }
 
-  async join(username, start_snowflake, show_admin_badge) {
-    this.#modBadge = show_admin_badge;
+  async join(
+    username: string | null,
+    start_snowflake: Snowflake | null,
+    show_badge: boolean,
+  ) {
+    this.#modBadge = show_badge;
     this.#user_wants_leave = false;
-    this.username = username;
-    if (this.ws !== undefined) {
-      await this.ws.close();
+    this.#username = username ? username : "";
+    if (this.#ws !== null) {
+      this.#ws.close();
     }
     let query = "";
     if (username) {
       let encoded_username = encodeURIComponent(username);
       query += `&username=${encoded_username}`;
     }
-    if (start_snowflake !== undefined && start_snowflake !== null) {
+    if (start_snowflake !== null) {
       query += "&start_time=" + start_snowflake;
     }
-    if (show_admin_badge) {
+    if (show_badge) {
       query += "&mod_badge=true";
     }
     let fullurl = WEBSOCKET_URL + "?" + query.substring(1);
     log("creating socket: " + fullurl);
-    this.ws = new WebSocket(fullurl);
-    this.ws.binaryType = "arraybuffer";
+    this.#ws = new WebSocket(fullurl);
+    this.#ws.binaryType = "arraybuffer";
 
-    this.ws.onclose = async (e) => {
-      this.users = {};
-      let protoerr = e.reason;
+    this.#ws.onclose = async (e) => {
+      this.#users = {};
+      let protoerr = e.reason as ProtoError;
       log("disconnect protoerr: " + protoerr);
 
       let data;
-      if (this.#user_wants_leave || (protoerr == "" && e.code == 1000)) {
+      if (
+        this.#user_wants_leave ||
+        (protoerr == ProtoError.ok && e.code == 1000)
+      ) {
         // Normal Closure or the user wants to leave
         data = "";
-      } else if (e.code == 1006 && protoerr == "") {
-        protoerr = "retry";
+      } else if (e.code == 1006 && protoerr == ProtoError.ok) {
+        protoerr = ProtoError.retry;
         data = "Kon niet verbinden met de server.";
       } else if (protoerr.startsWith("err_banned:")) {
         data = parseBan(e.reason);
-        protoerr = "err_banned";
+        protoerr = ProtoError.err_banned;
       } else {
-        data = ProtoError.humanize(e.reason);
+        data = ProtoError.humanize(protoerr);
       }
 
       log("disconnect reason: " + JSON.stringify(data));
-      this.on_leave(data, protoerr);
+      this.on_leave?.(data, protoerr);
     };
 
-    this.ws.onmessage = async (e) => {
+    this.#ws.onmessage = async (e) => {
       let data = e.data;
       if (data instanceof ArrayBuffer) {
         let reader = new Reader(new DataView(data));
-        let packetId = reader.getUint8();
+        let packetId = reader.getUint8() as PacketId;
         this.#on_packet(packetId, reader);
       }
     };
   }
 
-  async deleteMessage(snowflake) {
-    if (this.ws.readyState !== WebSocket.OPEN) {
+  deleteMessage(snowflake: Snowflake) {
+    if (!this.#ws || this.#ws.readyState !== WebSocket.OPEN) {
       return false;
     }
     const data = new ArrayBuffer(1 + 8);
     let dv = new DataView(data);
-    dv.setUint8(0, PACKET_C2S_DELMSG, false);
+    dv.setUint8(0, PacketC2SId.DELMSG);
     dv.setBigUint64(1, snowflake, false);
-    await this.ws.send(data);
+    this.#ws.send(data);
   }
-  async banMessageAuthor(snowflake, duration, reason) {
-    if (this.ws.readyState !== WebSocket.OPEN) {
+  /// duration is in seconds
+  banMessageAuthor(
+    snowflake: Snowflake,
+    duration: number,
+    reason: string,
+  ): boolean {
+    if (!this.#ws || this.#ws.readyState !== WebSocket.OPEN) {
       return false;
     }
 
-    const tencoder = new TextEncoder();
-    const messageData = tencoder.encode(reason);
-    const data = new ArrayBuffer(1 + 8 + 4 + messageData.length);
-    const array = new Uint8Array(data);
-    const dv = new DataView(data);
-    dv.setUint8(0, PACKET_C2S_BANMSGAUTHOR);
-    dv.setBigUint64(1, snowflake);
-    dv.setUint32(1 + 8, duration);
-    array.set(messageData, 1 + 8 + 4);
+    const writer = new Writer(1 + 8 + 4 + reason.length);
+    writer.setUint8(PacketC2SId.BANMSGAUTHOR);
+    writer.setSnowflake(snowflake);
+    writer.setUint32(duration);
+    writer.setString(reason);
 
-    await this.ws.send(data);
+    this.#ws.send(writer.finish());
+
+    return true;
   }
 
-  async send(message) {
-    if (this.ws.readyState !== WebSocket.OPEN) {
+  markWord(word: string, good: boolean): boolean {
+    if (!this.#ws || this.#ws.readyState !== WebSocket.OPEN) {
       return false;
     }
-    if (this.ws.bufferedAmount > 2) {
+    const writer = new Writer(1 + word.length);
+    writer.setUint8(good ? PacketC2SId.WF_MARKGOOD : PacketC2SId.WF_MARKBAD);
+    writer.setString(word);
+    this.#ws.send(writer.finish());
+
+    return true;
+  }
+
+  send(message: string): boolean {
+    if (!this.#ws || this.#ws.readyState !== WebSocket.OPEN) {
+      return false;
+    }
+    if (this.#ws.bufferedAmount > 2) {
       return false;
     }
     const tencoder = new TextEncoder();
     const messageData = tencoder.encode(message);
     const data = new ArrayBuffer(messageData.length + 1);
     const array = new Uint8Array(data);
-    array.set(0, PACKET_C2S_MESSAGE);
+    array.set([PacketC2SId.MESSAGE], 0);
     array.set(messageData, 1);
 
-    await this.ws.send(data);
+    this.#ws.send(data);
     return true;
   }
 
-  async leave() {
+  leave() {
+    if (!this.#ws) {
+      return;
+    }
     this.#user_wants_leave = true;
-    await this.ws.close(1000, "Dag dag ik ga je missen. xxx");
+    this.#ws.close(1000, "Dag dag ik ga je missen. xxx");
   }
 }

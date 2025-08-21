@@ -47,11 +47,11 @@ export function reset() {
   $("#ban-dialog").get(0).close();
 }
 
-$("#ban-dialog-cancel").on("click", function () {
+$("#ban-dialog-cancel").on("click", function() {
   $("#ban-dialog").get(0).close();
 });
 
-$("#ban-dialog-confirm").on("click", async function () {
+$("#ban-dialog-confirm").on("click", async function() {
   const dur = parseInt($("#ban-dialog-preset :selected").attr("data-duration"));
   const reason = $("#ban-dialog-reason").val();
   const snowflake = BigInt($("#ban-dialog").attr("data-snowflake"));

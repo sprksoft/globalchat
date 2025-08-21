@@ -43,13 +43,12 @@
   <span>connecting</span>
 </dialog>
 
-<dialog id="profane-message-dialog">
+<dialog id="profwarn-dialog">
   <h1>Je bericht bevat een ongepast woord</h1>
-  <p>Jou bericht bevat het scheld woord <mark id="badword" class="profanity-mark"></mark></p>
-  <div class="flex-col" id="profane-message"></div>
-  <p>Dit is een automatisch bericht maar je kunt nog steeds verbannen worden door menselijke moderators.<br>Je kunt weer chatten binnen <time id="profane-message-countdown"></time>.</p>
+  <div class="flex-col" id="profwarn-message"></div>
+  <p>Dit is automatisch gedetecteerd maar je kunt nog steeds verbannen worden door menselijke moderators.<br>Je kunt weer chatten binnen <time id="profwarn-countdown"></time>.</p>
 
-  <button class="pillbtn" id="profane-message-ok">Ok</button>
+  <button class="pillbtn" id="profwarn-ok">Ok</button>
 </dialog>
 
 {% include "ban-dialog" %}

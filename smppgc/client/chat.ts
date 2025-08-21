@@ -1,24 +1,10 @@
-// @ts-ignore
-import "./common/common.css";
-// @ts-ignore
-import "./common/buttons.css";
-// @ts-ignore
-import "./common/logo.css";
-// @ts-ignore
-import "./chat/css/chat.css";
-// @ts-ignore
-import "./chat/css/login_popup.css";
-// @ts-ignore
-import "./chat/css/stickers.css";
-// @ts-ignore
-import "./chat/css/ban.css";
-
+import "./chat/css/styles.css.js";
 import * as ban from "./chat/ban.js";
+import type { Ban } from "./chat/ban.ts";
 import { execLocalCmd, localCmd } from "./chat/commands.ts";
 import { createMessage, Message } from "./chat/mesg.ts";
-import { Role } from './chat/user.ts';
-import type { Control } from "./chat/mesg.ts";
-import * as mk from "./chat/mkels.js";
+import type { Word } from "./chat/mesg.ts";
+import { Role } from "./chat/user.ts";
 
 import { Snowflake } from "./chat/snowflake.ts";
 import { fixTextFields } from "./common/text.js";
@@ -26,12 +12,14 @@ import { hasVirtKb, log } from "./common/utils.js";
 
 import { SocketMgr } from "./chat/protocol/protocol.ts";
 import { ProtoError } from "./chat/protocol/protoerr.ts";
+import { clearProfWarn, setupProfWarn, showProfWarn } from "./chat/wf.ts";
 
-declare const ROLE: Role;
-declare const IS_MOD: boolean;
-declare const READONLY: boolean;
-declare const MIN_MESSAGE_LEN: number;
-declare const MAX_MESSAGE_LEN: number;
+export declare const WEBSOCKET_URL: string;
+export declare const ROLE: Role;
+export declare const IS_MOD: boolean;
+export declare const READONLY: boolean;
+export declare const MIN_MESSAGE_LEN: number;
+export declare const MAX_MESSAGE_LEN: number;
 
 const sendinput = document.getElementById(
   "send-input",
@@ -49,22 +37,6 @@ const constatus = document.getElementById(
   "connection-status",
 ) as HTMLDialogElement;
 const login_popup = document.getElementById("login") as HTMLDialogElement;
-const profaneMessageDialog = document.getElementById(
-  "profane-message-dialog",
-) as HTMLDialogElement;
-const profaneMessage = document.getElementById(
-  "profane-message",
-) as HTMLElement;
-const profaneMessageOk = document.getElementById(
-  "profane-message-ok",
-) as HTMLButtonElement;
-const profaneMessageCountdown = document.getElementById(
-  "profane-message-countdown",
-) as HTMLElement;
-const profaneMessageBadWord = document.getElementById("badword") as HTMLElement;
-
-let profanityCoolDown = 0;
-let profanityCoolDownInterval: number;
 
 export let socketmgr = new SocketMgr();
 
@@ -81,7 +53,7 @@ function add_message(
       click: message.sender.role >= ROLE ? null : onMessageBan,
     });
   }
-  let msgEl = createMessage(message, controls);
+  let msgEl = createMessage(message, controls, adminControls);
 
   const mesgs = $("#mesgs").get(0)!;
   const should_scroll =
@@ -92,10 +64,10 @@ function add_message(
     msgEl.scrollIntoView();
   }
 }
-function onMessageDelete(e: any, message: Message) {
+function onMessageDelete(_: any, message: Message) {
   socketmgr.deleteMessage(message.snowflake);
 }
-function onMessageBan(e: any, message: Message) {
+function onMessageBan(_: any, message: Message) {
   ban.showDialog(message.snowflake, message.sender);
 }
 
@@ -103,11 +75,11 @@ function add_system_message(message: string) {
   add_message(Message.system(message), true, false);
 }
 
-localCmd("/clearkey", function () {
+localCmd("/clearkey", function() {
   localStorage.removeItem("key");
   add_system_message("Key cleared.");
 });
-localCmd("/leave", function () {
+localCmd("/leave", function() {
   socketmgr.leave();
 });
 
@@ -146,8 +118,8 @@ function cooldown(time: number) {
   }, time);
 }
 
-function mesgEasterEgg(messageContent: string[]) {
-  const content = messageContent.join("");
+function mesgEasterEgg(messageContent: Word[]) {
+  const content = Message.stringContent(messageContent);
   if (
     content.includes("<script>") ||
     (content.includes("alert(1)") && content.includes("<"))
@@ -164,13 +136,19 @@ function mesgEasterEgg(messageContent: string[]) {
 }
 
 let last_message_snowflake: Snowflake | null = null;
-socketmgr.on_message = (me: boolean, sender_id: number, message: Message) => {
+socketmgr.on_message = (sender_id: number, message: Message) => {
+  const me = socketmgr.local_id() == sender_id;
   last_message_snowflake = message.snowflake;
   log(
-    `Got message from ${sender_id} (${message.snowflake}) mod: ${
-      message.mod_badge
-    }: ${message.content}`,
+    `Got message from ${sender_id} (${message.snowflake}) mod: ${message.mod_badge
+    }: ${Message.stringContent(message.content)}`,
   );
+
+  if (me && Message.containsProf(message)) {
+    showProfWarn(message);
+    return;
+  }
+
   const scroll = me || sender_id === -1; // scroll if the message comes from me or system
   const adminControls = IS_MOD && sender_id !== -1;
   add_message(message, scroll, adminControls);
@@ -200,7 +178,7 @@ socketmgr.on_message_del = (snowflake: Snowflake) => {
   }
 };
 
-socketmgr.on_leave = (data: string | any, protoerr: ProtoError) => {
+socketmgr.on_leave = (data: string | Ban, protoerr: ProtoError) => {
   constatus.close();
 
   let time = 1000;
@@ -216,7 +194,7 @@ socketmgr.on_leave = (data: string | any, protoerr: ProtoError) => {
     }
   } else if (protoerr == ProtoError.err_banned) {
     time = -1;
-    ban.setBan(data);
+    ban.setBan(data as Ban);
   }
   if (typeof data === "string") {
     $("#err-mesg").text(data);
@@ -227,11 +205,9 @@ socketmgr.on_leave = (data: string | any, protoerr: ProtoError) => {
   last_message_snowflake = null;
   $("#mesgs").empty();
   ban.reset();
+  clearProfWarn();
 
   login_popup.showModal();
-  profanityCoolDown = 0;
-  clearInterval(profanityCoolDownInterval);
-  profaneMessageDialog.close();
 
   if (protoerr == ProtoError.err_no_session) {
     log("Got no session error. Redirecting to login page...");
@@ -239,6 +215,7 @@ socketmgr.on_leave = (data: string | any, protoerr: ProtoError) => {
   }
 };
 
+//TODO: swap this for better system
 socketmgr.on_profanity_warn = (
   message: string,
   badWord: string,
@@ -246,32 +223,10 @@ socketmgr.on_profanity_warn = (
   end: number,
 ) => {
   log(`${message} contains the word '${badWord}' at ${start}..${end}'`);
-
-  profanityCoolDown = 10;
-  profanityCoolDownInterval = setInterval(() => {
-    profanityCoolDown--;
-    profaneMessageCountdown.innerText =
-      profanityCoolDown + (profanityCoolDown == 1 ? " seconde" : " seconden");
-    if (profanityCoolDown == 0) {
-      clearInterval(profanityCoolDownInterval);
-      profaneMessageOk.innerText = "Ok";
-      profaneMessageOk.disabled = false;
-    }
-  }, 1000);
-  profaneMessageCountdown.innerText =
-    profanityCoolDown + profanityCoolDown == 1 ? "seconde" : "seconden";
-  profaneMessageOk.disabled = true;
-  profaneMessageBadWord.innerText = badWord;
-  let mesgEl = createMessage(
-    new Message([message], socketmgr.get_local_user()),
-    [],
-  );
-  profaneMessage.innerHTML = "";
-  profaneMessage.appendChild(mesgEl);
-  profaneMessageDialog.showModal();
+  showProfWarn(new Message([message], socketmgr.local_user(), Snowflake.now()))
 };
 
-async function send_message() {
+function send_message(): boolean {
   let message = sendinput?.innerText.trim();
   if (!message) {
     message = "";
@@ -284,7 +239,7 @@ async function send_message() {
     clearSendInput();
     return true;
   }
-  if (await socketmgr.send(message)) {
+  if (socketmgr.send(message)) {
     clearSendInput();
     return true;
   }
@@ -308,9 +263,9 @@ function connect(
 
   log(
     "connecting... in_background=" +
-      background +
-      ", mod_badge:" +
-      show_mod_badge,
+    background +
+    ", mod_badge:" +
+    show_mod_badge,
   );
   let local_name: string | null = null;
   if (!READONLY) {
@@ -325,6 +280,7 @@ function connect(
 }
 
 fixTextFields();
+setupProfWarn();
 
 sendinput?.addEventListener("keypress", async (e) => {
   if (e.key == "Enter" && !e.shiftKey && !hasVirtKb()) {
@@ -347,7 +303,7 @@ leavebtn.addEventListener("click", () => {
   socketmgr.leave();
 });
 
-login_popup.addEventListener("close", (e) => {
+login_popup.addEventListener("close", (_) => {
   connect(false);
 });
 login_popup.addEventListener("cancel", (e) => {
@@ -359,14 +315,7 @@ connectbtn.addEventListener("click", () => {
   sendinput?.focus();
 });
 
-profaneMessageDialog.addEventListener("close", () => {
-  if (profanityCoolDown > 0) {
-    profaneMessageDialog.showModal();
-  }
-});
-profaneMessageOk.addEventListener("click", () => {
-  profaneMessageDialog.close();
-});
+
 
 if (!READONLY) {
   username_field.value! = localStorage.getItem("username")!;

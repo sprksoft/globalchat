@@ -1,3 +1,14 @@
+export type LocalId = number;
+
+export namespace LocalId {
+  export function is_vaild(id: LocalId): boolean {
+    if (id < 0) {
+      return false;
+    }
+    return true;
+  }
+}
+
 export enum Role {
   User = 0,
   Mod = 1,
@@ -5,7 +16,7 @@ export enum Role {
   Owner = 3,
 }
 export namespace Role {
-  export function toString(role: Role) : string {
+  export function toString(role: Role): string {
     switch (role) {
       case Role.User:
         return "";
@@ -32,7 +43,10 @@ export class User {
   }
 }
 export namespace User {
-  export function system() : User {
+  export function system(): User {
     return new User("system", false, Role.User);
+  }
+  export function nonExisting(): User {
+    return new User("Mr unknown", true, Role.Owner);
   }
 }

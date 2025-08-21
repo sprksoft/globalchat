@@ -1,4 +1,5 @@
 export enum ProtoError {
+  ok = "",
   err_kick = "err_kick",
   err_ratelimit = "err_ratelimit",
   err_ipratelimit = "err_ipratelimit",
@@ -17,7 +18,7 @@ export enum ProtoError {
   retry = "retry",
 }
 
-const ERRORS : any = {
+const ERRORS: any = {
   err_kick: "Je bent uit de chat gezet door een admin.",
   err_ratelimit:
     "Te veel berichten. Typ langzamer.\nJe kunt terug joinen binnen een paar seconden",

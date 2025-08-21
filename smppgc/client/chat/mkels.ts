@@ -1,6 +1,6 @@
 // @ts-nocheck
-const STICKERS=["404","spinny"];
-const IMAGE_STICKERS=["nightmarebirb", "smpp", "smppoud", "smpplite", "gc", "fire", "arch", "tux", "ferris", "gopher", "keith", "slonik", "mobydock", ]; // avail stickers (used to prevent unneeded 404s to the server)
+const STICKERS = ["404", "spinny"];
+const IMAGE_STICKERS = ["nightmarebirb", "smpp", "smppoud", "smpplite", "gc", "fire", "arch", "tux", "ferris", "gopher", "keith", "slonik", "mobydock",]; // avail stickers (used to prevent unneeded 404s to the server)
 
 export function mkProfHighlighted(message, start, end, parent_el) {
   let span = document.createElement("span");
@@ -16,11 +16,11 @@ export function mkProfHighlighted(message, start, end, parent_el) {
 export function mksender(sender, parent_el) {
   let special = sender == "system";
   let sender_el = document.createElement("span");
-  if (special){
+  if (special) {
     sender_el.classList.add("special");
   }
   sender_el.classList.add("user");
-  sender_el.innerText=sender;
+  sender_el.innerText = sender;
   parent_el.appendChild(sender_el);
 }
 export function mkspace(parent_el) {
@@ -30,18 +30,18 @@ export function mkspace(parent_el) {
 }
 
 export function mktime(time, parent_el) {
-  if (time == undefined){ return; }
+  if (time == undefined) { return; }
   let time_el = document.createElement("small");
   time_el.classList.add("message_timestamp")
   time_el.innerText = time.toLocaleString(undefined, {
-    dateStyle:"short",
-    timeStyle:"short",
+    dateStyle: "short",
+    timeStyle: "short",
   });
   parent_el.appendChild(time_el);
 }
-export function mkspan(innerText){
+export function mkspan(innerText) {
   let span = document.createElement("span");
-  span.innerText=innerText;
+  span.innerText = innerText;
   return span;
 }
 export function mkprofmarkspan(innerText, parent_el) {
@@ -53,35 +53,35 @@ export function mkprofmarkspan(innerText, parent_el) {
   parent_el.appendChild(span)
 }
 export function mka(link, parent_el) {
-    let a = document.createElement("a");
-    a.href=link;
-    a.target="_blank";
-    a.innerText=link;
-    parent_el.appendChild(a);
+  let a = document.createElement("a");
+  a.href = link;
+  a.target = "_blank";
+  a.innerText = link;
+  parent_el.appendChild(a);
 }
 
-export function mkimgsticker(name: string) : HTMLElement {
+export function mkimgsticker(name: string): HTMLElement {
   let img = document.createElement("img");
   if (name == "keith") {
-    img.width=55;
+    img.width = 55;
   } else {
-    img.width=50;
+    img.width = 50;
   }
-  img.src="/static/stickies/"+name+".webp";
+  img.src = "/static/stickies/" + name + ".webp";
   return img;
 }
 
-export function mksticker(name: string) : HTMLElement {
+export function mksticker(name: string): HTMLElement {
   let el;
   if (IMAGE_STICKERS.includes(name)) {
     el = mkimgsticker(name);
-  }else if (STICKERS.includes(name)) {
-    switch(name) {
+  } else if (STICKERS.includes(name)) {
+    switch (name) {
       case "404":
         let link = document.createElement("a");
         link.appendChild(mkimgsticker("404"));
-        link.target="_blank";
-        link.href="https://www.youtube.com/watch?v=dQw4w9WgXcQ";
+        link.target = "_blank";
+        link.href = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
         el = link;
         break;
       case "spinny":
@@ -90,8 +90,8 @@ export function mksticker(name: string) : HTMLElement {
     }
   }
   if (el) {
-    el.classList.add("sticker-"+name);
-    el.dataset.sticker=name;
+    el.classList.add("sticker-" + name);
+    el.dataset.sticker = name;
   }
   return el;
 }
@@ -110,7 +110,7 @@ export function mkcontent(message, highlight, parent_el) {
       parent_el.appendChild(mkspan(message.substring(last_index, match.index)));
 
       last_index = match.index;
-      let name = match[0].substring(1, match[0].length-1);
+      let name = match[0].substring(1, match[0].length - 1);
       if (IMAGE_STICKERS.includes(name) || STICKERS.includes(name)) {
         parent_el.appendChild(mksticker(name));
         last_index += match[0].length;

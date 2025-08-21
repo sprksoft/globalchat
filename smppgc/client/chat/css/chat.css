@@ -195,33 +195,8 @@ a.goto-chat-link {
   color: var(--color-error);
 }
 
-#profane-message-dialog {
+#profwarn-dialog {
   max-width: 600px;
   display: flex;
   flex-direction: column;
-}
-
-
-.word {
-  transition: border-color 0.2s, background-color 0.2s;
-  background-color: transparent;
-  border: solid transparent 2px;
-  border-radius: 2px;
-  cursor: pointer;
-}
-.word.good:hover {
-  border-color: var(--color-bad);
-  background-color: var(--color-bad-bg);
-}
-.word.bad {
-  text-decoration: var(--color-error) underline 2px;
-}
-.word.unknown {
-  text-decoration: var(--color-unknown) underline 2px;
-}
-.word.bad:hover,
-.word.unknown:hover
-{
-  border-color: var(--color-good);
-  background-color: var(--color-good-bg);
 }
