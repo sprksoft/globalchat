@@ -5,10 +5,11 @@ use bincode::{
     error::{DecodeError, EncodeError},
     Decode, Encode,
 };
-use wordprocessing::normalize_words;
+use wordprocessing::NormalizedWord;
 
 //mod stemming;
 mod wordprocessing;
+pub use wordprocessing::TokenizedString;
 pub use wordprocessing::Word;
 
 #[cfg_attr(feature = "bincode", derive(Encode, Decode))]
@@ -23,13 +24,6 @@ impl WordEntry {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum CheckResult {
-    Good,
-    Unknown(Word),
-    Bad(Word),
-}
-
 #[cfg_attr(feature = "bincode", derive(Encode, Decode))]
 #[derive(Debug)]
 pub struct WordFilter {
@@ -40,6 +34,10 @@ pub enum TrainResult {
     New,
     Changed,
     Unchanged,
+}
+
+fn normalize_word(word: &str) -> NormalizedWord {
+    Word::from_str(word).normalize()
 }
 
 impl WordFilter {
@@ -61,15 +59,11 @@ impl WordFilter {
 
             let mut context = Vec::new();
             for word in split {
-                let Some(word) = normalize_words(word).next() else {
-                    continue;
-                };
+                let word = normalize_word(word);
                 context.push(word.into());
             }
 
-            let Some(word) = normalize_words(word).next() else {
-                continue;
-            };
+            let word = normalize_word(word);
             if good_bad == "good" {
                 hashmap.insert(
                     word.into(),
@@ -134,7 +128,7 @@ impl WordFilter {
     }
 
     #[inline]
-    fn get_entry(&self, word: &Word) -> Option<&WordEntry> {
+    pub fn get_entry(&self, word: &NormalizedWord) -> Option<&WordEntry> {
         match self.hashmap.get(word.root()) {
             Some(entry) => Some(entry),
             None => match self.hashmap.get(word.str()) {
@@ -144,42 +138,8 @@ impl WordFilter {
         }
     }
 
-    pub fn check(&self, data: &str) -> CheckResult {
-        let mut prev_entry: Option<(&WordEntry, Word)> = None;
-        for word in normalize_words(data) {
-            let Some(entry) = self.get_entry(&word) else {
-                return CheckResult::Unknown(word);
-            };
-            if let Some((prev_entry, prev_word)) = prev_entry {
-                if prev_entry
-                    .forward_ctx
-                    .iter()
-                    .find(|c| c.as_ref() == word.root() || c.as_ref() == word.str())
-                    .is_some()
-                {
-                    if prev_entry.good {
-                        return CheckResult::Bad(prev_word);
-                    }
-                } else {
-                    if !prev_entry.good {
-                        return CheckResult::Bad(prev_word);
-                    }
-                }
-            }
-            prev_entry = Some((entry, word));
-        }
-        if let Some((prev_entry, prev_word)) = prev_entry {
-            if !prev_entry.good {
-                return CheckResult::Bad(prev_word);
-            }
-        }
-        CheckResult::Good
-    }
-
     pub fn train_word(&mut self, word: &str, good: bool) -> TrainResult {
-        let Some(word) = normalize_words(word).next() else {
-            return TrainResult::Unchanged;
-        };
+        let word = normalize_word(word);
         match self.hashmap.insert(
             word.root().into(),
             WordEntry {
@@ -199,9 +159,10 @@ impl WordFilter {
     }
 
     pub fn train_good(&mut self, data: &str) {
-        for word in normalize_words(data) {
+        let ts = TokenizedString::tokenize(data);
+        for word in ts.words() {
             self.hashmap.insert(
-                word.root().into(),
+                word.normalize().into(),
                 WordEntry {
                     good: true,
                     forward_ctx: vec![],
@@ -228,7 +189,7 @@ impl Default for WordFilter {
 
 #[cfg(test)]
 mod test {
-    use crate::{CheckResult, Word, WordFilter};
+    use crate::{CheckResult, TokenizedString, Word, WordFilter};
 
     #[test]
     fn context() {
@@ -236,18 +197,15 @@ mod test {
             "f good haar\nk bad ben\nsibe good\nben good\nwacht good\nfuck bad\njij good",
         );
         assert_eq!(
-            filter.check("fucking"),
-            CheckResult::Bad(Word::new_stemmed("fucking".to_string(), 0..7))
+            filter.check(&TokenizedString::tokenize("fucking")),
+            CheckResult::Bad(Word::from_str("fucking"))
         );
-        assert_eq!(filter.check("ben jij"), CheckResult::Good);
-        assert_eq!(filter.check("f wacht"), CheckResult::Good);
-        assert_eq!(filter.check("k ben sibe"), CheckResult::Good);
-        assert_eq!(filter.check("k ben"), CheckResult::Good);
-        assert_eq!(filter.check("K BEN"), CheckResult::Good);
-        assert_eq!(filter.check("SIBE"), CheckResult::Good);
-        assert_eq!(
-            filter.check("k"),
-            CheckResult::Bad(Word::new_stemmed("k".to_string(), 0..1))
-        );
+        assert_eq!(filter.check_str("ben jij"), CheckResult::Good);
+        assert_eq!(filter.check_str("f wacht"), CheckResult::Good);
+        assert_eq!(filter.check_str("k ben sibe"), CheckResult::Good);
+        assert_eq!(filter.check_str("k ben"), CheckResult::Good);
+        assert_eq!(filter.check_str("K BEN"), CheckResult::Good);
+        assert_eq!(filter.check_str("SIBE"), CheckResult::Good);
+        assert_eq!(filter.check_str("k"), CheckResult::Bad(Word::from_str("k")));
     }
 }

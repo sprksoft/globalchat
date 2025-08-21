@@ -1,4 +1,6 @@
-use std::{ops::Range, str::CharIndices};
+use std::{ ops::{Range, Deref}, str::CharIndices};
+
+use crate::{WordFilter, WordEntry};
 
 // Characters that do not indicate a word boundery
 const NO_WORD_BOUNDERY_CHARS: [char; 5] = ['*', '.', '!', '?', '\''];
@@ -11,20 +13,39 @@ const GHOST_CHARS: [char; 37] = [
 
 pub type Span = Range<usize>;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Word {
-    pub span: Span,
-    root_end: usize,
-    string: String,
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum WFTag {
+    Unknown,
+    Good,
+    Bad,
 }
-impl Word {
-    #[inline]
-    pub fn new_stemmed(string: String, span: Span) -> Self {
-        let mut word = Word {
-            span,
-            root_end: string.len(),
-            string,
-        };
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct Word<'a>(WFTag, &'a str);
+impl<'a> Word<'a> {
+    pub fn from_str(str: &'a str) -> Self {
+        Self(WFTag::Unknown, str)
+    }
+
+    pub fn str(&self) -> &str {
+        self.1
+    }
+
+    pub fn normalize(self) -> NormalizedWord {
+        let mut word = String::with_capacity(self.1.len());
+        let mut prev_char = None;
+        for char in self.chars() {
+            if let Some(char) = push_normalized(&mut word, prev_char, char) {
+                prev_char = Some(char);
+            }
+        }
+
+
+        let mut word = NormalizedWord {
+            root_end: self.len(),
+            word
+        }
+
         // EN
         suffix(&mut word, "y");
         suffix(&mut word, "est");
@@ -42,27 +63,28 @@ impl Word {
         suffix(&mut word, "lijk");
 
         suffix(&mut word, "e");
-
         word
-    }
-    pub fn root(&self) -> &str {
-        &self.string[..self.root_end]
-    }
-    pub fn str(&self) -> &str {
-        &self.string
+
     }
 }
-impl Into<Box<str>> for Word {
-    fn into(self) -> Box<str> {
-        self.string.into_boxed_str()
+impl<'a> From<&'a str> for Word<'a> {
+    fn from(value: &'a str) -> Self {
+        Self::from_str(value)
+    }
+}
+impl<'a> Deref for Word<'a> {
+    type Target = str;
+    fn deref(&self) -> &Self::Target {
+        self.str()
     }
 }
 
-fn suffix(word: &mut Word, suffix: &'static str) {
+fn suffix(word: &mut NormalizedWord, suffix: &'static str) {
     if word.root().len() >= 3 + suffix.len() && word.root().ends_with(suffix) {
         word.root_end -= suffix.len();
     }
 }
+
 
 #[inline]
 fn push_normalized(string: &mut String, mut prev_char: Option<char>, char: char) -> Option<char> {
@@ -93,6 +115,25 @@ fn push_normalized(string: &mut String, mut prev_char: Option<char>, char: char)
     last_pushed
 }
 
+pub struct NormalizedWord{
+        word: String,
+        root_end: usize,
+    }
+impl NormalizedWord {
+    pub fn str(&self) -> &str {
+        &self.word
+    }
+    pub fn root(&self) -> &str {
+        &self.word[..self.root_end]
+    }
+}
+impl From<NormalizedWord> for Box<str> {
+    fn from(mut value: NormalizedWord) -> Self {
+        value.word.truncate(value.root_end);
+        value.word.into_boxed_str()
+    }
+}
+
 #[inline]
 fn is_word_boundery(char: char) -> bool {
     let char = char.to_ascii_lowercase();
@@ -112,54 +153,62 @@ fn is_word_boundery(char: char) -> bool {
     false
 }
 
-pub struct NormWordsIter<'a> {
-    char_iter: CharIndices<'a>,
-}
-impl<'a> Iterator for NormWordsIter<'a> {
-    type Item = Word;
-    fn next(&mut self) -> Option<Self::Item> {
-        let (start_index, start_char) = loop {
-            let (index, char) = self.char_iter.next()?;
-            if !is_word_boundery(char) {
-                break (index, char);
-            }
-        };
-        let mut string = String::new();
-        let mut prev_char = push_normalized(&mut string, None, start_char);
 
-        let span = loop {
-            let (index, char) = match self.char_iter.next() {
-                Some((index, char)) => (index, char),
-                None => {
-                    break start_index..self.char_iter.offset();
-                }
-            };
+#[derive(Debug, PartialEq, Eq)]
+pub struct TokenizedString<'a>(Vec<Word<'a>>);
+impl<'a> TokenizedString<'a> {
+    pub fn tokenize(str: &'a str) -> TokenizedString<'a> {
+        let mut words = Vec::new();
+
+        let mut start_index = 0;
+        let mut prev_char = '\0';
+        for (index, char) in str.char_indices() {
             if is_word_boundery(char) {
-                break start_index..index;
+                if !is_word_boundery(prev_char) {
+                    words.push(Word::from_str(&str[start_index..index]));
+                }
+                start_index = index;
+                prev_char = char;
             }
+        }
+        words.push(Word::from_str(&str[start_index..]));
 
-            if let Some(char) = push_normalized(&mut string, prev_char, char) {
-                prev_char = Some(char);
-            }
-        };
-
-        return if string.len() == 0 {
-            None
-        } else {
-            Some(Word::new_stemmed(string, span))
-        };
+        TokenizedString(words)
     }
-}
 
-pub fn normalize_words<'a>(data: &'a str) -> NormWordsIter<'a> {
-    NormWordsIter {
-        char_iter: data.char_indices(),
+    pub fn update_tags(&mut self, filter: &WordFilter) {
+        for window in self.0.as_mut_slice().windows(2) {
+            let mut word = window[0];
+            let next_word = window[1];
+            let Some(entry) = filter.get_entry(&word) else {
+                word.0 = WFTag::Unknown;
+                continue;
+            };
+            let next_norm = next_word.normalize();
+            if entry.forward_ctx
+                    .iter()
+                    .find(|c| c.as_ref() == next_norm.root() || c.as_ref() == next_norm.str())
+                    .is_some() {
+
+                word.0 = if entry.good { WFTag::Bad} else { WFTag::Good };
+            }else{
+                word.0 = if entry.good { WFTag::Good} else { WFTag::Bad };
+            }
+
+        }
+    }
+
+    pub fn words(&self) -> impl Iterator<Item = &Word> {
+        self.0.iter()
     }
 }
 
 #[cfg(test)]
 mod test {
-    use crate::wordprocessing::is_word_boundery;
+    use crate::{
+        wordprocessing::{is_word_boundery, TokenizedString},
+        Word,
+    };
 
     #[test]
     fn word_boundery() {
@@ -167,6 +216,24 @@ mod test {
         assert!(!is_word_boundery('💕'));
         assert!(!is_word_boundery('.'));
         assert!(is_word_boundery('-'));
+    }
+
+    #[test]
+    fn tokenize_test() {
+        assert_eq!(
+            TokenizedString::tokenize("ik ben sibe"),
+            TokenizedString(vec![
+                Word::from_str("ik"),
+                Word::from_str("ben"),
+                Word::from_str("sibe")
+            ])
+        );
+    }
+    
+    #[test]
+    fn normalized_word() {
+        assert_eq!(Box::<str>::from(Word::from_str("fuckery").normalize()), "fuck".into());
+        assert_eq!(Word::from_str("fuckery").normalize().root(), "fuck");
     }
 
     #[test]
