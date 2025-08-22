@@ -209,7 +209,7 @@ socketmgr.on_leave = (data: string | Ban, protoerr: ProtoError) => {
 
   login_popup.showModal();
 
-  if (protoerr == ProtoError.err_no_session) {
+  if (protoerr === ProtoError.err_no_session) {
     log("Got no session error. Redirecting to login page...");
     location.href = "/login?redirect=/v1";
   }

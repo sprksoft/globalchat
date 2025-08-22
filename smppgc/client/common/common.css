@@ -27,6 +27,11 @@ main {
   min-width: 100em;
 }
 
+h1 {
+  margin-block: 0.67em;
+  font-size: 2rem;
+}
+
 @media screen and (max-width: 100rem) {
   main {
     min-width: auto;
@@ -89,41 +94,30 @@ input[type="checkbox"] {
   height: 1.5em;
   vertical-align: middle;
 
-  background: var(--color-base02);
   border: solid var(--color-base03) 2px;
-  border-radius: 2px;
+  border-radius: 5px;
+
+  transition: background-size 0.1s;
+  background: no-repeat center center conic-gradient(from 180deg at 50% 50%,var(--color-accent)) var(--color-base02);
+  background-size: 0px 0px;
 }
-input[type="checkbox"]:focus,
-input[type="checkbox"]:focus-visible {
-  border: solid var(--color-accent) 2px;
-  outline: none !important;
-}
+
 input[type="checkbox"]:hover {
   cursor: pointer;
 }
-input[type="checkbox"]::after {
-  content: "a";
-  color: transparent;
-  display: block;
-  font-size: 13px; /* I know this is a monstrosity */
-  font-family: inherit;
-  background: var(--color-accent);
-  position: relative;
 
-  left: 0px;
-  right: 0px;
-  top: 0px;
-  bottom: 0px;
-
-  transform: scale(0);
-  transition: transform 0.1s;
+input[type="checkbox"]:checked {
+  background-size: 100% 100%;
 }
+
 input[type="checkbox"]:disabled {
   cursor: default;
 }
+
 input[type="checkbox"]:disabled::after {
   transform: scale(0) !important;
 }
+
 ul {
   padding-left: 1.5em;
 }
@@ -153,16 +147,13 @@ kbd {
   border-radius: 5px;
 }
 
-input[type="checkbox"]:checked::after {
-  transform: scale(0.7);
-}
 
 ::selection {
   background-color: #ffffff40 !important;
 }
 
 *:focus-visible {
-  outline: 2px solid var(--color-accent) !important;
+  outline: 2px ridge var(--color-accent) !important;
 }
 
 dialog[open]::backdrop {
