@@ -59,7 +59,7 @@ export class SocketMgr {
         while (!reader.end()) {
           const tag = reader.getUint8(0) as WFTag;
           const len = reader.getUint16(0);
-          content.push({ wf: tag, word: reader.getString(0, len) })
+          content.push({ wf: tag, word: reader.getString(len) })
         }
 
         let sender = this.#users[sender_id];
@@ -71,7 +71,7 @@ export class SocketMgr {
         this.on_message?.(sender_id, message);
         break;
       case PacketId.MESSAGE_SYSTEM: {
-        let content = reader.getString(0);
+        let content = reader.getString();
         let message = Message.system(content);
         this.on_message?.(-1, message);
         break;
@@ -97,7 +97,7 @@ export class SocketMgr {
       case PacketId.USERJOIN:
         let id = reader.getUint16(0);
         let role = reader.getUint8(0);
-        let username = reader.getString(0);
+        let username = reader.getString();
         log("user join: " + username + " (" + id + ")" + " role: " + role);
         this.#users[id] = new User(
           username,
@@ -110,8 +110,8 @@ export class SocketMgr {
         let start = reader.getUint16(0);
         let end = reader.getUint16(0);
         let msgLen = reader.getUint16(0);
-        let msg = reader.getString(0, msgLen);
-        let badWord = reader.getString(0);
+        let msg = reader.getString(msgLen);
+        let badWord = reader.getString();
         this.on_profanity_warn?.(msg, badWord, start, end);
         break;
 

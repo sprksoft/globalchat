@@ -11,12 +11,12 @@ export class Reader {
     this.#tdecoder = new TextDecoder();
   }
 
-  getString(offset: number, length: number | null = null): string {
+  getString(length: number | null = null): string {
     const len =
       typeof length == "number"
         ? length
-        : this.dv.byteLength - (this.#index + offset);
-    let dv = new DataView(this.dv.buffer, this.#index + offset, len);
+        : this.dv.byteLength - this.#index;
+    let dv = new DataView(this.dv.buffer, this.#index, len);
     this.#index += len;
     return this.#tdecoder.decode(dv);
   }

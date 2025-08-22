@@ -7,7 +7,7 @@ export enum ProtoError {
   err_full = "err_full",
   err_shutdown = "err_shutdown",
   err_already_in_chat = "err_already_in_chat",
-  err_no_session = "err_no_session ",
+  err_no_session = "err_no_session",
   err_banned = "err_banned",
 
   err_username_invalid = "err_username_invalid",
@@ -39,7 +39,7 @@ const ERRORS: any = {
 };
 
 export namespace ProtoError {
-  export function humanize(protoerr: ProtoError) {
+  export function humanize(protoerr: ProtoError): string {
     if (protoerr == ProtoError.err_ratelimit && Math.floor(Math.random() * 505) == 1) {
       return ProtoError.err_505;
     }
