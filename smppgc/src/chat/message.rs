@@ -1,12 +1,14 @@
 use std::sync::Arc;
 
+use wordfilter::TokenizedString;
+
 use crate::Snowflake;
 
 use super::ChatUser;
 
 #[derive(Clone, Debug)]
 pub struct Message {
-    pub content: Arc<str>,
+    pub content: Arc<TokenizedString>,
     pub profanity: bool,
     pub sender: ChatUser,
     pub id: Snowflake,

@@ -1,6 +1,10 @@
-use std::{ ops::{Range, Deref}, str::CharIndices};
+use std::{
+    cell::{Cell, OnceCell},
+    ops::Range,
+    sync::Arc,
+};
 
-use crate::{WordFilter, WordEntry};
+use crate::WordFilter;
 
 // Characters that do not indicate a word boundery
 const NO_WORD_BOUNDERY_CHARS: [char; 5] = ['*', '.', '!', '?', '\''];
@@ -11,71 +15,31 @@ const GHOST_CHARS: [char; 37] = [
     '👀', '🚀', '🌋', '🥔', '🪽',
 ];
 
-pub type Span = Range<usize>;
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum WFTag {
+#[derive(Hash, Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum Tag {
+    #[default]
     Unknown,
     Good,
     Bad,
 }
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct Word<'a>(WFTag, &'a str);
-impl<'a> Word<'a> {
-    pub fn from_str(str: &'a str) -> Self {
-        Self(WFTag::Unknown, str)
-    }
-
-    pub fn str(&self) -> &str {
-        self.1
-    }
-
-    pub fn normalize(self) -> NormalizedWord {
-        let mut word = String::with_capacity(self.1.len());
-        let mut prev_char = None;
-        for char in self.chars() {
-            if let Some(char) = push_normalized(&mut word, prev_char, char) {
-                prev_char = Some(char);
-            }
+impl Tag {
+    pub fn good(self) -> bool {
+        match self {
+            Tag::Good => true,
+            _ => false,
         }
-
-
-        let mut word = NormalizedWord {
-            root_end: self.len(),
-            word
+    }
+    pub fn unknown(self) -> bool {
+        match self {
+            Tag::Unknown => true,
+            _ => false,
         }
-
-        // EN
-        suffix(&mut word, "y");
-        suffix(&mut word, "est");
-        suffix(&mut word, "er");
-        suffix(&mut word, "ing");
-        // NL
-
-        // meervoud
-        suffix(&mut word, "en");
-        suffix(&mut word, "je");
-        suffix(&mut word, "jes");
-
-        // adjectief
-        suffix(&mut word, "baar");
-        suffix(&mut word, "lijk");
-
-        suffix(&mut word, "e");
-        word
-
     }
-}
-impl<'a> From<&'a str> for Word<'a> {
-    fn from(value: &'a str) -> Self {
-        Self::from_str(value)
-    }
-}
-impl<'a> Deref for Word<'a> {
-    type Target = str;
-    fn deref(&self) -> &Self::Target {
-        self.str()
+    pub fn bad(self) -> bool {
+        match self {
+            Tag::Bad => true,
+            _ => false,
+        }
     }
 }
 
@@ -84,7 +48,6 @@ fn suffix(word: &mut NormalizedWord, suffix: &'static str) {
         word.root_end -= suffix.len();
     }
 }
-
 
 #[inline]
 fn push_normalized(string: &mut String, mut prev_char: Option<char>, char: char) -> Option<char> {
@@ -115,11 +78,45 @@ fn push_normalized(string: &mut String, mut prev_char: Option<char>, char: char)
     last_pushed
 }
 
-pub struct NormalizedWord{
-        word: String,
-        root_end: usize,
-    }
+#[derive(Clone, Hash, Debug, PartialEq, Eq)]
+pub struct NormalizedWord {
+    root_end: usize,
+    word: String,
+}
 impl NormalizedWord {
+    pub fn normalize(str: &str) -> NormalizedWord {
+        let mut word = String::with_capacity(str.len());
+        let mut prev_char = None;
+        for char in str.chars() {
+            if let Some(char) = push_normalized(&mut word, prev_char, char) {
+                prev_char = Some(char);
+            }
+        }
+
+        let mut word = NormalizedWord {
+            root_end: word.len(),
+            word,
+        };
+
+        // EN
+        suffix(&mut word, "y");
+        suffix(&mut word, "est");
+        suffix(&mut word, "er");
+        suffix(&mut word, "ing");
+        // NL
+
+        // meervoud
+        suffix(&mut word, "en");
+        suffix(&mut word, "je");
+        suffix(&mut word, "jes");
+
+        // adjectief
+        suffix(&mut word, "baar");
+        suffix(&mut word, "lijk");
+
+        suffix(&mut word, "e");
+        word
+    }
     pub fn str(&self) -> &str {
         &self.word
     }
@@ -153,53 +150,125 @@ fn is_word_boundery(char: char) -> bool {
     false
 }
 
-
 #[derive(Debug, PartialEq, Eq)]
-pub struct TokenizedString<'a>(Vec<Word<'a>>);
-impl<'a> TokenizedString<'a> {
-    pub fn tokenize(str: &'a str) -> TokenizedString<'a> {
-        let mut words = Vec::new();
+struct Token {
+    tag: Cell<Tag>,
+    span: Range<usize>,
+    norm: OnceCell<NormalizedWord>,
+}
+impl Token {
+    pub fn new(span: Range<usize>, tag: Tag) -> Self {
+        Token {
+            tag: tag.into(),
+            norm: OnceCell::default(),
+            span,
+        }
+    }
+
+    pub fn norm(&self, s: &str) -> &NormalizedWord {
+        self.norm
+            .get_or_init(|| NormalizedWord::normalize(&s[self.span.clone()]))
+    }
+}
+
+pub trait IntoWordTagPair<'a> {
+    fn into_word_tag_pair(self) -> (&'a str, Tag);
+}
+impl<'a> IntoWordTagPair<'a> for &'a str {
+    fn into_word_tag_pair(self) -> (&'a str, Tag) {
+        (self, Tag::Unknown)
+    }
+}
+impl<'a> IntoWordTagPair<'a> for (&'a str, Tag) {
+    fn into_word_tag_pair(self) -> (&'a str, Tag) {
+        self
+    }
+}
+
+fn slideing_windows<I>(slice: &[I]) -> impl Iterator<Item = (&I, Option<&I>)> {
+    (0..slice.len())
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct TokenizedString(Arc<str>, Arc<[Token]>);
+impl TokenizedString {
+    pub fn from_words<'a>(words: impl IntoIterator<Item = impl IntoWordTagPair<'a>>) -> Self {
+        let iter = words.into_iter();
+
+        let mut tokens: Vec<Token> = Vec::with_capacity(iter.size_hint().1.unwrap_or(1));
+
+        let mut string = String::new();
+        for word in iter {
+            let (word, tag) = word.into_word_tag_pair();
+            tokens.push(Token::new(string.len()..string.len() + word.len(), tag));
+            string.push_str(word);
+        }
+        Self(string.into(), tokens.into())
+    }
+
+    pub fn tokenize(str: impl Into<Arc<str>>) -> TokenizedString {
+        let str = str.into();
+        let mut tokens = Vec::new();
 
         let mut start_index = 0;
         let mut prev_char = '\0';
         for (index, char) in str.char_indices() {
             if is_word_boundery(char) {
                 if !is_word_boundery(prev_char) {
-                    words.push(Word::from_str(&str[start_index..index]));
+                    tokens.push(Token::new(start_index..index, Tag::default()));
                 }
                 start_index = index;
-                prev_char = char;
             }
+            prev_char = char;
         }
-        words.push(Word::from_str(&str[start_index..]));
+        tokens.push(Token::new(start_index..str.len(), Tag::default()));
 
-        TokenizedString(words)
+        TokenizedString(str, tokens.into())
     }
 
-    pub fn update_tags(&mut self, filter: &WordFilter) {
-        for window in self.0.as_mut_slice().windows(2) {
-            let mut word = window[0];
-            let next_word = window[1];
-            let Some(entry) = filter.get_entry(&word) else {
-                word.0 = WFTag::Unknown;
+    pub fn recheck(&mut self, filter: &WordFilter) {
+        for window in self.1.windows(2) {
+            let token = &window[0];
+            let next_token = &window[1];
+            let Some(entry) = filter.get_entry(token.norm(&self.0)) else {
+                token.tag.set(Tag::Unknown);
                 continue;
             };
-            let next_norm = next_word.normalize();
-            if entry.forward_ctx
-                    .iter()
-                    .find(|c| c.as_ref() == next_norm.root() || c.as_ref() == next_norm.str())
-                    .is_some() {
 
-                word.0 = if entry.good { WFTag::Bad} else { WFTag::Good };
-            }else{
-                word.0 = if entry.good { WFTag::Good} else { WFTag::Bad };
+            if entry
+                .forward_ctx
+                .iter()
+                .find(|c| {
+                    c.as_ref() == next_token.norm(&self.0).root()
+                        || c.as_ref() == next_token.norm(&self.0).str()
+                })
+                .is_some()
+            {
+                token.tag.set(if entry.good { Tag::Bad } else { Tag::Good });
+            } else {
+                token.tag.set(if entry.good { Tag::Good } else { Tag::Bad });
             }
-
         }
     }
 
-    pub fn words(&self) -> impl Iterator<Item = &Word> {
-        self.0.iter()
+    pub fn good(&self) -> bool {
+        self.words().find(|(_, tag)| !tag.good()).is_none()
+    }
+
+    pub fn words(&self) -> impl Iterator<Item = (&str, Tag)> {
+        self.1
+            .iter()
+            .map(|token| (&self.0[token.span.clone()], token.tag.get()))
+    }
+
+    pub fn norm_words(&self) -> impl Iterator<Item = (&str, Tag, &NormalizedWord)> {
+        self.1.iter().map(|token| {
+            (
+                &self.0[token.span.clone()],
+                token.tag.get(),
+                token.norm(&self.0),
+            )
+        })
     }
 }
 
@@ -207,7 +276,7 @@ impl<'a> TokenizedString<'a> {
 mod test {
     use crate::{
         wordprocessing::{is_word_boundery, TokenizedString},
-        Word,
+        NormalizedWord,
     };
 
     #[test]
@@ -222,18 +291,25 @@ mod test {
     fn tokenize_test() {
         assert_eq!(
             TokenizedString::tokenize("ik ben sibe"),
-            TokenizedString(vec![
-                Word::from_str("ik"),
-                Word::from_str("ben"),
-                Word::from_str("sibe")
-            ])
+            TokenizedString::from_words(["ik", " ben", " sibe"])
         );
+
+        assert_eq!(
+            TokenizedString::tokenize("ik ben sibe")
+                .words()
+                .map(|(w, _)| w)
+                .collect::<Vec<&str>>(),
+            vec!["ik", " ben", " sibe"]
+        )
     }
-    
+
     #[test]
     fn normalized_word() {
-        assert_eq!(Box::<str>::from(Word::from_str("fuckery").normalize()), "fuck".into());
-        assert_eq!(Word::from_str("fuckery").normalize().root(), "fuck");
+        assert_eq!(
+            Box::<str>::from(NormalizedWord::normalize("fuckery")),
+            "fuck".into()
+        );
+        assert_eq!(NormalizedWord::normalize("fuckery").root(), "fuck");
     }
 
     #[test]
