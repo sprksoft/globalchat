@@ -2623,6 +2623,7 @@ dependencies = [
  "rocket_db_pools",
  "rocket_dyn_templates",
  "rocket_ws",
+ "serde",
  "serde_json",
  "sqlx",
  "thiserror 2.0.12",
@@ -2630,6 +2631,7 @@ dependencies = [
  "tokio-tungstenite",
  "url",
  "uuid",
+ "wordfilter",
 ]
 
 [[package]]

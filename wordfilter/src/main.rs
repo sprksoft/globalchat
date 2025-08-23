@@ -1,11 +1,12 @@
 use std::{
+    collections::HashSet,
     fs,
     io::{self, stdin, Read},
 };
 
 use ansii::*;
 use clap::Parser;
-use wordfilter::{CheckResult, Word, WordFilter};
+use wordfilter::{Tag, WordFilter};
 
 mod ansii;
 mod cleaning;
@@ -73,19 +74,22 @@ fn add_good_file(filter: &mut WordFilter, path: &str) {
         .unwrap()
         .lines()
         .map(|l| cleaning::clean_line(l))
+        .flatten()
     {
-        let Some(line) = line else {
-            continue;
-        };
-        match filter.check(line) {
-            CheckResult::Unknown(_) => filter.train_good(line),
-            CheckResult::Bad(word) => {
-                println!("'{}' ({}) {COLOR_RED}bad{RESET}", line, word.root());
-                if ask_yn("mark as good?") {
-                    filter.train_word(word.str(), true);
+        let str = filter.check(line);
+        for (word, tag) in str.words() {
+            match tag {
+                Tag::Unknown => {
+                    filter.train_word(word, true);
                 }
+                Tag::Bad => {
+                    println!("'{}' ({}) {COLOR_RED}bad{RESET}", line, word);
+                    if ask_yn("mark as good?") {
+                        filter.train_word(word, true);
+                    }
+                }
+                Tag::Good => {}
             }
-            _ => {}
         }
     }
 }
@@ -93,28 +97,29 @@ fn add_good_file(filter: &mut WordFilter, path: &str) {
 #[inline]
 fn interactive_check(
     filter: &mut WordFilter,
-    line: &str,
-    good: &mut usize,
-    bad: &mut Vec<Word>,
-    unknown: &mut Vec<Word>,
-    count: &mut usize,
+    str: &str,
+    good: &mut HashSet<Box<str>>,
+    bad: &mut HashSet<Box<str>>,
+    unknown: &mut HashSet<Box<str>>,
 ) {
-    let result = filter.check(&line);
-    *count += 1;
-    match result {
-        CheckResult::Good => {
-            println!("{COLOR_GREEN}good{RESET}");
-            *good += 1;
-        }
-        CheckResult::Bad(word) => {
-            println!("{COLOR_RED}bad: {} {RESET}", word.str());
-            bad.push(word);
-        }
-        CheckResult::Unknown(word) => {
-            println!("{COLOR_GRAY}unknown: {}{RESET}", word.str());
-            unknown.push(word);
+    let str = filter.check(str);
+    for (word, tag) in str.words() {
+        match tag {
+            Tag::Good => {
+                println!("{COLOR_GREEN}{}{RESET}", word);
+                good.insert(word.into());
+            }
+            Tag::Bad => {
+                println!("{COLOR_RED}{}{RESET}", word);
+                bad.insert(word.into());
+            }
+            Tag::Unknown => {
+                println!("{COLOR_GRAY}{}{RESET}", word);
+                unknown.insert(word.into());
+            }
         }
     }
+    println!();
 }
 
 fn main() {
@@ -128,10 +133,9 @@ fn main() {
     }
 
     if let Some(check_file) = cli.check {
-        let mut count = 0;
-        let mut unknown = Vec::new();
-        let mut bad = Vec::new();
-        let mut good = 0;
+        let mut good = HashSet::new();
+        let mut bad = HashSet::new();
+        let mut unknown = HashSet::new();
         if check_file == "-" {
             let mut line = String::new();
             loop {
@@ -140,45 +144,31 @@ fn main() {
                 if line.len() == 0 {
                     break;
                 }
-                interactive_check(
-                    &mut filter,
-                    &line,
-                    &mut good,
-                    &mut bad,
-                    &mut unknown,
-                    &mut count,
-                );
+                interactive_check(&mut filter, &line, &mut good, &mut bad, &mut unknown);
             }
         } else {
             for line in std::fs::read_to_string(check_file).unwrap().lines() {
                 println!("'{}'", line);
-                interactive_check(
-                    &mut filter,
-                    line,
-                    &mut good,
-                    &mut bad,
-                    &mut unknown,
-                    &mut count,
-                );
+                interactive_check(&mut filter, line, &mut good, &mut bad, &mut unknown);
             }
         }
 
         println!("");
-        println!("checked {} lines:", count);
-        println!("{}\tlines good", good);
+        println!("checked {} lines:", good.len() + bad.len() + unknown.len());
+        println!("{}\tlines good", good.len());
         println!("{}\tlines bad", bad.len());
         println!("{}\tlines unknown", unknown.len());
 
         if bad.len() < 50 {
             println!("\nbad words: ");
-            for word in bad {
-                println!("  {}", word.str());
+            for word in bad.iter() {
+                println!("  {}", word);
             }
         }
         if unknown.len() < 50 {
             println!("\nunknown words: ");
-            for word in unknown {
-                println!("  {}", word.str());
+            for word in unknown.iter() {
+                println!("  {}", word);
             }
         }
     }
