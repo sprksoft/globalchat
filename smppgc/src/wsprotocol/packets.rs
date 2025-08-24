@@ -11,7 +11,6 @@ use crate::{
 use log::*;
 
 pub const PACKET_MESSAGE: u8 = 0;
-pub const PACKET_MESSAGE_PROF: u8 = 1;
 pub const PACKET_MESSAGE_SYSTEM: u8 = 2;
 
 pub const PACKET_SETUP: u8 = 3;
@@ -103,17 +102,21 @@ pub fn new_message_change(
 }
 
 pub fn new_message(mesg: &Message) -> tokio_tungstenite::tungstenite::Message {
-    //|  u8  | const PACKET_MESSAGE, const PACKET_MESSAGE_PROF
+    //|  u8  | const PACKET_MESSAGE
     //|  u16 | sender id
     //| Snowflake | message id
-    //| [u8] | content bytes
+    //| [Word] | content bytes
+    //
+    // Word:
+    //| u8  | tag
+    //| u16 | len
+    //| [u8]| data
 
     let content_bytes = mesg.content.as_bytes();
     let mut data =
         Vec::with_capacity(1 + size_of::<u16>() + size_of::<Snowflake>() + content_bytes.len());
 
     data.push(if mesg.profanity {
-        PACKET_MESSAGE_PROF
     } else {
         PACKET_MESSAGE
     });

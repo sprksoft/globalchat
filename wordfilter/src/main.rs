@@ -103,23 +103,31 @@ fn interactive_check(
     unknown: &mut HashSet<Box<str>>,
 ) {
     let str = filter.check(str);
+    let mut wc = 0;
     for (word, tag) in str.words() {
         match tag {
             Tag::Good => {
-                println!("{COLOR_GREEN}{}{RESET}", word);
+                print!("{COLOR_GREEN}{}{RESET}", word);
                 good.insert(word.into());
             }
             Tag::Bad => {
-                println!("{COLOR_RED}{}{RESET}", word);
+                print!("{COLOR_RED}{}{RESET}", word);
                 bad.insert(word.into());
             }
             Tag::Unknown => {
-                println!("{COLOR_GRAY}{}{RESET}", word);
+                print!("{COLOR_GRAY}{}{RESET}", word);
                 unknown.insert(word.into());
             }
         }
+        wc += 1;
     }
-    println!();
+
+    print!(" ({} ", wc);
+    if str.good() {
+        println!("{COLOR_GREEN}O{RESET})");
+    } else {
+        println!("{COLOR_RED}X{RESET})");
+    }
 }
 
 fn main() {

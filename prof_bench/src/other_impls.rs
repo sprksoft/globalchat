@@ -1,6 +1,5 @@
 use string_tree::StringTree;
 
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ProfanityFilter {
     wordlist: Vec<Box<str>>,
 }
@@ -124,7 +123,6 @@ pub fn sentence_contains_loop(wordlist: &Vec<Box<str>>, sentence: &str) -> bool 
     false
 }
 
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct STProfanityFilter {
     tree: StringTree,
 }

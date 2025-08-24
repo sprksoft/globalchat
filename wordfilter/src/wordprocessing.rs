@@ -1,26 +1,30 @@
 use std::{
-    cell::{Cell, OnceCell},
+    fmt::{Debug, Display},
+    marker::PhantomData,
     ops::Range,
-    sync::Arc,
+    sync::{atomic::AtomicUsize, Arc, OnceLock},
 };
+
+use crate::ansii::*;
 
 use crate::WordFilter;
 
 // Characters that do not indicate a word boundery
 const NO_WORD_BOUNDERY_CHARS: [char; 5] = ['*', '.', '!', '?', '\''];
 // Always allowed in any context.
-const GHOST_CHARS: [char; 37] = [
+const GHOST_CHARS: [char; 38] = [
     '💔', '🩷', '💕', '💖', '💙', '🔥', '✅', '🥹', '😭', '🙄', '😉', '😆', '😢', '🤔', '😁', '😅',
     '😂', '🤣', '🫠', '😊', '💪', '👌', '🫶', '👏', '👍', '🙏', '🦲', '👴', '✨', '⭐', '🎉', '💀',
-    '👀', '🚀', '🌋', '🥔', '🪽',
+    '👀', '🚀', '🌋', '🥔', '🪽', ':',
 ];
 
 #[derive(Hash, Clone, Copy, Debug, PartialEq, Eq, Default)]
+#[repr(usize)]
 pub enum Tag {
     #[default]
-    Unknown,
-    Good,
-    Bad,
+    Unknown = 0,
+    Good = 1,
+    Bad = 2,
 }
 impl Tag {
     pub fn good(self) -> bool {
@@ -42,10 +46,36 @@ impl Tag {
         }
     }
 }
+impl Into<usize> for Tag {
+    fn into(self) -> usize {
+        self as usize
+    }
+}
+impl From<usize> for Tag {
+    fn from(value: usize) -> Self {
+        if value > Self::Bad.into() {
+            return Self::Unknown;
+        }
+        unsafe { std::mem::transmute(value) }
+    }
+}
 
-fn suffix(word: &mut NormalizedWord, suffix: &'static str) {
-    if word.root().len() >= 3 + suffix.len() && word.root().ends_with(suffix) {
-        word.root_end -= suffix.len();
+struct AtomicTag<T>(AtomicUsize, PhantomData<T>);
+impl<T: Into<usize> + From<usize>> AtomicTag<T> {
+    pub fn new(tag: T) -> Self {
+        Self(AtomicUsize::new(tag.into()), PhantomData::default())
+    }
+    pub fn set(&self, tag: T) {
+        self.0
+            .store(tag.into(), std::sync::atomic::Ordering::SeqCst)
+    }
+    pub fn get(&self) -> T {
+        T::from(self.0.load(std::sync::atomic::Ordering::SeqCst))
+    }
+}
+impl<T: Debug + From<usize> + Into<usize>> Debug for AtomicTag<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.get().fmt(f)
     }
 }
 
@@ -76,6 +106,13 @@ fn push_normalized(string: &mut String, mut prev_char: Option<char>, char: char)
         }
     }
     last_pushed
+}
+
+#[inline]
+fn suffix(word: &mut NormalizedWord, suffix: &'static str) {
+    if word.root().len() >= 3 + suffix.len() && word.root().ends_with(suffix) {
+        word.root_end -= suffix.len();
+    }
 }
 
 #[derive(Clone, Hash, Debug, PartialEq, Eq)]
@@ -150,17 +187,33 @@ fn is_word_boundery(char: char) -> bool {
     false
 }
 
-#[derive(Debug, PartialEq, Eq)]
-struct Token {
-    tag: Cell<Tag>,
+struct Token<T> {
+    tag: AtomicTag<T>,
     span: Range<usize>,
-    norm: OnceCell<NormalizedWord>,
+    norm: OnceLock<NormalizedWord>,
 }
-impl Token {
-    pub fn new(span: Range<usize>, tag: Tag) -> Self {
+impl<T> Eq for Token<T> {}
+impl<T> PartialEq for Token<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.span == other.span
+    }
+}
+impl<T: Debug + Into<usize> + From<usize>> Debug for Token<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("(")?;
+        self.span.fmt(f)?;
+        f.write_str(", ")?;
+        self.tag.fmt(f)?;
+        f.write_str(")")?;
+        Ok(())
+    }
+}
+
+impl<T: Into<usize> + From<usize>> Token<T> {
+    pub fn new(span: Range<usize>, tag: T) -> Self {
         Token {
-            tag: tag.into(),
-            norm: OnceCell::default(),
+            tag: AtomicTag::new(tag),
+            norm: OnceLock::default(),
             span,
         }
     }
@@ -171,31 +224,27 @@ impl Token {
     }
 }
 
-pub trait IntoWordTagPair<'a> {
-    fn into_word_tag_pair(self) -> (&'a str, Tag);
+pub trait IntoWordTagPair<'a, T> {
+    fn into_word_tag_pair(self) -> (&'a str, T);
 }
-impl<'a> IntoWordTagPair<'a> for &'a str {
-    fn into_word_tag_pair(self) -> (&'a str, Tag) {
-        (self, Tag::Unknown)
+impl<'a, T: Default> IntoWordTagPair<'a, T> for &'a str {
+    fn into_word_tag_pair(self) -> (&'a str, T) {
+        (self, T::default())
     }
 }
-impl<'a> IntoWordTagPair<'a> for (&'a str, Tag) {
-    fn into_word_tag_pair(self) -> (&'a str, Tag) {
+impl<'a, T> IntoWordTagPair<'a, T> for (&'a str, T) {
+    fn into_word_tag_pair(self) -> (&'a str, T) {
         self
     }
 }
 
-fn slideing_windows<I>(slice: &[I]) -> impl Iterator<Item = (&I, Option<&I>)> {
-    (0..slice.len())
-}
-
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct TokenizedString(Arc<str>, Arc<[Token]>);
+pub struct TokenizedString(Arc<str>, Arc<[Token<Tag>]>);
 impl TokenizedString {
-    pub fn from_words<'a>(words: impl IntoIterator<Item = impl IntoWordTagPair<'a>>) -> Self {
+    pub fn from_words<'a>(words: impl IntoIterator<Item = impl IntoWordTagPair<'a, Tag>>) -> Self {
         let iter = words.into_iter();
 
-        let mut tokens: Vec<Token> = Vec::with_capacity(iter.size_hint().1.unwrap_or(1));
+        let mut tokens: Vec<Token<Tag>> = Vec::with_capacity(iter.size_hint().1.unwrap_or(1));
 
         let mut string = String::new();
         for word in iter {
@@ -204,6 +253,10 @@ impl TokenizedString {
             string.push_str(word);
         }
         Self(string.into(), tokens.into())
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
     }
 
     pub fn tokenize(str: impl Into<Arc<str>>) -> TokenizedString {
@@ -216,8 +269,8 @@ impl TokenizedString {
             if is_word_boundery(char) {
                 if !is_word_boundery(prev_char) {
                     tokens.push(Token::new(start_index..index, Tag::default()));
+                    start_index = index;
                 }
-                start_index = index;
             }
             prev_char = char;
         }
@@ -226,28 +279,37 @@ impl TokenizedString {
         TokenizedString(str, tokens.into())
     }
 
-    pub fn recheck(&mut self, filter: &WordFilter) {
-        for window in self.1.windows(2) {
-            let token = &window[0];
-            let next_token = &window[1];
-            let Some(entry) = filter.get_entry(token.norm(&self.0)) else {
+    pub fn recheck(&self, filter: &WordFilter) {
+        let tokens = &self.1;
+        for i in 0..tokens.len() {
+            let token = &tokens[i];
+            let norm = token.norm(&self.0);
+            if norm.str().trim().len() == 0 {
+                token.tag.set(Tag::Good);
+                continue;
+            }
+            let Some(entry) = filter.get_entry(norm) else {
                 token.tag.set(Tag::Unknown);
                 continue;
             };
 
-            if entry
-                .forward_ctx
-                .iter()
-                .find(|c| {
-                    c.as_ref() == next_token.norm(&self.0).root()
-                        || c.as_ref() == next_token.norm(&self.0).str()
-                })
-                .is_some()
-            {
-                token.tag.set(if entry.good { Tag::Bad } else { Tag::Good });
-            } else {
-                token.tag.set(if entry.good { Tag::Good } else { Tag::Bad });
+            let mut tag = None;
+            if let Some(next_token) = tokens.get(i + 1) {
+                if entry
+                    .forward_ctx
+                    .iter()
+                    .find(|c| {
+                        c.as_ref() == next_token.norm(&self.0).root()
+                            || c.as_ref() == next_token.norm(&self.0).str()
+                    })
+                    .is_some()
+                {
+                    tag = Some(if entry.good { Tag::Bad } else { Tag::Good }); // inverted tag
+                }
             }
+            tokens[i]
+                .tag
+                .set(tag.unwrap_or(if entry.good { Tag::Good } else { Tag::Bad }));
         }
     }
 
@@ -269,6 +331,32 @@ impl TokenizedString {
                 token.norm(&self.0),
             )
         })
+    }
+
+    pub fn colored<'a>(&'a self) -> ColoredFmt<'a> {
+        ColoredFmt(&self)
+    }
+}
+
+pub struct ColoredFmt<'a>(&'a TokenizedString);
+impl<'a> Display for ColoredFmt<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for (word, tag) in self.0.words() {
+            match tag {
+                Tag::Good => {
+                    f.write_str(COLOR_GREEN)?;
+                }
+                Tag::Bad => {
+                    f.write_str(COLOR_RED)?;
+                }
+                Tag::Unknown => {
+                    f.write_str(COLOR_GRAY)?;
+                }
+            }
+            f.write_str(word)?;
+            f.write_str(RESET)?;
+        }
+        Ok(())
     }
 }
 
@@ -300,7 +388,15 @@ mod test {
                 .map(|(w, _)| w)
                 .collect::<Vec<&str>>(),
             vec!["ik", " ben", " sibe"]
-        )
+        );
+
+        assert_eq!(
+            TokenizedString::tokenize("test with a newline\n")
+                .words()
+                .map(|(w, _)| w)
+                .collect::<Vec<&str>>(),
+            vec!["test", " with", " a", " newline", "\n"]
+        );
     }
 
     #[test]
