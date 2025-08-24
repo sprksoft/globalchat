@@ -1,14 +1,10 @@
-use std::sync::Arc;
-
-use wordfilter::TokenizedString;
-
-use crate::Snowflake;
-
 use super::ChatUser;
+use crate::Snowflake;
+use wordfilter::TokenizedString;
 
 #[derive(Clone, Debug)]
 pub struct Message {
-    pub content: Arc<TokenizedString>,
+    pub content: TokenizedString,
     pub profanity: bool,
     pub sender: ChatUser,
     pub id: Snowflake,
@@ -27,11 +23,10 @@ impl Message {
         self.content.len()
     }
     pub fn is_empty(&self) -> bool {
-        for char in self.content.chars() {
-            if !char.is_whitespace() {
-                return false;
-            }
-        }
-        true
+        self.content
+            .words()
+            .filter(|(w, _)| w.trim().len() > 0)
+            .next()
+            .is_none()
     }
 }

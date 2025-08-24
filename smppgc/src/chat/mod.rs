@@ -1,6 +1,5 @@
 use circular_queue::CircularQueue;
 use log::*;
-use profanity::ProfanityFilter;
 use rocket::{fairing::AdHoc, routes};
 use std::{
     collections::HashMap,
@@ -10,6 +9,7 @@ use tokio::sync::{
     broadcast::{self, error::RecvError},
     Mutex,
 };
+use wordfilter::WordFilter;
 
 mod chatuser;
 mod message;
@@ -60,7 +60,7 @@ pub enum ChatEvent {
 }
 #[derive(Clone, Copy)]
 pub enum MessageChangeType {
-    Censored,
+    Censored(bool),
     Deleted,
 }
 
@@ -266,23 +266,19 @@ impl Chat {
             .collect()
     }
 
-    pub async fn run_filter(&self, filter: &ProfanityFilter) {
+    pub async fn run_filter(&self, filter: &WordFilter) {
         let mut lock = self.history.lock().await;
-        let mut new_messages = CircularQueue::with_capacity(lock.capacity());
-        // TODO: When my pullrequest gets released on circular_queue use into Vec<T>
-        for mut mesg in lock.iter().cloned() {
-            let (content_tokenized, new_content) = filter.tokenize(&mesg.content);
-            mesg.content = new_content.into();
-            if filter.check(&content_tokenized).is_none() {
-                new_messages.push(mesg);
-            } else {
+        for mut mesg in lock.iter() {
+            let was_good = msg.content.good();
+            mesg.content.recheck(filter);
+            let good = msg.content.good();
+            if was_good != good {
                 let _ = self.event_sender.send(ChatEvent::MessageChange(
                     mesg.id(),
-                    MessageChangeType::Censored,
+                    MessageChangeType::Censored(!good),
                 ));
             }
         }
-        *lock = new_messages;
     }
     pub async fn retain_messages<F: Fn(&Message) -> bool>(&self, f: F) -> bool {
         let mut lock = self.history.lock().await;

@@ -9,6 +9,7 @@ use bincode::{
 //mod stemming;
 mod wordprocessing;
 pub use wordprocessing::*;
+mod ansii;
 
 #[cfg_attr(feature = "bincode", derive(Encode, Decode))]
 #[derive(Clone, Debug)]
@@ -137,7 +138,7 @@ impl WordFilter {
     }
 
     pub fn check(&self, message: &str) -> TokenizedString {
-        let mut ts = TokenizedString::tokenize(message);
+        let ts = TokenizedString::tokenize(message);
         ts.recheck(self);
         ts
     }
@@ -195,36 +196,61 @@ impl Default for WordFilter {
 mod test {
     use crate::{IntoWordTagPair, Tag, TokenizedString, WordFilter};
 
+    fn filter() -> WordFilter {
+        WordFilter::from_string(
+            "f good haar\nk bad ben\nsibe good\nben good\nwacht good\nfuck bad\njij good\nldev good\nsmppgc good",
+        )
+    }
+    fn ts<'a>(words: impl IntoIterator<Item = impl IntoWordTagPair<'a, Tag>>) -> TokenizedString {
+        TokenizedString::from_words(words)
+    }
+
     #[test]
-    fn context() {
-        let filter = WordFilter::from_string(
-            "f good haar\nk bad ben\nsibe good\nben good\nwacht good\nfuck bad\njij good",
+    fn check() {
+        let filter = filter();
+
+        assert_eq!(
+            filter.check("ldev234"),
+            ts([("ldev", Tag::Good), ("234", Tag::Good)])
         );
-        fn ts<'a>(words: impl IntoIterator<Item = impl IntoWordTagPair<'a>>) -> TokenizedString {
-            TokenizedString::from_words(words)
-        }
         assert_eq!(filter.check("fucking"), ts([("fucking", Tag::Bad)]));
         assert_eq!(
-            filter.check("ben jij"),
-            ts([("ben", Tag::Good), ("jij", Tag::Good)])
+            filter.check("fucking\n"),
+            ts([("fucking", Tag::Bad), ("\n", Tag::Good)])
         );
         assert_eq!(
+            filter.check("ben jij"),
+            ts([("ben", Tag::Good), (" jij", Tag::Good)])
+        );
+    }
+
+    #[test]
+    fn context() {
+        let filter = filter();
+        assert_eq!(
             filter.check("f wacht"),
-            ts([("f", Tag::Good), ("wacht", Tag::Good)])
+            ts([("f", Tag::Good), (" wacht", Tag::Good)])
         );
         assert_eq!(
             filter.check("k ben sibe"),
-            ts([("k", Tag::Good), ("ben", Tag::Good), ("sibe", Tag::Good)])
+            ts([("k", Tag::Good), (" ben", Tag::Good), (" sibe", Tag::Good)])
         );
         assert_eq!(
             filter.check("k ben"),
-            ts([("k", Tag::Good), ("ben", Tag::Good)])
+            ts([("k", Tag::Good), (" ben", Tag::Good)])
         );
         assert_eq!(
             filter.check("K BEN"),
-            ts([("K", Tag::Good), ("BEN", Tag::Good)])
+            ts([("K", Tag::Good), (" BEN", Tag::Good)])
         );
         assert_eq!(filter.check("SIBE"), ts([("SIBE", Tag::Good)]));
         assert_eq!(filter.check("k"), ts([("k", Tag::Bad)]));
+    }
+
+    #[test]
+    fn ghost_chars() {
+        let fitler = filter();
+
+        assert_eq!(fitler.check(":smppgc:"), ts([(":smppgc:", Tag::Good)]));
     }
 }

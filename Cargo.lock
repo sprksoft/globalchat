@@ -2038,6 +2038,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "prof_bench"
+version = "0.1.0"
+dependencies = [
+ "censor",
+ "profanity",
+ "string_tree",
+ "wordfilter",
+]
+
+[[package]]
 name = "profanity"
 version = "2025.7.5"
 dependencies = [
