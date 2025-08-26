@@ -35,7 +35,7 @@ const ERRORS: any = {
   err_username_invalid: "Gebruikersnaam bevat ongeldige letters.",
   err_username_length: "Gebruikersnaam is te kort of te lang.",
   err_username_taken: "Gebruikersnaam is bezet.",
-  err_username_prof: "Gebruikersnaam is ongepast",
+  err_username_prof: "Gebruikersnaam bevat mogelijks een ongepast woord",
 };
 
 export namespace ProtoError {

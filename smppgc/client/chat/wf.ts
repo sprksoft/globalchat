@@ -14,6 +14,13 @@ export namespace WFTag {
       case WFTag.Bad: return "bad";
     }
   }
+  export function fromNum(num: number): WFTag {
+    if (num < 0 || num > WFTag.Bad) {
+      console.error("tried to create a WFTag from an out of range number");
+      return WFTag.Unknown;
+    }
+    return num as WFTag;
+  }
 }
 
 export function markGood(word: string | HTMLElement) {

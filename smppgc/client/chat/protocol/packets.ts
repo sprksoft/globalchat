@@ -1,8 +1,7 @@
 export enum PacketId {
   MESSAGE = 0,
-  UNUSED = 1,
+  //UNUSED = 1,
   MESSAGE_SYSTEM = 2,
-
   SETUP = 3,
   USERJOIN = 4,
   MODJOIN = 5,

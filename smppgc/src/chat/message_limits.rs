@@ -1,7 +1,4 @@
-use std::ops::Range;
-
 use dashmap::DashMap;
-use profanity::ProfanityFilter;
 use rocket::{fairing::AdHoc, serde::Deserialize};
 
 use crate::{
@@ -35,11 +32,6 @@ pub enum LimitType {
     Rate,
     Spam,
     Size,
-    Profanity {
-        content: String,
-        bad_word: String,
-        span: Range<usize>,
-    },
 }
 
 pub struct MessageLimiter {
@@ -62,31 +54,11 @@ impl MessageLimiter {
         }
     }
 
-    fn prof_check(&self, filter: &ProfanityFilter, message: &str) -> Result<String, LimitType> {
-        let (tokenized_mesg, content) = filter.tokenize(message);
-        self.size_check(content.len())?;
-
-        if let Some(m) = filter.check(&tokenized_mesg) {
-            Err(LimitType::Profanity {
-                content,
-                span: m.span,
-                bad_word: m.rule.to_string_friendly(),
-            })
-        } else {
-            Ok(content)
-        }
-    }
-
     pub fn message_size_range(&self) -> (MessageLen, MessageLen) {
         (self.config.min_len, self.config.max_len)
     }
 
-    pub fn feed(
-        &self,
-        user_id: UserId,
-        filter: &ProfanityFilter,
-        message: String,
-    ) -> Result<String, LimitType> {
+    pub fn feed(&self, user_id: UserId, message: String) -> Result<String, LimitType> {
         self.size_check(message.len())?;
 
         match self.map.get_mut(&user_id) {
@@ -104,26 +76,26 @@ impl MessageLimiter {
                 };
 
                 let result = if p.spam > self.config.max_spam {
-                    Err(LimitType::Spam)
+                    LimitType::Spam
                 } else if !p.ratelimiter.update(increase) {
-                    Err(LimitType::Rate)
+                    LimitType::Rate
                 } else {
-                    self.prof_check(filter, &message)
+                    p.last_message_content = message.clone().into();
+                    return Ok(message);
                 };
                 p.last_message_content = message.into();
-                result
+                Err(result)
             }
             None => {
-                let result = self.prof_check(filter, &message);
                 self.map.insert(
                     user_id,
                     Profile {
                         spam: 0,
-                        last_message_content: message.into(),
+                        last_message_content: message.clone().into(),
                         ratelimiter: RateLimiter::new(self.config.ratelimit.clone()),
                     },
                 );
-                result
+                Ok(message)
             }
         }
     }

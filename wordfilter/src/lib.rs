@@ -138,7 +138,7 @@ impl WordFilter {
     }
 
     pub fn check(&self, message: &str) -> TokenizedString {
-        let ts = TokenizedString::tokenize(message);
+        let mut ts = TokenizedString::tokenize(message);
         ts.recheck(self);
         ts
     }

@@ -1,19 +1,14 @@
-use std::sync::Arc;
-
 use crate::users::{role::Role, UserId};
 
 #[derive(Debug, Clone)]
 pub struct ChatUser {
-    pub(super) username: Arc<str>,
+    pub(super) username: String,
     pub(super) mod_badge: bool,
     pub(super) user_id: UserId,
     pub(super) local_id: u16,
     pub(super) role: Role,
 }
 impl ChatUser {
-    pub fn arc_username(&self) -> Arc<str> {
-        self.username.clone()
-    }
     pub fn username(&self) -> &str {
         &self.username
     }
