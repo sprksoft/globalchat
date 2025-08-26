@@ -6,7 +6,7 @@ import { markBad, markGood, WFTag } from "./wf.ts";
 
 
 export interface Word {
-  wf: WFTag,
+  tag: WFTag,
   word: string,
 }
 
@@ -24,7 +24,7 @@ export class Message {
     this.content = [];
     for (const word of content) {
       if (typeof word === "string") {
-        this.content.push({ wf: WFTag.Good, word: word })
+        this.content.push({ tag: WFTag.Good, word: word })
       } else {
         this.content.push(word);
       }
@@ -53,7 +53,7 @@ export namespace Message {
       return containsProf(mesg.content);
     } else {
       for (let word of mesg) {
-        if (word.wf == WFTag.Bad || word.wf == WFTag.Good) {
+        if (word.tag == WFTag.Bad || word.tag == WFTag.Unknown) {
           return true;
         }
       }
@@ -114,9 +114,9 @@ export function createMessage(
       }
     }
     const span = $("<span></span>").text(word.word);
+    span.addClass(WFTag.toString(word.tag));
     if (wfEdit) {
       span.addClass("word");
-      span.addClass(WFTag.toString(word.wf));
       span.on("click", function() {
         const w = $(this);
         if (w.hasClass("unknown")) {

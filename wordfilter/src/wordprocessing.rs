@@ -1,8 +1,7 @@
 use std::{
     fmt::{Debug, Display},
-    marker::PhantomData,
     ops::Range,
-    sync::{atomic::AtomicUsize, Arc, OnceLock},
+    sync::OnceLock,
 };
 
 use crate::ansii::*;
@@ -46,38 +45,21 @@ impl Tag {
         }
     }
 }
-impl Into<usize> for Tag {
-    fn into(self) -> usize {
-        self as usize
+impl Into<u8> for Tag {
+    fn into(self) -> u8 {
+        self as u8
     }
 }
-impl From<usize> for Tag {
-    fn from(value: usize) -> Self {
+impl From<u8> for Tag {
+    fn from(value: u8) -> Self {
         if value > Self::Bad.into() {
             return Self::Unknown;
         }
-        unsafe { std::mem::transmute(value) }
+        unsafe { std::mem::transmute(value as usize) }
     }
 }
-
-struct AtomicTag<T>(AtomicUsize, PhantomData<T>);
-impl<T: Into<usize> + From<usize>> AtomicTag<T> {
-    pub fn new(tag: T) -> Self {
-        Self(AtomicUsize::new(tag.into()), PhantomData::default())
-    }
-    pub fn set(&self, tag: T) {
-        self.0
-            .store(tag.into(), std::sync::atomic::Ordering::SeqCst)
-    }
-    pub fn get(&self) -> T {
-        T::from(self.0.load(std::sync::atomic::Ordering::SeqCst))
-    }
-}
-impl<T: Debug + From<usize> + Into<usize>> Debug for AtomicTag<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.get().fmt(f)
-    }
-}
+pub trait TokenTag: Clone + Copy {}
+impl TokenTag for Tag {}
 
 #[inline]
 fn push_normalized(string: &mut String, mut prev_char: Option<char>, char: char) -> Option<char> {
@@ -187,18 +169,19 @@ fn is_word_boundery(char: char) -> bool {
     false
 }
 
-struct Token<T> {
-    tag: AtomicTag<T>,
+#[derive(Clone)]
+struct Token<T: TokenTag> {
+    tag: T,
     span: Range<usize>,
     norm: OnceLock<NormalizedWord>,
 }
-impl<T> Eq for Token<T> {}
-impl<T> PartialEq for Token<T> {
+impl<T: TokenTag> Eq for Token<T> {}
+impl<T: TokenTag> PartialEq for Token<T> {
     fn eq(&self, other: &Self) -> bool {
         self.span == other.span
     }
 }
-impl<T: Debug + Into<usize> + From<usize>> Debug for Token<T> {
+impl<T: TokenTag + Debug> Debug for Token<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str("(")?;
         self.span.fmt(f)?;
@@ -209,10 +192,10 @@ impl<T: Debug + Into<usize> + From<usize>> Debug for Token<T> {
     }
 }
 
-impl<T: Into<usize> + From<usize>> Token<T> {
+impl<T: TokenTag> Token<T> {
     pub fn new(span: Range<usize>, tag: T) -> Self {
         Token {
-            tag: AtomicTag::new(tag),
+            tag,
             norm: OnceLock::default(),
             span,
         }
@@ -239,7 +222,7 @@ impl<'a, T> IntoWordTagPair<'a, T> for (&'a str, T) {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct TokenizedString(Arc<str>, Arc<[Token<Tag>]>);
+pub struct TokenizedString(Box<str>, Vec<Token<Tag>>);
 impl TokenizedString {
     pub fn from_words<'a>(words: impl IntoIterator<Item = impl IntoWordTagPair<'a, Tag>>) -> Self {
         let iter = words.into_iter();
@@ -259,7 +242,7 @@ impl TokenizedString {
         self.0.len()
     }
 
-    pub fn tokenize(str: impl Into<Arc<str>>) -> TokenizedString {
+    pub fn tokenize(str: impl Into<Box<str>>) -> TokenizedString {
         let str = str.into();
         let mut tokens = Vec::new();
 
@@ -279,17 +262,30 @@ impl TokenizedString {
         TokenizedString(str, tokens.into())
     }
 
-    pub fn recheck(&self, filter: &WordFilter) {
-        let tokens = &self.1;
+    /// Returns true if a tag is changed
+    pub fn recheck(&mut self, filter: &WordFilter) -> bool {
+        let tokens = &mut self.1;
+        let mut changed = false;
+
+        macro_rules! set {
+            ($tag:expr, $new:expr) => {
+                let new = $new;
+                if $tag != new {
+                    changed = true;
+                }
+                $tag = new;
+            };
+        }
+
         for i in 0..tokens.len() {
-            let token = &tokens[i];
+            let token = &mut tokens[i];
             let norm = token.norm(&self.0);
             if norm.str().trim().len() == 0 {
-                token.tag.set(Tag::Good);
+                set!(token.tag, Tag::Good);
                 continue;
             }
             let Some(entry) = filter.get_entry(norm) else {
-                token.tag.set(Tag::Unknown);
+                set!(token.tag, Tag::Unknown);
                 continue;
             };
 
@@ -307,10 +303,12 @@ impl TokenizedString {
                     tag = Some(if entry.good { Tag::Bad } else { Tag::Good }); // inverted tag
                 }
             }
-            tokens[i]
-                .tag
-                .set(tag.unwrap_or(if entry.good { Tag::Good } else { Tag::Bad }));
+            set!(
+                tokens[i].tag,
+                tag.unwrap_or(if entry.good { Tag::Good } else { Tag::Bad })
+            );
         }
+        changed
     }
 
     pub fn good(&self) -> bool {
@@ -320,17 +318,13 @@ impl TokenizedString {
     pub fn words(&self) -> impl Iterator<Item = (&str, Tag)> {
         self.1
             .iter()
-            .map(|token| (&self.0[token.span.clone()], token.tag.get()))
+            .map(|token| (&self.0[token.span.clone()], token.tag))
     }
 
     pub fn norm_words(&self) -> impl Iterator<Item = (&str, Tag, &NormalizedWord)> {
-        self.1.iter().map(|token| {
-            (
-                &self.0[token.span.clone()],
-                token.tag.get(),
-                token.norm(&self.0),
-            )
-        })
+        self.1
+            .iter()
+            .map(|token| (&self.0[token.span.clone()], token.tag, token.norm(&self.0)))
     }
 
     pub fn colored<'a>(&'a self) -> ColoredFmt<'a> {

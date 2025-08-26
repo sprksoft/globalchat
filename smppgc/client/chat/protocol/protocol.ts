@@ -7,7 +7,7 @@ import { parseBan, type Ban } from "../ban.js";
 import { PacketC2SId, PacketId } from "./packets.ts";
 import { type LocalId, Role } from "../user.ts";
 import { Reader, Writer } from "./rw.ts";
-import type { WFTag } from "../wf.ts";
+import { WFTag } from '../wf.ts';
 export { ProtoError };
 
 export declare const VERSION_INT: number;
@@ -57,9 +57,9 @@ export class SocketMgr {
 
         let content = [];
         while (!reader.end()) {
-          const tag = reader.getUint8(0) as WFTag;
+          const tag = WFTag.fromNum(reader.getUint8(0));
           const len = reader.getUint16(0);
-          content.push({ wf: tag, word: reader.getString(len) })
+          content.push({ tag: tag, word: reader.getString(len) })
         }
 
         let sender = this.#users[sender_id];

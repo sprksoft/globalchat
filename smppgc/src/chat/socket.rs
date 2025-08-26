@@ -1,22 +1,19 @@
 use lmetrics::metrics;
-use profanity::ProfanityFilter;
 use rocket::{get, response, Responder, Shutdown, State};
-use tokio::sync::RwLock;
 
 use log::*;
 use rocket_ws::{Channel, WebSocket};
 use tokio::sync::broadcast::error::RecvError;
 
 use crate::{
-    chat::{
-        message_limits::LimitType, Chat, ChatEvent, MessageChangeType, MessageLen, NewClientError,
-    },
-    users::{Ban, BanError, User, UserManager},
+    chat::{message_limits::LimitType, Chat, ChatEvent, MessageChangeType, NewClientError},
+    users::{Ban, BanError, NameClaimError, User, UserManager},
+    wf::Filter,
     wsprotocol::{AdminCmd, C2SPacket, KickReason, WsClient},
     Snowflake,
 };
 
-use super::message_limits::MessageLimiter;
+use super::{message_limits::MessageLimiter, ChatClient};
 
 #[derive(Responder)]
 pub enum ChatSocketResponder<'a> {
@@ -49,7 +46,7 @@ pub async fn chat_socket<'a>(
     ws: WebSocket,
     mut user_manager: UserManager<'a>,
     mesg_limiter: &'a State<MessageLimiter>,
-    prof_filter: &'a State<RwLock<ProfanityFilter>>,
+    filter: &'a State<Filter>,
     chat: &'a State<Chat>,
     mut shutdown: Shutdown,
     user: Option<User>,
@@ -67,10 +64,11 @@ pub async fn chat_socket<'a>(
         }
     }
 
-    let claimed_name = match user_manager.claim_name(&user, username).await? {
+    let claimed_name = match user_manager.claim_name(&user, username).await {
         Ok(name_lease) => name_lease,
-        Err(e) => {
-            return Ok(ChatSocketResponder::ws_close(ws, e.into_kickreason()));
+        Err(NameClaimError::Sqlx(e)) => return Err(response::Debug(e)),
+        Err(NameClaimError::Invalid(invalid)) => {
+            return Ok(ChatSocketResponder::ws_close(ws, invalid.into_kickreason()));
         }
     };
 
@@ -114,33 +112,37 @@ pub async fn chat_socket<'a>(
                     mesg = wsclient.try_recv() => {
                         let Some(packet) = mesg? else { continue; };
                         match packet {
-                            C2SPacket::Message(mesg_content) => {
-                            let mesg = {
-                                match mesg_limiter.feed(user.id(), &&prof_filter.read().await, mesg_content) {
-                                    Ok(c) => {let mesg = chat_client.new_message(c.into(), false); wsclient.forward(&mesg).await?; mesg},
-                                    Err(LimitType::Rate) => {
-                                        messages_blocked::inc("ratelimit");
-                                        return wsclient.disconnect(KickReason::RateLimit).await;
-                                    },
-                                    Err(LimitType::Profanity{content, bad_word, span}) => {
-                                        let span = span.start as MessageLen..span.end as MessageLen;
-                                        wsclient.profanity_warning(&content, &bad_word, span).await?;
-                                        messages_blocked::inc("profanity");
-                                        chat_client.new_message(content.into(), true)
+                            C2SPacket::Message(content) => {
+                                let mesg = {
+                                    match mesg_limiter.feed(user.id(), content) {
+                                        Ok(content) => {
+                                            let lock = filter.wf.read().await;
+                                            let content = lock.check(&content);
+                                            drop(lock);
+                                            if !content.good() {
+                                                messages_blocked::inc("profanity");
+                                            }
+                                            dbg!(&content);
+                                            let mesg = chat_client.new_message(content);
+                                            wsclient.forward(&mesg).await?;
+                                            mesg
+                                        },
+                                        Err(LimitType::Rate) => {
+                                            messages_blocked::inc("ratelimit");
+                                            return wsclient.disconnect(KickReason::RateLimit).await;
+                                        },
+                                        Err(LimitType::Size) => {
+                                            messages_blocked::inc("size");
+                                            continue;
+                                        },
+                                        Err(LimitType::Spam) => {
+                                            messages_blocked::inc("spam");
+                                            continue;
+                                        }
                                     }
-                                    Err(LimitType::Size) => {
-                                        messages_blocked::inc("size");
-                                        continue;
-                                    },
-                                    Err(LimitType::Spam) => {
-                                        messages_blocked::inc("spam");
-                                        continue;
-                                    }
-                                }
-                            };
-                            messages_total::inc();
-                            chat_client.send(mesg);
-
+                                };
+                                messages_total::inc();
+                                chat_client.send(mesg);
                             },
                             C2SPacket::AdminCmd(cmd) => {
                                 if !my_role.is_mod() {
@@ -178,36 +180,11 @@ pub async fn chat_socket<'a>(
                     }
                     event = chat_client.recv() => {
                         match event {
-                            Ok(ChatEvent::Join(new_user)) => {
-                                if new_user.local_id() != chat_client.user().local_id() {
-                                    wsclient.forward_user(&new_user).await?;
-                                }
-                            },
-                            Ok(ChatEvent::Leave(_)) => {},
-                            Ok(ChatEvent::Message(mesg)) => {
-                                if mesg.sender.local_id() != chat_client.user().local_id() {
-                                    if my_role.is_mod() || !mesg.profanity {
-                                        wsclient.forward(&mesg).await?;
-                                    }
-                                }
-                            },
-                            Ok(ChatEvent::MessageChange(snowflake, mut ty)) => {
-                                if !my_role.is_mod() {
-                                    ty = MessageChangeType::Deleted;
-                                }
-                                wsclient.forward_message_change(snowflake, ty).await?;
-
-                            }
-                            Ok(ChatEvent::Kick(user_id)) => {
-                                if user_id == user.id() {
-                                    wsclient.disconnect(KickReason::Kick).await?;
-                                }
-                            },
-
+                            Ok(event) => {on_event(event, &mut wsclient, Some(&chat_client)).await?;},
                             Err(RecvError::Lagged(count)) => {
                                 error!("Lost {} chat events", count);
                             },
-                            Err(RecvError::Closed)=>{
+                            Err(RecvError::Closed) => {
                                 return Ok(());
                             }
                         }
@@ -253,20 +230,7 @@ pub async fn readonly_chat_socket<'a>(
                     }
                     event = chat_client.recv() => {
                         match event {
-                            Ok(ChatEvent::Join(new_user)) => {
-                                wsclient.forward_user(&new_user).await?;
-                            },
-                            Ok(ChatEvent::Leave(_)) => {},
-                            Ok(ChatEvent::Message(mesg)) => {
-                                if !mesg.profanity {
-                                    wsclient.forward(&mesg).await?;
-                                }
-                            },
-                            Ok(ChatEvent::MessageChange(snowflake, _)) => {
-                                wsclient.forward_message_change(snowflake, MessageChangeType::Deleted).await?;
-
-                            }
-                            Ok(ChatEvent::Kick(_)) => {},
+                            Ok(event) => { on_event(event, &mut wsclient, None).await?; },
 
                             Err(RecvError::Lagged(count)) => {
                                 error!("Lost {} chat events (readonly chat)", count);
@@ -280,4 +244,54 @@ pub async fn readonly_chat_socket<'a>(
             }
         })
     })))
+}
+
+fn is_me(id: u16, chat_client: Option<&ChatClient>) -> bool {
+    chat_client
+        .map(|chat_client| chat_client.is_me(id))
+        .unwrap_or(false)
+}
+
+#[inline]
+async fn on_event(
+    event: ChatEvent,
+    wsclient: &mut WsClient,
+    chat_client: Option<&ChatClient>,
+) -> tokio_tungstenite::tungstenite::Result<()> {
+    match event {
+        ChatEvent::Join(new_user) => {
+            if is_me(new_user.local_id(), chat_client) {
+                wsclient.forward_user(&new_user).await?;
+            }
+        }
+        ChatEvent::Leave(_) => {}
+        ChatEvent::NewMessage(mesg) => {
+            if !is_me(mesg.sender.local_id(), chat_client) {
+                if wsclient.role().is_mod() || !mesg.prof() {
+                    wsclient.forward(&mesg).await?;
+                }
+            }
+        }
+        ChatEvent::MessageChange(message, ty) => match ty {
+            MessageChangeType::Deleted => {
+                wsclient.forward_message_del(message.id()).await?;
+            }
+            MessageChangeType::Filter(blocked) => {
+                if !wsclient.role().is_mod() && blocked {
+                    wsclient.forward_message_del(message.id()).await?;
+                } else {
+                    wsclient.forward(&message).await?;
+                }
+            }
+        },
+        ChatEvent::Kick(user_id) => {
+            if chat_client
+                .map(|c| c.user().user_id() == user_id)
+                .unwrap_or(false)
+            {
+                wsclient.disconnect(KickReason::Kick).await?;
+            }
+        }
+    }
+    Ok(())
 }

@@ -12,16 +12,16 @@
   border-color: var(--color-bad);
   background-color: var(--color-bad-bg);
 }
-.word.bad {
-  text-decoration: var(--color-bad) underline 2px;
-  background-color: var(--color-bad-bg);
-}
-.word.unknown {
-  text-decoration: var(--color-unknown) underline 2px;
-}
 .word.bad:hover,
 .word.unknown:hover
 {
   border-color: var(--color-good);
   background-color: var(--color-good-bg);
+}
+
+.bad {
+  text-decoration: var(--color-bad) underline 2px;
+}
+.unknown {
+  text-decoration: var(--color-unknown) underline 2px;
 }

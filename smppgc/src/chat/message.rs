@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use super::ChatUser;
 use crate::Snowflake;
 use wordfilter::TokenizedString;
@@ -5,8 +7,7 @@ use wordfilter::TokenizedString;
 #[derive(Clone, Debug)]
 pub struct Message {
     pub content: TokenizedString,
-    pub profanity: bool,
-    pub sender: ChatUser,
+    pub sender: Arc<ChatUser>,
     pub id: Snowflake,
 }
 impl Message {
@@ -28,5 +29,9 @@ impl Message {
             .filter(|(w, _)| w.trim().len() > 0)
             .next()
             .is_none()
+    }
+
+    pub fn prof(&self) -> bool {
+        !self.content.good()
     }
 }

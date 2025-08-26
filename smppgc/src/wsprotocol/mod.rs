@@ -1,5 +1,5 @@
 use crate::{
-    chat::{ChatUser, Message, MessageChangeType, MessageLen},
+    chat::{ChatUser, Message, MessageLen},
     users::{role::Role, Ban},
     Snowflake,
 };
@@ -11,7 +11,7 @@ use rocket_ws::{
     result::Result,
     stream::DuplexStream,
 };
-use std::{borrow::Cow, ops::Range};
+use std::{borrow::Cow, ops::Range, sync::Arc};
 use thiserror::Error;
 use tokio_tungstenite::tungstenite;
 
@@ -82,10 +82,13 @@ pub struct WsClient {
     role: Role,
 }
 impl WsClient {
+    pub fn role(&self) -> Role {
+        self.role
+    }
     async fn send_setup_packets(
         mut ws: DuplexStream,
         clients: Vec<ChatUser>,
-        history: Vec<Message>,
+        history: Vec<Arc<Message>>,
         local_id: u16,
         role: Role,
     ) -> Result<DuplexStream> {
@@ -107,7 +110,7 @@ impl WsClient {
     pub async fn new(
         ws: DuplexStream,
         clients: Vec<ChatUser>,
-        history: Vec<Message>,
+        history: Vec<Arc<Message>>,
         user_info: &ChatUser,
     ) -> Result<Self> {
         Ok(Self {
@@ -126,7 +129,7 @@ impl WsClient {
     pub async fn new_ro(
         ws: DuplexStream,
         clients: Vec<ChatUser>,
-        history: Vec<Message>,
+        history: Vec<Arc<Message>>,
     ) -> Result<Self> {
         Ok(Self {
             ws: Self::send_setup_packets(ws, clients, history, 0, Role::User).await?,
@@ -157,14 +160,8 @@ impl WsClient {
         Ok(())
     }
 
-    pub async fn forward_message_change(
-        &mut self,
-        message_id: Snowflake,
-        ty: MessageChangeType,
-    ) -> Result<()> {
-        self.ws
-            .send(packets::new_message_change(message_id, ty))
-            .await?;
+    pub async fn forward_message_del(&mut self, message_id: Snowflake) -> Result<()> {
+        self.ws.send(packets::new_message_del(message_id)).await?;
         Ok(())
     }
 

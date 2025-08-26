@@ -44,7 +44,7 @@
 </dialog>
 
 <dialog id="profwarn-dialog">
-  <h1>Je bericht bevat een ongepast woord</h1>
+  <h1>Je bericht bevat mogelijks een ongepast woord</h1>
   <div class="flex-col" id="profwarn-message"></div>
   <p>Dit is automatisch gedetecteerd maar je kunt nog steeds verbannen worden door menselijke moderators.<br>Je kunt weer chatten binnen <time id="profwarn-countdown"></time>.</p>
 

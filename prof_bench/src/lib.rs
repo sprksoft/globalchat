@@ -1,4 +1,5 @@
 #![feature(test)]
+#![allow(unused)]
 
 pub mod bench;
 pub mod other_impls;

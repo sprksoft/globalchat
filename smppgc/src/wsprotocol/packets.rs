@@ -4,7 +4,7 @@ use rocket::time::Duration;
 use tokio_tungstenite::tungstenite;
 
 use crate::{
-    chat::{ChatUser, Message, MessageChangeType, MessageLen},
+    chat::{ChatUser, Message, MessageLen},
     users::role::Role,
     Snowflake,
 };
@@ -85,44 +85,37 @@ pub fn new_profanity_warn(
     tokio_tungstenite::tungstenite::Message::Binary(data)
 }
 
-pub fn new_message_change(
-    snowflake: Snowflake,
-    ty: MessageChangeType,
-) -> tokio_tungstenite::tungstenite::Message {
-    //|  u8  | const PACKET_MESSAGE_DEL,const PACKET_MESSAGE_CENSOR
+pub fn new_message_del(snowflake: Snowflake) -> tokio_tungstenite::tungstenite::Message {
+    //|  u8  | const PACKET_MESSAGE_DEL
     //| Snowflake | message id
 
-    let mut data = Vec::with_capacity(1 + size_of::<Snowflake>());
-    data.push(match ty {
-        MessageChangeType::Censored => PACKET_MESSAGE_CENSOR,
-        MessageChangeType::Deleted => PACKET_MESSAGE_DEL,
-    });
-    data.extend_from_slice(&snowflake.to_be_bytes());
-    tokio_tungstenite::tungstenite::Message::Binary(data)
+    packet!(&[PACKET_MESSAGE_DEL], &snowflake.to_be_bytes())
 }
 
 pub fn new_message(mesg: &Message) -> tokio_tungstenite::tungstenite::Message {
     //|  u8  | const PACKET_MESSAGE
     //|  u16 | sender id
     //| Snowflake | message id
-    //| [Word] | content bytes
+    //| [Word] | content
     //
     // Word:
     //| u8  | tag
     //| u16 | len
     //| [u8]| data
 
-    let content_bytes = mesg.content.as_bytes();
-    let mut data =
-        Vec::with_capacity(1 + size_of::<u16>() + size_of::<Snowflake>() + content_bytes.len());
+    let mut data = packet!(
+        &[PACKET_MESSAGE],
+        &mesg.sender.local_id().to_be_bytes(),
+        &mesg.id().to_be_bytes()
+    )
+    .into_data();
 
-    data.push(if mesg.profanity {
-    } else {
-        PACKET_MESSAGE
-    });
-    data.extend_from_slice(&mesg.sender.local_id().to_be_bytes());
-    data.extend_from_slice(&mesg.id().to_be_bytes());
-    data.extend_from_slice(content_bytes);
+    for (word, tag) in mesg.content.words() {
+        data.push(tag.into());
+        data.extend_from_slice(&(word.len() as u16).to_be_bytes());
+        data.extend_from_slice(word.as_bytes());
+    }
+
     tungstenite::Message::Binary(data)
 }
 pub fn new_system_message(content: &str) -> Packet {

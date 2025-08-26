@@ -12,7 +12,7 @@ struct WFConfig {
 
 pub struct Filter {
     path: PathBuf,
-    wf: RwLock<WordFilter>,
+    pub wf: RwLock<WordFilter>,
 }
 
 pub fn stage() -> AdHoc {
