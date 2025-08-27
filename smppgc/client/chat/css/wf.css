@@ -5,8 +5,8 @@
   border-radius: 0.4em;
   cursor: pointer;
 
-  padding: 0px 2px;
-  margin: 0px -2px;
+  padding: 0px 0px;
+  margin: 0px -2px; /* border size + padding */
 }
 .word.good:hover {
   border-color: var(--color-bad);

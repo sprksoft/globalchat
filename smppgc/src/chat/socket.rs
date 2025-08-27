@@ -122,7 +122,6 @@ pub async fn chat_socket<'a>(
                                             if !content.good() {
                                                 messages_blocked::inc("profanity");
                                             }
-                                            dbg!(&content);
                                             let mesg = chat_client.new_message(content);
                                             wsclient.forward(&mesg).await?;
                                             mesg

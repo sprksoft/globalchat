@@ -48,6 +48,23 @@ export namespace Message {
     return content.map((w) => w.word).join("");
   }
 
+  export function containsUnknown(mesg: Word[] | Message): boolean {
+    if (mesg instanceof Message) {
+      return containsUnknown(mesg.content);
+    } else {
+      let unknown = false;
+      for (const word of mesg) {
+        if (word.tag == WFTag.Bad) {
+          return false;
+        }
+        if (word.tag == WFTag.Unknown) {
+          unknown = true;
+        }
+      }
+      return unknown;
+    }
+  }
+
   export function containsProf(mesg: Word[] | Message): boolean {
     if (mesg instanceof Message) {
       return containsProf(mesg.content);
@@ -115,7 +132,7 @@ export function createMessage(
     }
     const span = $("<span></span>").text(word.word);
     span.addClass(WFTag.toString(word.tag));
-    if (wfEdit) {
+    if (wfEdit && word.tag !== WFTag.Whitespace) {
       span.addClass("word");
       span.on("click", function() {
         const w = $(this);
