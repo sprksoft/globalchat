@@ -183,7 +183,6 @@ impl<'r> UserManager<'r> {
                 .role,
         )
         .unwrap_or(Role::User);
-        dbg!(role, banner_role);
         if role >= banner_role {
             return Err(BanError::PermissionDenied);
         }

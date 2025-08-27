@@ -19,13 +19,13 @@
 
 @keyframes spinny-anim {
   0% {
-    transform: rotate(0deg);
+    transform: rotateY(0deg);
   }
   40% {
-    transform: rotate(0deg);
+    transform: rotateY(0deg);
   }
   100% {
-    transform: rotate(3600deg);
+    transform: rotateY(3600deg);
   }
 }
 

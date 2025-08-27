@@ -7,7 +7,9 @@ use bincode::{
 };
 
 //mod stemming;
+mod charprocessing;
 mod wordprocessing;
+pub use charprocessing::*;
 pub use wordprocessing::*;
 mod ansii;
 
@@ -58,11 +60,9 @@ impl WordFilter {
 
             let mut context = Vec::new();
             for word in split {
-                let word = normalize_word(word);
                 context.push(word.into());
             }
 
-            let word = normalize_word(word);
             if good_bad == "good" {
                 hashmap.insert(
                     word.into(),
@@ -198,7 +198,7 @@ mod test {
 
     fn filter() -> WordFilter {
         WordFilter::from_string(
-            "f good haar\nk bad ben\nsibe good\nben good\nwacht good\nfuck bad\njij good\nldev good\nsmppgc good",
+            "f good haar\nk bad ben\nsibe good\nben good\nwacht good\nfuck bad\njij good\nldev good\nsmppgc good\n❤️ good\nu good\ni good",
         )
     }
     fn ts<'a>(words: impl IntoIterator<Item = impl IntoWordTagPair<'a, Tag>>) -> TokenizedString {
@@ -209,18 +209,19 @@ mod test {
     fn check() {
         let filter = filter();
 
-        assert_eq!(
-            filter.check("ldev234"),
-            ts([("ldev", Tag::Good), ("234", Tag::Good)])
-        );
+        assert_eq!(filter.check("ldev234"), ts([("ldev234", Tag::Good)]));
         assert_eq!(filter.check("fucking"), ts([("fucking", Tag::Bad)]));
         assert_eq!(
             filter.check("fucking\n"),
-            ts([("fucking", Tag::Bad), ("\n", Tag::Good)])
+            ts([("fucking", Tag::Bad), ("\n", Tag::Whitespace)])
         );
         assert_eq!(
             filter.check("ben jij"),
-            ts([("ben", Tag::Good), (" jij", Tag::Good)])
+            ts([
+                ("ben", Tag::Good),
+                (" ", Tag::Whitespace),
+                ("jij", Tag::Good)
+            ])
         );
     }
 
@@ -228,20 +229,41 @@ mod test {
     fn context() {
         let filter = filter();
         assert_eq!(
+            filter.check("la     la\n"),
+            ts([
+                ("la", Tag::Unknown),
+                ("     ", Tag::Whitespace),
+                ("la", Tag::Unknown),
+                ("\n", Tag::Whitespace),
+            ])
+        );
+        assert_eq!(filter.check("0x1d3f"), ts([("0x1d3f", Tag::Unknown)]));
+
+        assert_eq!(
             filter.check("f wacht"),
-            ts([("f", Tag::Good), (" wacht", Tag::Good)])
+            ts([
+                ("f", Tag::Good),
+                (" ", Tag::Whitespace),
+                ("wacht", Tag::Good)
+            ])
         );
         assert_eq!(
             filter.check("k ben sibe"),
-            ts([("k", Tag::Good), (" ben", Tag::Good), (" sibe", Tag::Good)])
+            ts([
+                ("k", Tag::Good),
+                (" ", Tag::Whitespace),
+                ("ben", Tag::Good),
+                (" ", Tag::Whitespace),
+                ("sibe", Tag::Good)
+            ])
         );
         assert_eq!(
             filter.check("k ben"),
-            ts([("k", Tag::Good), (" ben", Tag::Good)])
+            ts([("k", Tag::Good), (" ", Tag::Whitespace), ("ben", Tag::Good)])
         );
         assert_eq!(
             filter.check("K BEN"),
-            ts([("K", Tag::Good), (" BEN", Tag::Good)])
+            ts([("K", Tag::Good), (" ", Tag::Whitespace), ("BEN", Tag::Good)])
         );
         assert_eq!(filter.check("SIBE"), ts([("SIBE", Tag::Good)]));
         assert_eq!(filter.check("k"), ts([("k", Tag::Bad)]));
@@ -249,8 +271,21 @@ mod test {
 
     #[test]
     fn ghost_chars() {
-        let fitler = filter();
+        let filter = filter();
 
-        assert_eq!(fitler.check(":smppgc:"), ts([(":smppgc:", Tag::Good)]));
+        assert_eq!(
+            filter.check(":smppgc:"),
+            ts([
+                (":", Tag::Whitespace),
+                ("smppgc", Tag::Good),
+                (":", Tag::Whitespace)
+            ])
+        );
+
+        //❤️ is multiple characters
+        assert_eq!(
+            filter.check("i❤️u"),
+            ts([("i", Tag::Good), ("❤️", Tag::Good), ("u", Tag::Good)])
+        );
     }
 }

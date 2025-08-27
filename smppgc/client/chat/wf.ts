@@ -1,10 +1,11 @@
 import { socketmgr } from "../chat";
-import { createMessage, type Message } from "./mesg";
+import { createMessage, Message } from "./mesg";
 
 export enum WFTag {
   Unknown = 0,
   Good = 1,
   Bad = 2,
+  Whitespace = 3,
 }
 export namespace WFTag {
   export function toString(tag: WFTag): string {
@@ -12,10 +13,11 @@ export namespace WFTag {
       case WFTag.Unknown: return "unknown";
       case WFTag.Good: return "good";
       case WFTag.Bad: return "bad";
+      case WFTag.Whitespace: return "whitespace";
     }
   }
   export function fromNum(num: number): WFTag {
-    if (num < 0 || num > WFTag.Bad) {
+    if (num < 0 || num > WFTag.Whitespace) {
       console.error("tried to create a WFTag from an out of range number");
       return WFTag.Unknown;
     }
@@ -64,12 +66,17 @@ export function setupProfWarn() {
 }
 
 export function showProfWarn(mesg: Message) {
-  countdown = 10;
+  let time = 10;
+  if (Message.containsUnknown(mesg)) {
+    time = 5;
+  }
+
+  countdown = time;
   const okBtn = $("#profwarn-ok").get(0) as HTMLButtonElement;
   const countdownEl = $("#profwarn-countdown").get(0) as HTMLButtonElement;
 
 
-  countdownEl.innerText = "10 seconden";
+  countdownEl.innerText = time + " seconden";
   okBtn.disabled = true;
   $("#profwarn-message").empty();
   $("#profwarn-message").append(createMessage(mesg, [], false));

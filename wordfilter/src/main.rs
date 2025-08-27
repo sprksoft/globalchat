@@ -89,6 +89,7 @@ fn add_good_file(filter: &mut WordFilter, path: &str) {
                     }
                 }
                 Tag::Good => {}
+                Tag::Whitespace => {}
             }
         }
     }
@@ -118,6 +119,9 @@ fn interactive_check(
                 print!("{COLOR_GRAY}{}{RESET}", word);
                 unknown.insert(word.into());
             }
+            Tag::Whitespace => {
+                print!("{}", word);
+            }
         }
         wc += 1;
     }
@@ -134,7 +138,7 @@ fn main() {
     let cli = Cli::parse();
 
     let mut filter = WordFilter::default();
-    for filter_path in cli.filter {
+    for filter_path in &cli.filter {
         filter.merge(WordFilter::from_string(
             &std::fs::read_to_string(&filter_path).expect("Could not read filter file"),
         ));
@@ -181,7 +185,12 @@ fn main() {
         }
     }
 
+    let mut output = cli.output;
+
     for path in cli.add_good {
+        if output.is_none() && cli.filter.len() == 1 {
+            output = Some(cli.filter[0].clone());
+        }
         add_good_file(&mut filter, &path);
     }
 
@@ -213,7 +222,7 @@ fn main() {
     // }
 
     println!("done");
-    if let Some(output) = cli.output {
+    if let Some(output) = output {
         let bytes = filter.save_string().into_bytes();
         println!("filter entries: {}", filter.entry_count());
         println!("filter size: {}kB", bytes.len() / 1000);

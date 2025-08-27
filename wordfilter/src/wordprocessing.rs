@@ -4,18 +4,9 @@ use std::{
     sync::OnceLock,
 };
 
-use crate::ansii::*;
+use crate::{ansii::*, is_ignored, is_void, normalize_char, CharType};
 
 use crate::WordFilter;
-
-// Characters that do not indicate a word boundery
-const NO_WORD_BOUNDERY_CHARS: [char; 5] = ['*', '.', '!', '?', '\''];
-// Always allowed in any context.
-const GHOST_CHARS: [char; 38] = [
-    '💔', '🩷', '💕', '💖', '💙', '🔥', '✅', '🥹', '😭', '🙄', '😉', '😆', '😢', '🤔', '😁', '😅',
-    '😂', '🤣', '🫠', '😊', '💪', '👌', '🫶', '👏', '👍', '🙏', '🦲', '👴', '✨', '⭐', '🎉', '💀',
-    '👀', '🚀', '🌋', '🥔', '🪽', ':',
-];
 
 #[derive(Hash, Clone, Copy, Debug, PartialEq, Eq, Default)]
 #[repr(usize)]
@@ -24,11 +15,12 @@ pub enum Tag {
     Unknown = 0,
     Good = 1,
     Bad = 2,
+    Whitespace = 3,
 }
 impl Tag {
     pub fn good(self) -> bool {
         match self {
-            Tag::Good => true,
+            Tag::Good | Tag::Whitespace => true,
             _ => false,
         }
     }
@@ -52,39 +44,23 @@ impl Into<u8> for Tag {
 }
 impl From<u8> for Tag {
     fn from(value: u8) -> Self {
-        if value > Self::Bad.into() {
+        if value > Self::Whitespace.into() {
             return Self::Unknown;
         }
         unsafe { std::mem::transmute(value as usize) }
     }
 }
-pub trait TokenTag: Clone + Copy {}
+pub trait TokenTag: Clone + Copy + PartialEq + Eq {}
 impl TokenTag for Tag {}
 
 #[inline]
 fn push_normalized(string: &mut String, mut prev_char: Option<char>, char: char) -> Option<char> {
-    let char = char.to_ascii_lowercase();
-    if GHOST_CHARS.contains(&char) {
-        return None;
-    }
-    let decode = unidecode::unidecode_char(char);
-    if decode == "[?]" || decode == "" {
-        if prev_char.map(|prev| prev != char).unwrap_or(true) {
-            string.push(char);
-            return Some(char);
-        }
-    }
     let mut last_pushed = None;
-    for char in decode.chars().map(|c| c.to_ascii_lowercase()) {
-        if char.is_control() || char.is_numeric() {
-            continue;
-        }
-        if char.is_alphabetic() {
-            if prev_char.map(|prev| prev != char).unwrap_or(true) {
-                string.push(char);
-                prev_char = Some(char);
-                last_pushed = Some(char);
-            }
+    for char in normalize_char(char) {
+        if !is_ignored(char) && prev_char.map(|prev| prev != char).unwrap_or(true) {
+            string.push(char);
+            prev_char = Some(char);
+            last_pushed = Some(char);
         }
     }
     last_pushed
@@ -150,25 +126,6 @@ impl From<NormalizedWord> for Box<str> {
     }
 }
 
-#[inline]
-fn is_word_boundery(char: char) -> bool {
-    let char = char.to_ascii_lowercase();
-    let decode = unidecode::unidecode_char(char);
-    if decode == "[?]" || decode == "" {
-        return false;
-    }
-
-    if GHOST_CHARS.contains(&char) || NO_WORD_BOUNDERY_CHARS.contains(&char) {
-        return false;
-    }
-    for char in decode.chars() {
-        if !char.is_alphabetic() {
-            return true;
-        }
-    }
-    false
-}
-
 #[derive(Clone)]
 struct Token<T: TokenTag> {
     tag: T,
@@ -178,7 +135,7 @@ struct Token<T: TokenTag> {
 impl<T: TokenTag> Eq for Token<T> {}
 impl<T: TokenTag> PartialEq for Token<T> {
     fn eq(&self, other: &Self) -> bool {
-        self.span == other.span
+        self.span == other.span && self.tag == other.tag
     }
 }
 impl<T: TokenTag + Debug> Debug for Token<T> {
@@ -247,17 +204,36 @@ impl TokenizedString {
         let mut tokens = Vec::new();
 
         let mut start_index = 0;
-        let mut prev_char = '\0';
+        let mut prev_char = None;
         for (index, char) in str.char_indices() {
-            if is_word_boundery(char) {
-                if !is_word_boundery(prev_char) {
-                    tokens.push(Token::new(start_index..index, Tag::default()));
+            if is_void(char) {
+                continue;
+            }
+            let ty = CharType::new(char);
+            if let Some(prev_char) = prev_char {
+                let prev_ty = CharType::new(prev_char);
+                if ty != prev_ty {
+                    let tag = if prev_ty == CharType::Whitespace {
+                        Tag::Whitespace
+                    } else {
+                        Tag::default()
+                    };
+                    tokens.push(Token::new(start_index..index, tag));
                     start_index = index;
                 }
             }
-            prev_char = char;
+            prev_char = Some(char);
         }
-        tokens.push(Token::new(start_index..str.len(), Tag::default()));
+
+        let tag = if prev_char
+            .map(|c| CharType::new(c) == CharType::Whitespace)
+            .unwrap_or(true)
+        {
+            Tag::Whitespace
+        } else {
+            Tag::default()
+        };
+        tokens.push(Token::new(start_index..str.len(), tag));
 
         TokenizedString(str, tokens.into())
     }
@@ -277,8 +253,21 @@ impl TokenizedString {
             };
         }
 
+        fn get_token(tokens: &Vec<Token<Tag>>, mut i: usize) -> Option<&Token<Tag>> {
+            loop {
+                let t = tokens.get(i)?;
+                if t.tag != Tag::Whitespace {
+                    return Some(t);
+                }
+                i += 1;
+            }
+        }
+
         for i in 0..tokens.len() {
             let token = &mut tokens[i];
+            if token.tag == Tag::Whitespace {
+                continue;
+            }
             let norm = token.norm(&self.0);
             if norm.str().trim().len() == 0 {
                 set!(token.tag, Tag::Good);
@@ -290,7 +279,7 @@ impl TokenizedString {
             };
 
             let mut tag = None;
-            if let Some(next_token) = tokens.get(i + 1) {
+            if let Some(next_token) = get_token(tokens, i + 1) {
                 if entry
                     .forward_ctx
                     .iter()
@@ -346,6 +335,7 @@ impl<'a> Display for ColoredFmt<'a> {
                 Tag::Unknown => {
                     f.write_str(COLOR_GRAY)?;
                 }
+                Tag::Whitespace => {}
             }
             f.write_str(word)?;
             f.write_str(RESET)?;
@@ -356,24 +346,19 @@ impl<'a> Display for ColoredFmt<'a> {
 
 #[cfg(test)]
 mod test {
-    use crate::{
-        wordprocessing::{is_word_boundery, TokenizedString},
-        NormalizedWord,
-    };
-
-    #[test]
-    fn word_boundery() {
-        assert!(!is_word_boundery('🍆'));
-        assert!(!is_word_boundery('💕'));
-        assert!(!is_word_boundery('.'));
-        assert!(is_word_boundery('-'));
-    }
+    use crate::{wordprocessing::TokenizedString, NormalizedWord, Tag};
 
     #[test]
     fn tokenize_test() {
         assert_eq!(
             TokenizedString::tokenize("ik ben sibe"),
-            TokenizedString::from_words(["ik", " ben", " sibe"])
+            TokenizedString::from_words([
+                ("ik", Tag::Unknown),
+                (" ", Tag::Whitespace),
+                ("ben", Tag::Unknown),
+                (" ", Tag::Whitespace),
+                ("sibe", Tag::Unknown)
+            ])
         );
 
         assert_eq!(
@@ -381,15 +366,26 @@ mod test {
                 .words()
                 .map(|(w, _)| w)
                 .collect::<Vec<&str>>(),
-            vec!["ik", " ben", " sibe"]
+            vec!["ik", " ", "ben", " ", "sibe"]
         );
 
         assert_eq!(
-            TokenizedString::tokenize("test with a newline\n")
-                .words()
-                .map(|(w, _)| w)
-                .collect::<Vec<&str>>(),
-            vec!["test", " with", " a", " newline", "\n"]
+            TokenizedString::tokenize("test with a newline\n"),
+            TokenizedString::from_words([
+                ("test", Tag::Unknown),
+                (" ", Tag::Whitespace),
+                ("with", Tag::Unknown),
+                (" ", Tag::Whitespace),
+                ("a", Tag::Unknown),
+                (" ", Tag::Whitespace),
+                ("newline", Tag::Unknown),
+                ("\n", Tag::Whitespace),
+            ])
+        );
+
+        assert_eq!(
+            TokenizedString::tokenize("❤️✅"),
+            TokenizedString::from_words([("❤️✅", Tag::Unknown)])
         );
     }
 
