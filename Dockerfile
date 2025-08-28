@@ -6,6 +6,7 @@ FROM --platform=$BUILDPLATFORM rust:alpine AS builder
 
   ENV RUSTUP_TOOLCHAIN=stable
   ENV SQLX_OFFLINE=true
+  ENV OPENSSL_STATIC=1
 
   COPY . /build
 
