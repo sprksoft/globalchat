@@ -11,10 +11,8 @@ FROM --platform=$BUILDPLATFORM rust:alpine AS builder
 
   COPY . /build
   
-# copy openssl binary to a known location
-  RUN << EOF
-cp /$(xx-info tripple)/usr/lib/openssl /usr/lib/openssl
-EOF
+  # copy openssl binary to a known location
+  RUN cp /$(xx-info triple)/usr/lib/openssl /usr/lib/openssl
 
   ARG BINARY=smppgc
   ARG RELEASE
