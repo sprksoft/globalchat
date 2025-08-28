@@ -2,17 +2,17 @@ FROM --platform=$BUILDPLATFORM tonistiigi/xx AS xx
 
 FROM --platform=$BUILDPLATFORM rust:alpine AS builder
   COPY --from=xx / /
-  RUN apk update && apk add typescript esbuild musl-dev clang lld perl make
+  ARG TARGETPLATFORM
+  RUN apk update && apk add clang pkgconfig
+  RUN xx-apk update && xx-apk add musl musl-dev openssl-dev
 
   ENV RUSTUP_TOOLCHAIN=stable
   ENV SQLX_OFFLINE=true
-  ENV OPENSSL_STATIC=1
 
   COPY . /build
 
   ARG BINARY=smppgc
   ARG RELEASE
-  ARG TARGETPLATFORM
   RUN --mount=type=cache,target=/build/target \
       --mount=type=cache,sharing=locked,target=/usr/local/cargo/registry/ \
       --mount=type=cache,sharing=locked,target=/usr/local/rustup/ \
@@ -28,6 +28,7 @@ then
   PROFILE="debug"
 fi
 
+export OPENSSL_DIR="/$(xx-info triple)/usr"
 mkdir /app
 xx-cargo build $REL_ARG --bin $BINARY
 cp target/$(xx-cargo --print-target-triple)/$PROFILE/$BINARY /app/app
@@ -37,6 +38,7 @@ EOF
 ############## SMPPGC ##############
 
 FROM builder AS dev
+  RUN apk update && apk add typescript esbuild
   COPY smppgc/Rocket.toml /app/Rocket.toml
   COPY smppgc/templates /app/templates
   COPY smppgc/www /app/www
