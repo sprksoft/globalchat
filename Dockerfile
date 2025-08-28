@@ -3,13 +3,18 @@ FROM --platform=$BUILDPLATFORM tonistiigi/xx AS xx
 FROM --platform=$BUILDPLATFORM rust:alpine AS builder
   COPY --from=xx / /
   ARG TARGETPLATFORM
-  RUN apk update && apk add clang pkgconfig
-  RUN xx-apk update && xx-apk add musl musl-dev openssl-dev
+  RUN apk update && apk add clang pkgconfig ca-certificates
+  RUN xx-apk update && xx-apk add musl musl-dev openssl-dev openssl
 
   ENV RUSTUP_TOOLCHAIN=stable
   ENV SQLX_OFFLINE=true
 
   COPY . /build
+  
+# copy openssl binary to a known location
+  RUN << EOF
+cp /$(xx-info tripple)/usr/lib/openssl /usr/lib/openssl
+EOF
 
   ARG BINARY=smppgc
   ARG RELEASE
@@ -62,6 +67,7 @@ EOF
 FROM scratch AS prod
   COPY --from=dev /app /app
   COPY --from=dev /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+  COPY --from=dev /usr/lib/openssl /usr/lib/openssl
 
   EXPOSE 8080
 
