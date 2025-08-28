@@ -76,12 +76,11 @@ pub const PROF_SENTENCES: [&'static str; 42] = [
     ];
 
 // prof sentences not caught by censor to see performance difference
-pub const EXT_PROF_SENTENCES: [&'static str; 10] = [
+pub const EXT_PROF_SENTENCES: [&'static str; 9] = [
     "niger",
     "n!iiiiiiger",
     "niggggggggggger",
     "njggggr",
-    "69696293",
     "nigerdigger",
     "nîger",
     "lesbîeb",
@@ -99,15 +98,13 @@ pub const MODIFY_PROF_SENTENCES: [(&'static str, &'static str); 7] = [
     ("fun@gmail.com", "fungmail.com"),
 ];
 
-pub const CLEAN_SENTENCES: [&'static str; 14] = [
+pub const CLEAN_SENTENCES: [&'static str; 12] = [
     "ldev234",
     ":smppgc:",
-    "so hot",
     "ldev2",
     "hallo",
     "ja",
     "hoe gaat die er mee",
-    "kom naar mijn huis",
     "whahahahahahhahahah",
     "waaaa",
     "hallo mannen (en vrouwen) ik ga vandaag een les geven van Pneumatica",

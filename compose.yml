@@ -15,12 +15,12 @@ services:
     build:
       dockerfile: Dockerfile
       target: dev
-    environment:
-      ROCKET_PROFILE: "debug"
     networks:
       - main
     ports:
       - 80:8080
+    depends_on:
+      - db
     volumes:
       - proffilter:/var/proffilter
     secrets:

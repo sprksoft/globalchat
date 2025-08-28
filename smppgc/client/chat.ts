@@ -1,0 +1,374 @@
+import "./chat/css/styles.css.js";
+import * as ban from "./chat/ban.js";
+import type { Ban } from "./chat/ban.ts";
+import { execLocalCmd, localCmd } from "./chat/commands.ts";
+import { createMessage, Message } from "./chat/mesg.ts";
+import type { Word } from "./chat/mesg.ts";
+import { Role } from "./chat/user.ts";
+
+import { Snowflake } from "./chat/snowflake.ts";
+import { fixTextFields } from "./common/text.js";
+import { hasVirtKb, log } from "./common/utils.js";
+
+import { SocketMgr } from "./chat/protocol/protocol.ts";
+import { ProtoError } from "./chat/protocol/protoerr.ts";
+import { clearProfWarn, setupProfWarn, showProfWarn } from "./chat/wf.ts";
+
+export declare const WEBSOCKET_URL: string;
+export declare const ROLE: Role;
+export declare const IS_MOD: boolean;
+export declare const READONLY: boolean;
+export declare const MIN_MESSAGE_LEN: number;
+export declare const MAX_MESSAGE_LEN: number;
+
+const sendinput = document.getElementById(
+  "send-input",
+) as HTMLInputElement | null;
+const username_field = document.getElementById(
+  "name-input",
+) as HTMLInputElement;
+const leavebtn = document.getElementById("leavebtn") as HTMLButtonElement;
+const sendbtn = document.getElementById("sendbtn") as HTMLButtonElement;
+const showModBadgeCheck = document.getElementById(
+  "show-mod-badge",
+) as HTMLInputElement;
+const connectbtn = document.getElementById("connectbtn") as HTMLButtonElement;
+const constatus = document.getElementById(
+  "connection-status",
+) as HTMLDialogElement;
+const login_popup = document.getElementById("login") as HTMLDialogElement;
+
+export let socketmgr = new SocketMgr();
+
+export interface HtmlMessage {
+  html: HTMLElement;
+  message: Message;
+}
+export let messages: HtmlMessage[] = [];
+
+let scrollLock: boolean = true;
+
+function add_message(
+  message: Message,
+  scroll: boolean,
+  adminControls: boolean,
+) {
+  const controls = [];
+  if (adminControls) {
+    controls.push({ name: "delete", click: onMessageDelete });
+    controls.push({
+      name: "ban",
+      click: message.sender.role >= ROLE ? null : onMessageBan,
+    });
+  }
+  let msgEl = createMessage(message, controls, adminControls);
+
+  const belowIndex = getMessageIndexBelow(message.snowflake);
+  if (belowIndex !== null) {
+    log(`inserting message above ${belowIndex}`);
+    const aboveMesg = messages[belowIndex]!;
+    messages.splice(belowIndex, 0, { html: msgEl, message: message });
+    aboveMesg.html.insertAdjacentElement("beforebegin", msgEl);
+
+    if (aboveMesg.message.snowflake === message.snowflake) {
+      log("replaced message");
+      delMessage(belowIndex + 1);
+    }
+  } else {
+    log("appending message to end");
+    messages.push({ html: msgEl, message: message });
+    $("#mesgs").get(0)!.appendChild(msgEl);
+  }
+
+  requestAnimationFrame(() => {
+    const lastMessage =
+      belowIndex !== null ? belowIndex === messages.length - 1 : true;
+    if ((scrollLock && lastMessage) || scroll) {
+      msgEl.scrollIntoView({ block: "start" });
+      log(
+        `scrolled message (scrollLock: ${scrollLock}, scroll: ${scroll} lastMessage: ${lastMessage})`,
+      );
+    }
+  });
+}
+
+function onMessageDelete(_: any, message: Message) {
+  socketmgr.deleteMessage(message.snowflake);
+}
+function onMessageBan(_: any, message: Message) {
+  ban.showDialog(message.snowflake, message.sender);
+}
+
+function add_system_message(message: string) {
+  add_message(Message.system(message), true, false);
+}
+
+/**
+ * Gets a message using the snowflake. If the message doesn't exist returns the message that would be below the snowflake
+ */
+function getMessageIndexBelow(snowflake: Snowflake): number | null {
+  for (let i = 0; i < messages.length; i++) {
+    const mesg = messages[i]!;
+    if (mesg.message.snowflake >= snowflake) {
+      return i;
+    }
+  }
+  return null;
+}
+function getMessageIndex(snowflake: Snowflake): number | null {
+  const index = getMessageIndexBelow(snowflake);
+  if (!index || messages[index]!.message.snowflake !== snowflake) {
+    return null;
+  }
+  return index;
+}
+function delMessage(index: number) {
+  if (!messages[index]) {
+    return;
+  }
+  messages[index].html.remove();
+  messages.splice(index, 1);
+}
+
+localCmd("/clearkey", function() {
+  localStorage.removeItem("key");
+  add_system_message("Key cleared.");
+});
+localCmd("/leave", function() {
+  socketmgr.leave();
+});
+localCmd("/mesgs", function() {
+  console.log("messages");
+  for (const mesg of messages) {
+    console.log(mesg.html);
+    console.log(mesg.message.snowflake.toString());
+  }
+  console.log("end messages");
+});
+
+function clearSendInput() {
+  if (sendinput) {
+    sendinput.innerText = "";
+  }
+}
+
+// Are we currently trying to reconnect in the background
+let background_reconnect = false;
+
+socketmgr.on_join = () => {
+  constatus.close();
+  background_reconnect = false;
+};
+
+let last_retry = 0;
+let in_cooldown = false;
+// Create a cool down for 'time' milliseconds on the join button to prevent
+// people from spamming the join and leave buttons
+function cooldown(time: number) {
+  if (!login_popup.open) {
+    login_popup.showModal();
+  }
+  in_cooldown = true;
+
+  let oldVal = connectbtn.disabled;
+  connectbtn.disabled = true;
+  if (time == -1) {
+    return;
+  }
+  setTimeout(() => {
+    connectbtn.disabled = oldVal;
+    in_cooldown = false;
+  }, time);
+}
+
+function mesgEasterEgg(messageContent: Word[]) {
+  const content = Message.stringContent(messageContent);
+  if (
+    content.includes("<script>") ||
+    (content.includes("alert(1)") && content.includes("<"))
+  ) {
+    add_system_message("I see the xss-er has joined. Vewie pwo hweker :3");
+  }
+  if (
+    content.includes("SELECT") &&
+    content.includes("FROM") &&
+    content.includes("WHERE")
+  ) {
+    add_system_message("Sql injection? Why? Messages aren't even stored?");
+  }
+}
+
+let last_message_snowflake: Snowflake | null = null;
+socketmgr.on_message = (sender_id: number, message: Message) => {
+  const me = socketmgr.local_id() == sender_id;
+  let lastMessage = false;
+  if (!last_message_snowflake || message.snowflake > last_message_snowflake) {
+    lastMessage = true;
+    last_message_snowflake = message.snowflake;
+  }
+  log(
+    `Got message from ${sender_id} (${message.snowflake}) mod: ${message.mod_badge
+    }: ${Message.stringContent(message.content)}`,
+  );
+
+  if (lastMessage && me && Message.containsProf(message)) {
+    showProfWarn(message);
+    if (!IS_MOD) {
+      return;
+    }
+  }
+
+  const scroll = me || sender_id === -1; // scroll if the message comes from me or system
+  const adminControls = IS_MOD && sender_id !== -1;
+  add_message(message, scroll, adminControls);
+
+  if (me) {
+    mesgEasterEgg(message.content);
+  }
+};
+
+socketmgr.on_message_del = (snowflake: Snowflake) => {
+  const result = getMessageIndex(snowflake);
+  if (!result) {
+    return;
+  }
+  delMessage(result);
+};
+
+socketmgr.on_leave = (data: string | Ban, protoerr: ProtoError) => {
+  constatus.close();
+
+  let time = 1000;
+  if (protoerr == ProtoError.err_ratelimit) {
+    time = 5000;
+  } else if (protoerr == ProtoError.retry) {
+    let now = Date.now();
+    if (last_retry == 0 || now - last_retry > 10_000) {
+      // join again if we should retry
+      last_retry = now;
+      connect(true, last_message_snowflake);
+      return;
+    }
+  } else if (protoerr == ProtoError.err_banned) {
+    time = -1;
+    ban.setBan(data as Ban);
+  }
+  if (typeof data === "string") {
+    $("#err-mesg").text(data);
+  }
+  cooldown(time);
+
+  // reset everything
+  last_message_snowflake = null;
+  $("#mesgs").empty();
+  messages = [];
+  ban.reset();
+  clearProfWarn();
+
+  login_popup.showModal();
+
+  if (protoerr === ProtoError.err_no_session) {
+    log("Got no session error. Redirecting to login page...");
+    location.href = "/login?redirect=/v1";
+  }
+};
+
+function send_message(): boolean {
+  let message = sendinput?.innerText.trim();
+  if (!message) {
+    message = "";
+  }
+  if (message.length < MIN_MESSAGE_LEN || message.length > MAX_MESSAGE_LEN) {
+    return false;
+  }
+
+  if (execLocalCmd(message)) {
+    clearSendInput();
+    return true;
+  }
+  if (socketmgr.send(message)) {
+    clearSendInput();
+    return true;
+  }
+  return false;
+}
+
+function get_name(): string {
+  let local_name = username_field.value;
+  const default_name = username_field.dataset.default_username;
+  if (local_name == "" && default_name) {
+    local_name = default_name;
+  }
+  return local_name;
+}
+
+function connect(
+  background: boolean,
+  start_snowflake: Snowflake | null = null,
+) {
+  let show_mod_badge = showModBadgeCheck?.checked;
+
+  log(
+    "connecting... in_background=" +
+    background +
+    ", mod_badge:" +
+    show_mod_badge,
+  );
+  let local_name: string | null = null;
+  if (!READONLY) {
+    local_name = get_name();
+    localStorage.setItem("username", local_name);
+  }
+
+  background_reconnect = background;
+  socketmgr.join(local_name, start_snowflake, show_mod_badge);
+
+  constatus.showModal();
+}
+
+fixTextFields();
+setupProfWarn();
+
+sendinput?.addEventListener("keypress", async (e) => {
+  if (e.key == "Enter" && !e.shiftKey && !hasVirtKb()) {
+    e.preventDefault();
+    send_message();
+  }
+});
+sendbtn?.addEventListener("click", async () => {
+  if (send_message()) {
+    setTimeout(() => {
+      sendinput?.focus();
+    }, 100);
+  }
+});
+
+constatus.addEventListener("cancel", (e) => {
+  e.preventDefault();
+});
+leavebtn.addEventListener("click", () => {
+  socketmgr.leave();
+});
+
+login_popup.addEventListener("close", (_) => {
+  connect(false);
+});
+login_popup.addEventListener("cancel", (e) => {
+  e.preventDefault();
+});
+
+connectbtn.addEventListener("click", () => {
+  login_popup.close();
+  sendinput?.focus();
+});
+
+$("#mesgs").on("scrollend", function() {
+  const bottom =
+    Math.abs(this.scrollTop + this.clientHeight - this.scrollHeight) < 2;
+  scrollLock = bottom;
+});
+
+if (!READONLY) {
+  username_field.value! = localStorage.getItem("username")!;
+}
+login_popup.showModal();

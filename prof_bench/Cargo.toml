@@ -1,0 +1,11 @@
+[package]
+name = "prof_bench"
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+
+[dependencies]
+string_tree={path="../string_tree", features=[]}
+profanity={path="../profanity"}
+censor={version="0.3.0"}
+wordfilter={path="../wordfilter"}

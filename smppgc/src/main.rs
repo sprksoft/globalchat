@@ -19,13 +19,13 @@ mod db;
 mod disclaimer;
 mod oauth;
 mod pages;
-mod profanity;
 mod ratelimit;
 mod snowflake;
 mod themes;
 mod users;
 mod utils;
 mod version_int;
+mod wf;
 mod wsprotocol;
 
 pub use snowflake::*;
@@ -110,9 +110,8 @@ fn rocket() -> _ {
         .attach(static_routing::stage())
         .attach(users::stage())
         .attach(pages::stage())
+        .attach(wf::stage())
         .attach(oauth::stage())
-        .attach(profanity::stage())
         .attach(chat::stage())
-        .attach(csrf::stage())
         .attach(csrf::stage())
 }

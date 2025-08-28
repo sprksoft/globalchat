@@ -1,5 +1,21 @@
-import $ from "../common/jquery.js";
+// @ts-nocheck
 import * as chat from "../chat.js";
+import { log } from '../common/utils.js';
+
+export interface Ban {
+  expirationTime: Date;
+  reason: string;
+}
+
+export function parseBan(str): Ban {
+  const match = str.match(/^err_banned:([0-9]*):(.*)$/);
+  const ban = {
+    expirationTime: new Date(parseInt(match[1]) * 1000),
+    reason: match[2],
+  };
+  log(`ban: ${JSON.stringify(ban)}`);
+  return ban;
+}
 
 function updateReasonFromPreset() {
   let reason = $("#ban-dialog-preset :selected").attr("data-fullreason");
@@ -32,11 +48,11 @@ export function reset() {
   $("#ban-dialog").get(0).close();
 }
 
-$("#ban-dialog-cancel").on("click", function () {
+$("#ban-dialog-cancel").on("click", function() {
   $("#ban-dialog").get(0).close();
 });
 
-$("#ban-dialog-confirm").on("click", async function () {
+$("#ban-dialog-confirm").on("click", async function() {
   const dur = parseInt($("#ban-dialog-preset :selected").attr("data-duration"));
   const reason = $("#ban-dialog-reason").val();
   const snowflake = BigInt($("#ban-dialog").attr("data-snowflake"));
@@ -62,7 +78,7 @@ function secondsToString(sec) {
     return sec == 1 ? "1 seconde" : Math.ceil(sec) + " seconden";
   }
 }
-export function setBan(ban) {
+export function setBan(ban: Ban) {
   let secsLeft = (ban.expirationTime.getTime() - new Date().getTime()) / 1000;
   $("#ban-reason").text(ban.reason);
   $("#ban-release-time").text(secondsToString(secsLeft));

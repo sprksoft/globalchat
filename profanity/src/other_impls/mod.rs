@@ -1,10 +1,5 @@
 use string_tree::StringTree;
 
-#[cfg(test)]
-mod bench;
-#[cfg(test)]
-mod test_data;
-
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ProfanityFilter {
     wordlist: Vec<Box<str>>,

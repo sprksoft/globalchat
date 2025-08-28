@@ -29,22 +29,16 @@
   animation-fill-mode: both;
 }
 
-@media (max-width: 640px) {
-  .logo p {
-    font-size: 1rem;
-  }
+.logo p {
+  font-size: 1.5rem;
 }
+
 @media (max-width: 460px) {
   .logo {
     margin: 0.5rem;
   }
 }
 
-@media (max-width: 420px) {
-  .logo p {
-    font-size: 0.7rem;
-  }
-}
 
 @keyframes logo-caption-popin {
   0% {

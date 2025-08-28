@@ -1,2 +1,11 @@
 .git/
 target/
+.diststar-out/
+*.md
+*.hcl
+*compose.yml
+
+.gitignore
+.diststar.toml
+.env
+Justfile

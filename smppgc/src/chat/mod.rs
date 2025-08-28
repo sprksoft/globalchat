@@ -1,6 +1,5 @@
 use circular_queue::CircularQueue;
 use log::*;
-use profanity::ProfanityFilter;
 use rocket::{fairing::AdHoc, routes};
 use std::{
     collections::HashMap,
@@ -8,8 +7,9 @@ use std::{
 };
 use tokio::sync::{
     broadcast::{self, error::RecvError},
-    Mutex,
+    Mutex, MutexGuard,
 };
+use wordfilter::{TokenizedString, WordFilter};
 
 mod chatuser;
 mod message;
@@ -54,21 +54,23 @@ struct StoredUser {
 pub enum ChatEvent {
     Join(ChatUser),
     Leave(ChatUser),
-    Message(Message),
-    MessageChange(Snowflake, MessageChangeType),
+    NewMessage(Arc<Message>),
+    MessageChange(Arc<Message>, MessageChangeType),
     Kick(UserId),
 }
 #[derive(Clone, Copy)]
 pub enum MessageChangeType {
-    Censored,
+    Filter(bool),
     Deleted,
 }
+
+type Users = HashMap<u16, StoredUser>;
 
 pub struct Chat {
     event_sender: broadcast::Sender<ChatEvent>,
 
-    users: Arc<Mutex<HashMap<u16, StoredUser>>>,
-    history: Arc<Mutex<CircularQueue<Message>>>,
+    users: Arc<Mutex<Users>>,
+    history: Arc<Mutex<CircularQueue<Arc<Message>>>>,
     client_ids: IdCounter,
     message_ids: Arc<SnowflakeGenerator>,
 
@@ -112,8 +114,8 @@ impl Chat {
 
     fn spawn_histrec(
         mut event_receiver: broadcast::Receiver<ChatEvent>,
-        users: Arc<Mutex<HashMap<u16, StoredUser>>>,
-        history: Arc<Mutex<CircularQueue<Message>>>,
+        users: Arc<Mutex<Users>>,
+        history: Arc<Mutex<CircularQueue<Arc<Message>>>>,
         mut shutdown_receiver: broadcast::Receiver<()>,
     ) {
         tokio::task::spawn(async move {
@@ -137,20 +139,14 @@ impl Chat {
                                     }
                                 }
                             },
-                            Ok(ChatEvent::Message(mesg)) => {
+                            Ok(ChatEvent::NewMessage(mesg)) => {
                                 {
                                     let mut users = users.lock().await;
                                     if let Some(user) = users.get_mut(&mesg.sender.local_id()) {
                                         user.message_count+=1;
                                     }
                                     if let Some(deleted_message) = history.lock().await.push(mesg) {
-                                        let id = deleted_message.sender.local_id();
-                                        if let Some(entry) = users.get_mut(&id){
-                                            entry.message_count = entry.message_count.saturating_sub(1);
-                                            if entry.ghost == true && entry.message_count == 0{
-                                                users.remove(&id);
-                                            }
-                                        }
+                                        Self::del_message(&deleted_message, users);
                                     }
                                 }
 
@@ -169,6 +165,16 @@ impl Chat {
                 }
             }
         });
+    }
+
+    fn del_message<'a>(mesg: &Message, mut users: MutexGuard<'a, Users>) {
+        let id = mesg.sender.local_id();
+        if let Some(entry) = users.get_mut(&id) {
+            entry.message_count = entry.message_count.saturating_sub(1);
+            if entry.ghost == true && entry.message_count == 0 {
+                users.remove(&id);
+            }
+        }
     }
 
     pub async fn new_client(
@@ -198,13 +204,13 @@ impl Chat {
         }
 
         let username: String = leased_name.into();
-        let user = ChatUser {
+        let user = Arc::from(ChatUser {
             local_id,
             user_id,
             mod_badge,
             role: user.role(),
-            username: username.into(),
-        };
+            username,
+        });
         let client = ChatClient {
             user,
             message_id_gen: self.message_ids.clone(),
@@ -255,34 +261,30 @@ impl Chat {
         &'a self,
         starting_snowflake: Snowflake,
         profanity: bool,
-    ) -> Vec<Message> {
+    ) -> Vec<Arc<Message>> {
         self.history
             .lock()
             .await
             .asc_iter()
             .filter(|m| m.id() > starting_snowflake)
-            .filter(|m| !m.profanity || profanity)
+            .filter(|m| !m.prof() || profanity)
             .cloned()
             .collect()
     }
 
-    pub async fn run_filter(&self, filter: &ProfanityFilter) {
+    pub async fn run_filter(&self, filter: &WordFilter) {
         let mut lock = self.history.lock().await;
-        let mut new_messages = CircularQueue::with_capacity(lock.capacity());
-        // TODO: When my pullrequest gets released on circular_queue use into Vec<T>
-        for mut mesg in lock.iter().cloned() {
-            let (content_tokenized, new_content) = filter.tokenize(&mesg.content);
-            mesg.content = new_content.into();
-            if filter.check(&content_tokenized).is_none() {
-                new_messages.push(mesg);
-            } else {
+        for mesg in lock.iter_mut() {
+            let mut new_mesg: Message = (*mesg.as_ref()).clone();
+            if new_mesg.content.recheck(filter) {
+                let new_mesg: Arc<Message> = Arc::from(new_mesg);
                 let _ = self.event_sender.send(ChatEvent::MessageChange(
-                    mesg.id(),
-                    MessageChangeType::Censored,
+                    new_mesg.clone(),
+                    MessageChangeType::Filter(mesg.prof()),
                 ));
+                *mesg = new_mesg;
             }
         }
-        *lock = new_messages;
     }
     pub async fn retain_messages<F: Fn(&Message) -> bool>(&self, f: F) -> bool {
         let mut lock = self.history.lock().await;
@@ -294,10 +296,10 @@ impl Chat {
             if f(&mesg) {
                 new_messages.push(mesg);
             } else {
-                let _ = self.event_sender.send(ChatEvent::MessageChange(
-                    mesg.id(),
-                    MessageChangeType::Deleted,
-                ));
+                Self::del_message(&mesg, self.users.lock().await);
+                let _ = self
+                    .event_sender
+                    .send(ChatEvent::MessageChange(mesg, MessageChangeType::Deleted));
                 deleted = true;
             }
         }
@@ -341,7 +343,7 @@ impl Drop for RoChatClient {
 }
 
 pub struct ChatClient {
-    user: ChatUser,
+    user: Arc<ChatUser>,
     message_id_gen: Arc<SnowflakeGenerator>,
     event_sender: broadcast::Sender<ChatEvent>,
     event_receiver: broadcast::Receiver<ChatEvent>,
@@ -352,13 +354,16 @@ impl ChatClient {
         &self.user
     }
 
+    pub fn is_me(&self, id: u16) -> bool {
+        self.user().local_id() == id
+    }
+
     #[inline]
-    pub fn new_message(&self, content: Arc<str>, profanity: bool) -> Message {
+    pub fn new_message(&self, content: TokenizedString) -> Message {
         Message {
             id: self.message_id_gen.new_snowflake(),
-            content,
-            profanity,
-            sender: self.user().clone(),
+            content: content.into(),
+            sender: self.user.clone(),
         }
     }
 
@@ -368,8 +373,8 @@ impl ChatClient {
     }
 
     #[inline]
-    pub fn send(&self, mesg: Message) {
-        let _ = self.event_sender.send(ChatEvent::Message(mesg));
+    pub fn send(&self, mesg: impl Into<Arc<Message>>) {
+        let _ = self.event_sender.send(ChatEvent::NewMessage(mesg.into()));
     }
 }
 impl Drop for ChatClient {

@@ -1,20 +1,23 @@
 use std::{
+    collections::HashSet,
     fs,
     io::{self, stdin, Read},
 };
 
+use ansii::*;
 use clap::Parser;
-use wordfilter::{CheckResult, WordFilter};
+use wordfilter::{Tag, WordFilter};
 
+mod ansii;
 mod cleaning;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
 #[command(propagate_version = true)]
 struct Cli {
-    /// good data to add to the filter interactively.
+    /// good data to add to the filter.
     #[arg(long, short = 'g')]
-    good: Vec<String>,
+    add_good: Vec<String>,
 
     /// Check the data in the file against the filter (use - for stdin)
     #[arg(long)]
@@ -25,10 +28,13 @@ struct Cli {
     bad: Vec<String>,
 
     /// Optional output file of the resulting filter
-    /// When the output file ends in .txt write the filter as text and --bad specifies if the bad
-    /// or good words should be written
+    /// When the output file ends in .txt write the filter as text
     #[arg(long, short = 'o')]
     output: Option<String>,
+
+    /// list less than 3 letter words in the filter
+    #[arg(long)]
+    short_words: bool,
 
     /// Filter files to merge into the final result
     #[arg(long, short = 'f')]
@@ -49,52 +55,42 @@ fn get_input_data(path: &str) -> io::Result<String> {
 }
 
 fn ask_yn(question: &str) -> bool {
-    println!("{} >", question);
-    let mut str = String::new();
-    io::stdin().read_line(&mut str).unwrap();
-    if str == "y" {
-        return true;
-    } else {
-        return false;
+    loop {
+        println!("{} >", question);
+        let mut str = String::new();
+        io::stdin().read_line(&mut str).unwrap();
+        let str = str.trim();
+        if str == "y" || str == "yes" || str == "g" || str == "good" {
+            return true;
+        } else if str == "n" || str == "no" || str == "b" || str == "bad" {
+            return false;
+        }
     }
 }
 
-fn process_data_file(filter: &mut WordFilter, path: &str, good: bool) {
-    print!("PROCESSING: ");
-    print!("'{}'", path);
-    if good {
-        println!(" (good)");
-    } else {
-        println!(" (bad)");
-    }
+fn add_good_file(filter: &mut WordFilter, path: &str) {
+    println!("ADDING GOOD WORDS FROM: {}", path);
     for line in get_input_data(path)
         .unwrap()
         .lines()
         .map(|l| cleaning::clean_line(l))
+        .flatten()
     {
-        let Some(line) = line else {
-            continue;
-        };
-        match filter.check(line) {
-            CheckResult::Unknown(_) => filter.train(good, line),
-            CheckResult::Good if !good => {
-                println!("'{}'", line);
-                println!("Filter matched as good. but dataset matched as bad");
-                println!("bad word >");
-                let mut bad_word = String::new();
-                io::stdin().read_line(&mut bad_word).unwrap();
-                if bad_word.len() != 0 {
-                    filter.train(false, &bad_word);
+        let str = filter.check(line);
+        for (word, tag) in str.words() {
+            match tag {
+                Tag::Unknown => {
+                    filter.train_word(word, true);
                 }
-            }
-            CheckResult::Bad(word) if good => {
-                println!("'{}' ({})", line, word.str());
-                println!("Filter matched as bad. but dataset matched as good");
-                if ask_yn("mark as good?") {
-                    filter.train(true, word.str());
+                Tag::Bad => {
+                    println!("'{}' ({}) {COLOR_RED}bad{RESET}", line, word);
+                    if ask_yn("mark as good?") {
+                        filter.train_word(word, true);
+                    }
                 }
+                Tag::Good => {}
+                Tag::Whitespace => {}
             }
-            _ => {}
         }
     }
 }
@@ -102,27 +98,43 @@ fn process_data_file(filter: &mut WordFilter, path: &str, good: bool) {
 #[inline]
 fn interactive_check(
     filter: &mut WordFilter,
-    line: &str,
-    good: &mut usize,
-    bad: &mut usize,
-    unknown: &mut usize,
-    count: &mut usize,
+    str: &str,
+    good: &mut HashSet<Box<str>>,
+    bad: &mut HashSet<Box<str>>,
+    unknown: &mut HashSet<Box<str>>,
+    lines_good: &mut usize,
 ) {
-    let result = filter.check(&line);
-    *count += 1;
-    match result {
-        CheckResult::Good => {
-            println!("good");
-            *good += 1;
+    let str = filter.check(str);
+    let mut wc = 0;
+    if str.good() {
+        *lines_good += 1;
+    }
+    for (word, tag) in str.words() {
+        match tag {
+            Tag::Good => {
+                print!("{COLOR_GREEN}{}{RESET}", word);
+                good.insert(word.into());
+            }
+            Tag::Bad => {
+                print!("{COLOR_RED}{}{RESET}", word);
+                bad.insert(word.into());
+            }
+            Tag::Unknown => {
+                print!("{COLOR_GRAY}{}{RESET}", word);
+                unknown.insert(word.into());
+            }
+            Tag::Whitespace => {
+                print!("{}", word);
+            }
         }
-        CheckResult::Bad(word) => {
-            println!("bad: {}", word.str());
-            *bad += 1
-        }
-        CheckResult::Unknown(word) => {
-            println!("unknown: {}", word.str());
-            *unknown += 1
-        }
+        wc += 1;
+    }
+
+    print!(" ({} ", wc);
+    if str.good() {
+        println!("{COLOR_GREEN}O{RESET})");
+    } else {
+        println!("{COLOR_RED}X{RESET})");
     }
 }
 
@@ -130,17 +142,17 @@ fn main() {
     let cli = Cli::parse();
 
     let mut filter = WordFilter::default();
-    for filter_path in cli.filter {
-        filter
-            .append_bin(&std::fs::read(filter_path).unwrap())
-            .unwrap();
+    for filter_path in &cli.filter {
+        filter.merge(WordFilter::from_string(
+            &std::fs::read_to_string(&filter_path).expect("Could not read filter file"),
+        ));
     }
 
     if let Some(check_file) = cli.check {
-        let mut count = 0;
-        let mut unknown = 0;
-        let mut bad = 0;
-        let mut good = 0;
+        let mut good = HashSet::new();
+        let mut bad = HashSet::new();
+        let mut unknown = HashSet::new();
+        let mut lines_good = 0;
         if check_file == "-" {
             let mut line = String::new();
             loop {
@@ -155,7 +167,7 @@ fn main() {
                     &mut good,
                     &mut bad,
                     &mut unknown,
-                    &mut count,
+                    &mut lines_good,
                 );
             }
         } else {
@@ -167,22 +179,53 @@ fn main() {
                     &mut good,
                     &mut bad,
                     &mut unknown,
-                    &mut count,
+                    &mut lines_good,
                 );
             }
         }
+
         println!("");
-        println!("checked {} lines:", count);
-        println!("{}\tlines good", good);
-        println!("{}\tlines bad", bad);
-        println!("{}\tlines unknown", unknown);
+        println!("checked {} lines:", good.len() + bad.len() + unknown.len());
+        println!("{}\twords good", good.len());
+        println!("{}\twords bad", bad.len());
+        println!("{}\twords unknown", unknown.len());
+        println!("{}\tlines good", lines_good);
+
+        if bad.len() < 50 {
+            println!("\nbad words: ");
+            for word in bad.iter() {
+                println!("  {}", word);
+            }
+        }
+        if unknown.len() < 50 {
+            println!("\nunknown words: ");
+            for word in unknown.iter() {
+                println!("  {}", word);
+            }
+        }
     }
 
-    for path in cli.good {
-        process_data_file(&mut filter, &path, true);
+    let mut output = cli.output;
+
+    for path in cli.add_good {
+        if output.is_none() && cli.filter.len() == 1 {
+            output = Some(cli.filter[0].clone());
+        }
+        add_good_file(&mut filter, &path);
     }
-    for path in cli.bad {
-        process_data_file(&mut filter, &path, false);
+
+    if cli.short_words {
+        println!("\nshort words: ");
+        let short_words = filter.short_words();
+        for (short, good) in &short_words {
+            print!("   {}", short);
+            if *good {
+                println!(" {COLOR_GREEN}(good){RESET}");
+            } else {
+                println!(" {COLOR_RED}(bad){RESET}");
+            }
+        }
+        println!("{} total", short_words.len());
     }
 
     // let badwords = std::fs::read_to_string("wordfilter/badwords.txt").unwrap();
@@ -199,14 +242,10 @@ fn main() {
     // }
 
     println!("done");
-    if let Some(output) = cli.output {
-        let bytes = if output.ends_with(".txt") {
-            filter.save_string().into_bytes()
-        } else {
-            filter.save_bin().unwrap()
-        };
+    if let Some(output) = output {
+        let bytes = filter.save_string().into_bytes();
         println!("filter entries: {}", filter.entry_count());
-        println!("filter size: {}KB", bytes.len() / 1000);
+        println!("filter size: {}kB", bytes.len() / 1000);
 
         std::fs::write(&output, bytes).unwrap()
     }

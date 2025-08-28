@@ -1,0 +1,36 @@
+.word {
+  transition:
+    border-color 0.2s,
+    background-color 0.2s;
+  background-color: transparent;
+  border: solid transparent 2px;
+  border-radius: 0.4em;
+  cursor: pointer;
+
+  padding: 0px 0px;
+  margin: 0px -2px; /* border size + padding */
+}
+.word.good:hover {
+  border-color: var(--color-bad);
+  background-color: var(--color-bad-bg);
+}
+.word.bad:hover,
+.word.unknown:hover {
+  border-color: var(--color-good);
+  background-color: var(--color-good-bg);
+}
+
+.bad {
+  text-decoration: var(--color-bad) underline 2px;
+}
+.unknown {
+  text-decoration: var(--color-unknown) underline 2px;
+}
+
+#wfcommit-spinner {
+  font-size: 1rem;
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  pointer-events: none;
+}

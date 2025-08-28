@@ -1,5 +1,3 @@
-import $ from "../common/jquery.js";
-
 const disclaimerEl = document.getElementById("disclaimer");
 const checkbox = document.getElementById("disclaimer-check");
 const countdownEl = document.getElementById("disclaimer-countdown");

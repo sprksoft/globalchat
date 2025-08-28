@@ -18,9 +18,9 @@
   <label for="show-mod-badge" style="text-align:center"><input id="show-mod-badge" type="checkbox"> Moderator badge</label>
   {% endif %}
   <div class="layered-section" id="ban" style="display:none">
-    <h1 class="center-title">Je bent verbannen</h1>
+    <h1 class="center-title">Je bent verbannen 🔨</h1>
     <p>Je bent verbannen door een moderator met de volgende reden:</p>
-    <p id="ban-reason">Bliep bloep blaap<br>Je bent stout</p>
+    <p id="ban-reason">Loading...</p>
     <small>Je kunt terug joinen over <span id="ban-release-time">55 minuten</span></small>
   </div>
   <span id="err-mesg" class="err"></span>
@@ -43,13 +43,12 @@
   <span>connecting</span>
 </dialog>
 
-<dialog id="profane-message-dialog">
-  <h1>Je bericht bevat een ongepast woord</h1>
-  <p>Jou bericht bevat het scheld woord <mark id="badword" class="profanity-mark"></mark></p>
-  <div class="flex-col" id="profane-message"></div>
-  <p>Dit is een automatisch bericht maar je kunt nog steeds verbannen worden door menselijke moderators.<br>Je kunt weer chatten binnen <time id="profane-message-countdown"></time>.</p>
+<dialog id="profwarn-dialog">
+  <h1>Je bericht bevat mogelijks een ongepast woord</h1>
+  <div class="flex-col" id="profwarn-message"></div>
+  <p>Dit is automatisch gedetecteerd maar je kunt nog steeds verbannen worden door menselijke moderators.<br>Je kunt weer chatten binnen <time id="profwarn-countdown"></time>.</p>
 
-  <button class="pillbtn" id="profane-message-ok">Ok</button>
+  <button class="pillbtn" id="profwarn-ok">Ok</button>
 </dialog>
 
 {% include "ban-dialog" %}
@@ -65,13 +64,12 @@
       </div>
       <div class="content"></div>
       <div class="message-actions">
-        <button class="delbtn unimportantbtn">delete</button>
-        <button class="banbtn unimportantbtn">verban</button>
       </div>
     </div>
   </div>
 </template>
 
+<div id="wfcommit-spinner" style="display:none" class="loading-spinner">filter update</div>
 <header class="slim-header" id="topbar">
   <button id="leavebtn" class="button">
     {% include "svg/arrow_l" %}

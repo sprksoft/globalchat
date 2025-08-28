@@ -1,5 +1,4 @@
 use log::*;
-use profanity::{ProfanityFilter, TokenizedMessage};
 use rocket::{
     outcome::{try_outcome, Outcome},
     request::FromRequest,
@@ -9,15 +8,14 @@ use rocket_db_pools::Connection;
 use sqlx::query;
 use std::ops::Deref;
 use thiserror::Error;
+use wordfilter::TokenizedString;
 
-use crate::{db::Db, wsprotocol::KickReason};
+use crate::{db::Db, wf::Filter, wsprotocol::KickReason};
 
 use super::{role::Role, User, UserConfig, UserId};
 
 #[derive(Error, Debug)]
-pub enum NameClaimError {
-    #[error("Username contains invalid characters")]
-    Invalid,
+pub enum NameInvalidReason {
     #[error("Username too short or long")]
     Length,
     #[error("Username taken")]
@@ -25,15 +23,23 @@ pub enum NameClaimError {
     #[error("Username contains profanity")]
     Profanity,
 }
-impl NameClaimError {
+
+impl NameInvalidReason {
     pub fn into_kickreason(self) -> KickReason {
         match self {
             Self::Profanity => KickReason::UsernameProfanity,
             Self::Taken => KickReason::UsernameTaken,
             Self::Length => KickReason::UsernameInvalidLength,
-            Self::Invalid => KickReason::UsernameInvalid,
         }
     }
+}
+
+#[derive(Error, Debug)]
+pub enum NameClaimError {
+    #[error("invalid: '{0}'")]
+    Invalid(#[from] NameInvalidReason),
+    #[error("sqlx: {0}")]
+    Sqlx(#[from] sqlx::Error),
 }
 
 pub struct ClaimedName(String);
@@ -71,7 +77,7 @@ impl Ban {
 
 pub struct UserManager<'r> {
     con: Connection<Db>,
-    prof_filter: &'r tokio::sync::RwLock<ProfanityFilter>,
+    filter: &'r Filter,
     max_name_len: usize,
     max_claimed_names: usize,
     max_name_retention: usize,
@@ -85,10 +91,10 @@ impl<'r> FromRequest<'r> for UserManager<'r> {
         req: &'r rocket::Request<'_>,
     ) -> rocket::request::Outcome<Self, Self::Error> {
         let con = try_outcome!(req.guard::<Connection<Db>>().await);
-        let prof_filter = req
+        let filter = req
             .rocket()
-            .state::<tokio::sync::RwLock<ProfanityFilter>>()
-            .expect("Failed to get prof filter");
+            .state::<Filter>()
+            .expect("Failed to get word filter");
         let user_config = req
             .rocket()
             .state::<UserConfig>()
@@ -96,7 +102,7 @@ impl<'r> FromRequest<'r> for UserManager<'r> {
 
         Outcome::Success(UserManager {
             con,
-            prof_filter,
+            filter,
             max_name_len: user_config.max_username_len,
             max_claimed_names: user_config.max_claimed_names,
             max_name_retention: user_config.max_name_retention,
@@ -113,35 +119,33 @@ pub enum BanError {
 }
 
 impl<'r> UserManager<'r> {
-    fn tokenized_to_normalized(tm: TokenizedMessage) -> String {
-        let mut str = String::with_capacity(tm.len());
-        for tg in tm.tokens() {
-            for token in tg.iter() {
-                if let Some(char) = token.to_char() {
-                    str.push(char)
-                }
-            }
+    fn tokenized_to_normalized(ts: TokenizedString) -> String {
+        let mut output = String::new();
+        for (_, _, word) in ts.norm_words() {
+            output.push_str(word.str());
+            output.push(' ');
         }
-        str
+        output
     }
+
     pub async fn claim_name(
         &mut self,
         user: &User,
         name: &str,
-    ) -> Result<Result<ClaimedName, NameClaimError>, sqlx::Error> {
+    ) -> Result<ClaimedName, NameClaimError> {
+        let name = name.trim();
         if name.len() > self.max_name_len || name.len() < 2 {
-            return Ok(Err(NameClaimError::Length));
+            return Err(NameInvalidReason::Length.into());
         }
         let (norm_name, name) = {
-            let filter = self.prof_filter.read().await;
-            let (tok, name) = filter.tokenize(name);
-            if filter.check(&tok).is_some() {
-                return Ok(Err(NameClaimError::Profanity));
+            let lock = self.filter.read().await;
+            let ts = lock.wf.check(name);
+            drop(lock);
+
+            if !ts.good() {
+                return Err(NameInvalidReason::Profanity.into());
             }
-            if name.len() > self.max_name_len || name.len() < 2 {
-                return Ok(Err(NameClaimError::Invalid));
-            }
-            (Self::tokenized_to_normalized(tok), name)
+            (Self::tokenized_to_normalized(ts), name)
         };
         let max_claimed_names = self.max_claimed_names as i32;
         let max_retention = self.max_name_retention as i32;
@@ -156,9 +160,9 @@ impl<'r> UserManager<'r> {
         .await?;
 
         if result.claim_name.is_none() {
-            return Ok(Err(NameClaimError::Taken));
+            return Err(NameInvalidReason::Taken.into());
         }
-        Ok(Ok(ClaimedName(name)))
+        Ok(ClaimedName(name.to_string()))
     }
 
     pub async fn ban_user(
@@ -179,7 +183,6 @@ impl<'r> UserManager<'r> {
                 .role,
         )
         .unwrap_or(Role::User);
-        dbg!(role, banner_role);
         if role >= banner_role {
             return Err(BanError::PermissionDenied);
         }

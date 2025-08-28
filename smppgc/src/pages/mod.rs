@@ -56,13 +56,16 @@ fn chat(
 fn ro_chat(theme: Theme) -> AllowSmFrame<Template> {
     AllowSmFrame(Template::render(
         "pages/chat",
-        context! (theme_css:theme.css(),
+        context! {
+            theme_css:theme.css(),
             readonly: true,
             irl_name: "",
+            role: Role::User.to_i32(),
             is_mod: false,
             max_username_len: 0,
             max_message_len: 0,
-            min_message_len: 0),
+            min_message_len: 0
+        },
     ))
 }
 
