@@ -3,7 +3,7 @@ FROM --platform=$BUILDPLATFORM tonistiigi/xx AS xx
 FROM --platform=$BUILDPLATFORM rust:alpine AS builder
   COPY --from=xx / /
   ARG TARGETPLATFORM
-  RUN apk update && apk add clang pkgconfig ca-certificates
+  RUN apk update && apk add clang pkgconfig ca-certificates lld
   RUN xx-apk update && xx-apk add musl musl-dev openssl-dev openssl
 
   ENV RUSTUP_TOOLCHAIN=stable
