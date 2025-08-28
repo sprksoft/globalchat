@@ -1,5 +1,6 @@
 // @ts-nocheck
 import * as chat from "../chat.js";
+import { log } from '../common/utils.js';
 
 export interface Ban {
   expirationTime: Date;

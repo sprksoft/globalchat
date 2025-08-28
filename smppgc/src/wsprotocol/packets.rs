@@ -24,6 +24,8 @@ pub const PACKET_MESSAGE_CENSOR: u8 = 8;
 pub const PACKET_C2S_MESSAGE: u8 = 0;
 pub const PACKET_C2S_DELMSG: u8 = 1;
 pub const PACKET_C2S_BANMSGAUTHOR: u8 = 2;
+pub const PACKET_C2S_WF_MARKGOOD: u8 = 3;
+pub const PACKET_C2S_WF_MARKBAD: u8 = 4;
 
 macro_rules! packet {
     ($($expr:expr),*) => {
@@ -137,6 +139,10 @@ pub enum AdminCmd {
         duration: Duration,
         reason: String,
     },
+    WFMark {
+        word: String,
+        good: bool,
+    },
 }
 
 fn parse_u64(bytes: &[u8]) -> Result<u64, ()> {
@@ -186,6 +192,14 @@ pub fn parse_c2s(data: Vec<u8>) -> Result<C2SPacket, ()> {
                 duration,
                 reason,
             }))
+        }
+        PACKET_C2S_WF_MARKGOOD => {
+            let word = parse_str(&data);
+            Ok(C2SPacket::AdminCmd(AdminCmd::WFMark { word, good: true }))
+        }
+        PACKET_C2S_WF_MARKBAD => {
+            let word = parse_str(&data);
+            Ok(C2SPacket::AdminCmd(AdminCmd::WFMark { word, good: false }))
         }
         id => {
             error!("Invalid c2s packet_id: {}", id);

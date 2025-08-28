@@ -7,7 +7,7 @@ use std::{
 };
 use tokio::sync::{
     broadcast::{self, error::RecvError},
-    Mutex,
+    Mutex, MutexGuard,
 };
 use wordfilter::{TokenizedString, WordFilter};
 
@@ -64,10 +64,12 @@ pub enum MessageChangeType {
     Deleted,
 }
 
+type Users = HashMap<u16, StoredUser>;
+
 pub struct Chat {
     event_sender: broadcast::Sender<ChatEvent>,
 
-    users: Arc<Mutex<HashMap<u16, StoredUser>>>,
+    users: Arc<Mutex<Users>>,
     history: Arc<Mutex<CircularQueue<Arc<Message>>>>,
     client_ids: IdCounter,
     message_ids: Arc<SnowflakeGenerator>,
@@ -112,7 +114,7 @@ impl Chat {
 
     fn spawn_histrec(
         mut event_receiver: broadcast::Receiver<ChatEvent>,
-        users: Arc<Mutex<HashMap<u16, StoredUser>>>,
+        users: Arc<Mutex<Users>>,
         history: Arc<Mutex<CircularQueue<Arc<Message>>>>,
         mut shutdown_receiver: broadcast::Receiver<()>,
     ) {
@@ -144,13 +146,7 @@ impl Chat {
                                         user.message_count+=1;
                                     }
                                     if let Some(deleted_message) = history.lock().await.push(mesg) {
-                                        let id = deleted_message.sender.local_id();
-                                        if let Some(entry) = users.get_mut(&id){
-                                            entry.message_count = entry.message_count.saturating_sub(1);
-                                            if entry.ghost == true && entry.message_count == 0{
-                                                users.remove(&id);
-                                            }
-                                        }
+                                        Self::del_message(&deleted_message, users);
                                     }
                                 }
 
@@ -169,6 +165,16 @@ impl Chat {
                 }
             }
         });
+    }
+
+    fn del_message<'a>(mesg: &Message, mut users: MutexGuard<'a, Users>) {
+        let id = mesg.sender.local_id();
+        if let Some(entry) = users.get_mut(&id) {
+            entry.message_count = entry.message_count.saturating_sub(1);
+            if entry.ghost == true && entry.message_count == 0 {
+                users.remove(&id);
+            }
+        }
     }
 
     pub async fn new_client(
@@ -290,6 +296,7 @@ impl Chat {
             if f(&mesg) {
                 new_messages.push(mesg);
             } else {
+                Self::del_message(&mesg, self.users.lock().await);
                 let _ = self
                     .event_sender
                     .send(ChatEvent::MessageChange(mesg, MessageChangeType::Deleted));

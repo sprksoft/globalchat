@@ -5,9 +5,9 @@ export enum PacketId {
   SETUP = 3,
   USERJOIN = 4,
   MODJOIN = 5,
-  PROFANITY_WARN = 6,
+  //UNUSED = 6,
   MESSAGE_DEL = 7,
-  MESSAGE_CENSOR = 8,
+  //UNUSED = 8,
 
 }
 export enum PacketC2SId {

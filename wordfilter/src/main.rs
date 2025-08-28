@@ -102,9 +102,13 @@ fn interactive_check(
     good: &mut HashSet<Box<str>>,
     bad: &mut HashSet<Box<str>>,
     unknown: &mut HashSet<Box<str>>,
+    lines_good: &mut usize,
 ) {
     let str = filter.check(str);
     let mut wc = 0;
+    if str.good() {
+        *lines_good += 1;
+    }
     for (word, tag) in str.words() {
         match tag {
             Tag::Good => {
@@ -148,6 +152,7 @@ fn main() {
         let mut good = HashSet::new();
         let mut bad = HashSet::new();
         let mut unknown = HashSet::new();
+        let mut lines_good = 0;
         if check_file == "-" {
             let mut line = String::new();
             loop {
@@ -156,20 +161,35 @@ fn main() {
                 if line.len() == 0 {
                     break;
                 }
-                interactive_check(&mut filter, &line, &mut good, &mut bad, &mut unknown);
+                interactive_check(
+                    &mut filter,
+                    &line,
+                    &mut good,
+                    &mut bad,
+                    &mut unknown,
+                    &mut lines_good,
+                );
             }
         } else {
             for line in std::fs::read_to_string(check_file).unwrap().lines() {
                 println!("'{}'", line);
-                interactive_check(&mut filter, line, &mut good, &mut bad, &mut unknown);
+                interactive_check(
+                    &mut filter,
+                    line,
+                    &mut good,
+                    &mut bad,
+                    &mut unknown,
+                    &mut lines_good,
+                );
             }
         }
 
         println!("");
         println!("checked {} lines:", good.len() + bad.len() + unknown.len());
-        println!("{}\tlines good", good.len());
-        println!("{}\tlines bad", bad.len());
-        println!("{}\tlines unknown", unknown.len());
+        println!("{}\twords good", good.len());
+        println!("{}\twords bad", bad.len());
+        println!("{}\twords unknown", unknown.len());
+        println!("{}\tlines good", lines_good);
 
         if bad.len() < 50 {
             println!("\nbad words: ");

@@ -63,9 +63,9 @@ export function mka(link, parent_el) {
 export function mkimgsticker(name: string): HTMLElement {
   let img = document.createElement("img");
   if (name == "keith") {
-    img.width = 55;
+    img.height = 55;
   } else {
-    img.width = 50;
+    img.height = 50;
   }
   img.src = "/static/stickies/" + name + ".webp";
   return img;
@@ -85,7 +85,7 @@ export function mksticker(name: string): HTMLElement {
         el = link;
         break;
       case "spinny":
-        el = mkspan("🔃");
+        el = mkspan("🚁");
         break;
     }
   }

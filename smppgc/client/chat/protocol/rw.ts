@@ -76,9 +76,9 @@ export class Writer {
   }
 
   setSnowflake(value: Snowflake) {
-    this.#buf.resize(this.#index + 4);
+    this.#buf.resize(this.#index + 8);
     this.#dv.setBigUint64(this.#index, value);
-    this.#index += 4;
+    this.#index += 8;
   }
 
   setArray(array: ArrayLike<number>) {

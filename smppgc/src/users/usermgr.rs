@@ -138,8 +138,8 @@ impl<'r> UserManager<'r> {
             return Err(NameInvalidReason::Length.into());
         }
         let (norm_name, name) = {
-            let lock = self.filter.wf.read().await;
-            let ts = lock.check(name);
+            let lock = self.filter.read().await;
+            let ts = lock.wf.check(name);
             drop(lock);
 
             if !ts.good() {
