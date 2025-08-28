@@ -11,9 +11,6 @@ FROM --platform=$BUILDPLATFORM rust:alpine AS builder
 
   COPY . /build
   
-  # copy libraries
-  RUN cp /$(xx-info triple)/usr/lib/libssl.so.3 /usr/lib/libssl.so.3
-  RUN cp /$(xx-info triple)/usr/lib/libcrypto.so.3 /usr/lib/libcrypto.so.3
 
   ARG BINARY=smppgc
   ARG RELEASE
@@ -38,6 +35,10 @@ xx-cargo build $REL_ARG --bin $BINARY
 cp target/$(xx-cargo --print-target-triple)/$PROFILE/$BINARY /app/app
 xx-verify /app/app
 EOF
+
+  # copy libraries
+  RUN cp /$(xx-info triple)/usr/lib/libssl.so.3 /usr/lib/libssl.so.3
+  RUN cp /$(xx-info triple)/usr/lib/libcrypto.so.3 /usr/lib/libcrypto.so.3
 
 ############## SMPPGC ##############
 
