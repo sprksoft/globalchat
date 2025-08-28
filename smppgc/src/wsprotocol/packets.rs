@@ -26,6 +26,7 @@ pub const PACKET_C2S_DELMSG: u8 = 1;
 pub const PACKET_C2S_BANMSGAUTHOR: u8 = 2;
 pub const PACKET_C2S_WF_MARKGOOD: u8 = 3;
 pub const PACKET_C2S_WF_MARKBAD: u8 = 4;
+pub const PACKET_C2S_WF_COMMIT: u8 = 5;
 
 macro_rules! packet {
     ($($expr:expr),*) => {
@@ -143,6 +144,7 @@ pub enum AdminCmd {
         word: String,
         good: bool,
     },
+    WFCommit,
 }
 
 fn parse_u64(bytes: &[u8]) -> Result<u64, ()> {
@@ -201,6 +203,7 @@ pub fn parse_c2s(data: Vec<u8>) -> Result<C2SPacket, ()> {
             let word = parse_str(&data);
             Ok(C2SPacket::AdminCmd(AdminCmd::WFMark { word, good: false }))
         }
+        PACKET_C2S_WF_COMMIT => Ok(C2SPacket::AdminCmd(AdminCmd::WFCommit)),
         id => {
             error!("Invalid c2s packet_id: {}", id);
             Err(())

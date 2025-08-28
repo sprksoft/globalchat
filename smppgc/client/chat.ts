@@ -68,11 +68,11 @@ function add_message(
     log(`inserting message above ${belowIndex}`);
     const aboveMesg = messages[belowIndex]!;
     messages.splice(belowIndex, 0, { html: msgEl, message: message });
-    aboveMesg.html.insertAdjacentElement("beforeend", msgEl);
+    aboveMesg.html.insertAdjacentElement("beforebegin", msgEl);
 
     if (aboveMesg.message.snowflake === message.snowflake) {
       log("replaced message");
-      delMessage(belowIndex);
+      delMessage(belowIndex + 1);
     }
   } else {
     log("appending message to end");
@@ -81,12 +81,15 @@ function add_message(
   }
 
   requestAnimationFrame(() => {
-    const lastMessage = belowIndex !== null ? belowIndex === messages.length - 1 : true;
+    const lastMessage =
+      belowIndex !== null ? belowIndex === messages.length - 1 : true;
     if ((scrollLock && lastMessage) || scroll) {
       msgEl.scrollIntoView({ block: "start" });
-      log(`scrolled message (scrollLock: ${scrollLock}, scroll: ${scroll} lastMessage: ${lastMessage})`);
+      log(
+        `scrolled message (scrollLock: ${scrollLock}, scroll: ${scroll} lastMessage: ${lastMessage})`,
+      );
     }
-  })
+  });
 }
 
 function onMessageDelete(_: any, message: Message) {
@@ -127,7 +130,6 @@ function delMessage(index: number) {
   messages.splice(index, 1);
 }
 
-
 localCmd("/clearkey", function() {
   localStorage.removeItem("key");
   add_system_message("Key cleared.");
@@ -142,7 +144,7 @@ localCmd("/mesgs", function() {
     console.log(mesg.message.snowflake.toString());
   }
   console.log("end messages");
-})
+});
 
 function clearSendInput() {
   if (sendinput) {
@@ -199,7 +201,9 @@ function mesgEasterEgg(messageContent: Word[]) {
 let last_message_snowflake: Snowflake | null = null;
 socketmgr.on_message = (sender_id: number, message: Message) => {
   const me = socketmgr.local_id() == sender_id;
+  let lastMessage = false;
   if (!last_message_snowflake || message.snowflake > last_message_snowflake) {
+    lastMessage = true;
     last_message_snowflake = message.snowflake;
   }
   log(
@@ -207,7 +211,7 @@ socketmgr.on_message = (sender_id: number, message: Message) => {
     }: ${Message.stringContent(message.content)}`,
   );
 
-  if (me && Message.containsProf(message)) {
+  if (lastMessage && me && Message.containsProf(message)) {
     showProfWarn(message);
     if (!IS_MOD) {
       return;
@@ -359,9 +363,10 @@ connectbtn.addEventListener("click", () => {
 });
 
 $("#mesgs").on("scrollend", function() {
-  const bottom = Math.abs((this.scrollTop + this.clientHeight) - this.scrollHeight) < 2;
+  const bottom =
+    Math.abs(this.scrollTop + this.clientHeight - this.scrollHeight) < 2;
   scrollLock = bottom;
-})
+});
 
 if (!READONLY) {
   username_field.value! = localStorage.getItem("username")!;

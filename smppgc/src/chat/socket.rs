@@ -239,12 +239,11 @@ async fn on_admin_cmd<'a>(
                     lock.dirty = true;
                 }
             }
-            if lock.dirty {
-                chat.run_filter(&lock.wf).await;
-            }
             drop(lock);
-
-            filter.save().await;
+        }
+        AdminCmd::WFCommit => {
+            debug!("WFCommit");
+            filter.save_run(chat).await;
         }
     }
     Ok(())

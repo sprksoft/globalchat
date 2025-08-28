@@ -69,6 +69,7 @@
   </div>
 </template>
 
+<div id="wfcommit-spinner" style="display:none" class="loading-spinner">filter update</div>
 <header class="slim-header" id="topbar">
   <button id="leavebtn" class="button">
     {% include "svg/arrow_l" %}

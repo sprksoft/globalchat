@@ -17,4 +17,5 @@ export enum PacketC2SId {
 
   WF_MARKGOOD = 3,
   WF_MARKBAD = 4,
+  WF_COMMIT = 5,
 }
