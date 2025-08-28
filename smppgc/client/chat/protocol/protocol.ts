@@ -228,6 +228,14 @@ export class SocketMgr {
 
     return true;
   }
+  wfCommit() {
+    if (!this.#ws || this.#ws.readyState !== WebSocket.OPEN) {
+      return false;
+    }
+    const writer = new Writer(1);
+    writer.setUint8(PacketC2SId.WF_COMMIT);
+    this.#ws.send(writer.finish());
+  }
 
   send(message: string): boolean {
     if (!this.#ws || this.#ws.readyState !== WebSocket.OPEN) {

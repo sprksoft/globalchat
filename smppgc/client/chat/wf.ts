@@ -10,10 +10,14 @@ export enum WFTag {
 export namespace WFTag {
   export function toString(tag: WFTag): string {
     switch (tag) {
-      case WFTag.Unknown: return "unknown";
-      case WFTag.Good: return "good";
-      case WFTag.Bad: return "bad";
-      case WFTag.Whitespace: return "whitespace";
+      case WFTag.Unknown:
+        return "unknown";
+      case WFTag.Good:
+        return "good";
+      case WFTag.Bad:
+        return "bad";
+      case WFTag.Whitespace:
+        return "whitespace";
     }
   }
   export function fromNum(num: number): WFTag {
@@ -25,6 +29,20 @@ export namespace WFTag {
   }
 }
 
+let commitTimeout: number | null = null;
+function scheduleCommit() {
+  if (commitTimeout !== null) {
+    clearTimeout(commitTimeout);
+  }
+
+  $("#wfcommit-spinner").show();
+  commitTimeout = setTimeout(() => {
+    $("#wfcommit-spinner").hide();
+    commitTimeout = null;
+    socketmgr.wfCommit();
+  }, 1000);
+}
+
 export function markGood(word: string | HTMLElement) {
   if (word instanceof HTMLElement) {
     word.classList.remove("bad", "unknown");
@@ -32,6 +50,7 @@ export function markGood(word: string | HTMLElement) {
     markGood(word.innerText);
   } else {
     socketmgr.markWord(word, true);
+    scheduleCommit();
   }
 }
 
@@ -42,10 +61,9 @@ export function markBad(word: string | HTMLElement) {
     markBad(word.innerText);
   } else {
     socketmgr.markWord(word, false);
+    scheduleCommit();
   }
 }
-
-
 
 let countdown = 0;
 let interval: number;
@@ -62,10 +80,14 @@ export function setupProfWarn() {
     const dialog = $("#profwarn-dialog").get(0) as HTMLDialogElement;
     dialog.close();
   });
-
 }
 
 export function showProfWarn(mesg: Message) {
+  const dialog = $("#profwarn-dialog").get(0) as HTMLDialogElement;
+  if (dialog.open) {
+    console.error("prof dialog already open");
+    return;
+  }
   let time = 10;
   if (Message.containsUnknown(mesg)) {
     time = 5;
@@ -74,7 +96,6 @@ export function showProfWarn(mesg: Message) {
   countdown = time;
   const okBtn = $("#profwarn-ok").get(0) as HTMLButtonElement;
   const countdownEl = $("#profwarn-countdown").get(0) as HTMLButtonElement;
-
 
   countdownEl.innerText = time + " seconden";
   okBtn.disabled = true;
@@ -93,7 +114,6 @@ export function showProfWarn(mesg: Message) {
     }
   }, 1000);
 
-  const dialog = $("#profwarn-dialog").get(0) as HTMLDialogElement;
   dialog.showModal();
 }
 
@@ -103,5 +123,3 @@ export function clearProfWarn() {
   const dialog = $("#profwarn-dialog").get(0) as HTMLDialogElement;
   dialog.close();
 }
-
-

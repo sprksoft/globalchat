@@ -6,6 +6,8 @@ use serde::Deserialize;
 use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use wordfilter::WordFilter;
 
+use crate::chat::Chat;
+
 #[derive(Deserialize)]
 struct WFConfig {
     wordfilter: PathBuf,
@@ -30,11 +32,15 @@ impl Filter {
         self.wf.write().await
     }
 
-    pub async fn save(&self) {
+    #[inline]
+    pub async fn save_run(&self, chat: &Chat) {
         let lock = self.read().await;
         if !lock.dirty {
             return;
         }
+        debug!("rerunning filter on chat...");
+        chat.run_filter(&lock.wf).await;
+        debug!("saving filter...");
         match std::fs::write(&self.path, lock.wf.save_string()) {
             Err(e) => {
                 error!("Failed to save filter: {}", e);
