@@ -1,8 +1,9 @@
 use std::path::PathBuf;
 
+use log::*;
 use rocket::fairing::AdHoc;
 use serde::Deserialize;
-use tokio::sync::RwLock;
+use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use wordfilter::WordFilter;
 
 #[derive(Deserialize)]
@@ -10,9 +11,40 @@ struct WFConfig {
     wordfilter: PathBuf,
 }
 
+pub struct FilterWrapper {
+    pub wf: WordFilter,
+    pub dirty: bool,
+}
+
 pub struct Filter {
     path: PathBuf,
-    pub wf: RwLock<WordFilter>,
+    wf: RwLock<FilterWrapper>,
+}
+impl Filter {
+    #[inline]
+    pub async fn read(&self) -> RwLockReadGuard<'_, FilterWrapper> {
+        self.wf.read().await
+    }
+    #[inline]
+    pub async fn write(&self) -> RwLockWriteGuard<'_, FilterWrapper> {
+        self.wf.write().await
+    }
+
+    pub async fn save(&self) {
+        let lock = self.read().await;
+        if !lock.dirty {
+            return;
+        }
+        match std::fs::write(&self.path, lock.wf.save_string()) {
+            Err(e) => {
+                error!("Failed to save filter: {}", e);
+                return;
+            }
+            Ok(()) => {}
+        }
+        drop(lock);
+        self.write().await.dirty = false;
+    }
 }
 
 pub fn stage() -> AdHoc {
@@ -30,7 +62,7 @@ pub fn stage() -> AdHoc {
 
         r.manage(Filter {
             path: config.wordfilter,
-            wf: wf.into(),
+            wf: RwLock::new(FilterWrapper { wf, dirty: false }),
         })
     })
 }

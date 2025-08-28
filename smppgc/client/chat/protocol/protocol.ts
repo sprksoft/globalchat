@@ -35,10 +35,6 @@ function handle_version_check(protocol_ver: number) {
 export class SocketMgr {
   on_message: ((sender_id: LocalId, message: Message) => void) | null = null;
   on_message_del: ((snowflake: Snowflake) => void) | null = null;
-  on_message_censor: ((Snowflake: Snowflake) => void) | null = null;
-  on_profanity_warn:
-    | ((message: string, badWord: string, start: number, end: number) => void)
-    | null = null;
   on_leave: ((data: string | Ban, protoerr: ProtoError) => void) | null = null;
   on_join: (() => void) | null = null;
 
@@ -64,6 +60,7 @@ export class SocketMgr {
 
         let sender = this.#users[sender_id];
         if (!sender) {
+          console.error("sender id not found");
           sender = User.nonExisting();
         }
         let message = new Message(content, sender, snowflake);
@@ -105,23 +102,9 @@ export class SocketMgr {
           role,
         );
         break;
-
-      case PacketId.PROFANITY_WARN:
-        let start = reader.getUint16(0);
-        let end = reader.getUint16(0);
-        let msgLen = reader.getUint16(0);
-        let msg = reader.getString(msgLen);
-        let badWord = reader.getString();
-        this.on_profanity_warn?.(msg, badWord, start, end);
-        break;
-
       case PacketId.MESSAGE_DEL:
         const msgId = reader.getSnowflake(0);
         this.on_message_del?.(msgId);
-        break;
-      case PacketId.MESSAGE_CENSOR:
-        const message_id = reader.getSnowflake(0);
-        this.on_message_censor?.(message_id);
         break;
 
       default:

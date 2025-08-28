@@ -18,9 +18,9 @@
   <label for="show-mod-badge" style="text-align:center"><input id="show-mod-badge" type="checkbox"> Moderator badge</label>
   {% endif %}
   <div class="layered-section" id="ban" style="display:none">
-    <h1 class="center-title">Je bent verbannen</h1>
+    <h1 class="center-title">Je bent verbannen 🔨</h1>
     <p>Je bent verbannen door een moderator met de volgende reden:</p>
-    <p id="ban-reason">Bliep bloep blaap<br>Je bent stout</p>
+    <p id="ban-reason">Loading...</p>
     <small>Je kunt terug joinen over <span id="ban-release-time">55 minuten</span></small>
   </div>
   <span id="err-mesg" class="err"></span>

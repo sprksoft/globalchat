@@ -40,6 +40,14 @@ const login_popup = document.getElementById("login") as HTMLDialogElement;
 
 export let socketmgr = new SocketMgr();
 
+export interface HtmlMessage {
+  html: HTMLElement;
+  message: Message;
+}
+export let messages: HtmlMessage[] = [];
+
+let scrollLock: boolean = true;
+
 function add_message(
   message: Message,
   scroll: boolean,
@@ -55,15 +63,32 @@ function add_message(
   }
   let msgEl = createMessage(message, controls, adminControls);
 
-  const mesgs = $("#mesgs").get(0)!;
-  const should_scroll =
-    Math.abs(mesgs.scrollHeight - mesgs.clientHeight - mesgs.scrollTop) <= 3 ||
-    scroll;
-  mesgs.appendChild(msgEl);
-  if (should_scroll) {
-    msgEl.scrollIntoView();
+  const belowIndex = getMessageIndexBelow(message.snowflake);
+  if (belowIndex !== null) {
+    log(`inserting message above ${belowIndex}`);
+    const aboveMesg = messages[belowIndex]!;
+    messages.splice(belowIndex, 0, { html: msgEl, message: message });
+    aboveMesg.html.insertAdjacentElement("beforeend", msgEl);
+
+    if (aboveMesg.message.snowflake === message.snowflake) {
+      log("replaced message");
+      delMessage(belowIndex);
+    }
+  } else {
+    log("appending message to end");
+    messages.push({ html: msgEl, message: message });
+    $("#mesgs").get(0)!.appendChild(msgEl);
   }
+
+  requestAnimationFrame(() => {
+    const lastMessage = belowIndex !== null ? belowIndex === messages.length - 1 : true;
+    if ((scrollLock && lastMessage) || scroll) {
+      msgEl.scrollIntoView({ block: "start" });
+      log(`scrolled message (scrollLock: ${scrollLock}, scroll: ${scroll} lastMessage: ${lastMessage})`);
+    }
+  })
 }
+
 function onMessageDelete(_: any, message: Message) {
   socketmgr.deleteMessage(message.snowflake);
 }
@@ -75,6 +100,34 @@ function add_system_message(message: string) {
   add_message(Message.system(message), true, false);
 }
 
+/**
+ * Gets a message using the snowflake. If the message doesn't exist returns the message that would be below the snowflake
+ */
+function getMessageIndexBelow(snowflake: Snowflake): number | null {
+  for (let i = 0; i < messages.length; i++) {
+    const mesg = messages[i]!;
+    if (mesg.message.snowflake >= snowflake) {
+      return i;
+    }
+  }
+  return null;
+}
+function getMessageIndex(snowflake: Snowflake): number | null {
+  const index = getMessageIndexBelow(snowflake);
+  if (!index || messages[index]!.message.snowflake !== snowflake) {
+    return null;
+  }
+  return index;
+}
+function delMessage(index: number) {
+  if (!messages[index]) {
+    return;
+  }
+  messages[index].html.remove();
+  messages.splice(index, 1);
+}
+
+
 localCmd("/clearkey", function() {
   localStorage.removeItem("key");
   add_system_message("Key cleared.");
@@ -82,6 +135,14 @@ localCmd("/clearkey", function() {
 localCmd("/leave", function() {
   socketmgr.leave();
 });
+localCmd("/mesgs", function() {
+  console.log("messages");
+  for (const mesg of messages) {
+    console.log(mesg.html);
+    console.log(mesg.message.snowflake.toString());
+  }
+  console.log("end messages");
+})
 
 function clearSendInput() {
   if (sendinput) {
@@ -138,7 +199,9 @@ function mesgEasterEgg(messageContent: Word[]) {
 let last_message_snowflake: Snowflake | null = null;
 socketmgr.on_message = (sender_id: number, message: Message) => {
   const me = socketmgr.local_id() == sender_id;
-  last_message_snowflake = message.snowflake;
+  if (!last_message_snowflake || message.snowflake > last_message_snowflake) {
+    last_message_snowflake = message.snowflake;
+  }
   log(
     `Got message from ${sender_id} (${message.snowflake}) mod: ${message.mod_badge
     }: ${Message.stringContent(message.content)}`,
@@ -146,7 +209,9 @@ socketmgr.on_message = (sender_id: number, message: Message) => {
 
   if (me && Message.containsProf(message)) {
     showProfWarn(message);
-    return;
+    if (!IS_MOD) {
+      return;
+    }
   }
 
   const scroll = me || sender_id === -1; // scroll if the message comes from me or system
@@ -158,24 +223,12 @@ socketmgr.on_message = (sender_id: number, message: Message) => {
   }
 };
 
-function getMessage(snowflake: Snowflake) {
-  return document.querySelector(
-    `.message[data-snowflake="${snowflake.toString()}"]`,
-  );
-}
-
-socketmgr.on_message_censor = (snowflake: Snowflake) => {
-  let mesgEl = getMessage(snowflake);
-  if (mesgEl) {
-    mesgEl.classList.add("prof-message");
-  }
-};
-
 socketmgr.on_message_del = (snowflake: Snowflake) => {
-  let mesgEl = getMessage(snowflake);
-  if (mesgEl) {
-    mesgEl.remove();
+  const result = getMessageIndex(snowflake);
+  if (!result) {
+    return;
   }
+  delMessage(result);
 };
 
 socketmgr.on_leave = (data: string | Ban, protoerr: ProtoError) => {
@@ -204,6 +257,7 @@ socketmgr.on_leave = (data: string | Ban, protoerr: ProtoError) => {
   // reset everything
   last_message_snowflake = null;
   $("#mesgs").empty();
+  messages = [];
   ban.reset();
   clearProfWarn();
 
@@ -213,17 +267,6 @@ socketmgr.on_leave = (data: string | Ban, protoerr: ProtoError) => {
     log("Got no session error. Redirecting to login page...");
     location.href = "/login?redirect=/v1";
   }
-};
-
-//TODO: swap this for better system
-socketmgr.on_profanity_warn = (
-  message: string,
-  badWord: string,
-  start: number,
-  end: number,
-) => {
-  log(`${message} contains the word '${badWord}' at ${start}..${end}'`);
-  showProfWarn(new Message([message], socketmgr.local_user(), Snowflake.now()))
 };
 
 function send_message(): boolean {
@@ -285,11 +328,11 @@ setupProfWarn();
 sendinput?.addEventListener("keypress", async (e) => {
   if (e.key == "Enter" && !e.shiftKey && !hasVirtKb()) {
     e.preventDefault();
-    await send_message();
+    send_message();
   }
 });
 sendbtn?.addEventListener("click", async () => {
-  if (await send_message()) {
+  if (send_message()) {
     setTimeout(() => {
       sendinput?.focus();
     }, 100);
@@ -315,7 +358,10 @@ connectbtn.addEventListener("click", () => {
   sendinput?.focus();
 });
 
-
+$("#mesgs").on("scrollend", function() {
+  const bottom = Math.abs((this.scrollTop + this.clientHeight) - this.scrollHeight) < 2;
+  scrollLock = bottom;
+})
 
 if (!READONLY) {
   username_field.value! = localStorage.getItem("username")!;

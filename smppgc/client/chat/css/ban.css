@@ -61,3 +61,8 @@
 #ban-release-time {
   color: var(--color-accent);
 }
+
+#ban-reason {
+  font-style: italic;
+  padding-left: 1rem;
+}

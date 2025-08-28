@@ -63,7 +63,7 @@ impl WordFilter {
                 context.push(word.into());
             }
 
-            if good_bad == "good" {
+            if good_bad == "good" || good_bad == "g" {
                 hashmap.insert(
                     word.into(),
                     WordEntry {
@@ -71,7 +71,7 @@ impl WordFilter {
                         forward_ctx: context,
                     },
                 );
-            } else if good_bad == "bad" {
+            } else if good_bad == "bad" || good_bad == "b" {
                 hashmap.insert(
                     word.into(),
                     WordEntry {
@@ -103,14 +103,15 @@ impl WordFilter {
         self.merge(other);
         Ok(())
     }
+
     pub fn save_string(&self) -> String {
         let mut string = String::new();
         for (word, entry) in self.hashmap.iter() {
             string.push_str(word);
             if entry.good {
-                string.push_str(" good");
+                string.push_str(" g");
             } else {
-                string.push_str(" bad");
+                string.push_str(" b");
             }
             for context in &entry.forward_ctx {
                 string.push(' ');
