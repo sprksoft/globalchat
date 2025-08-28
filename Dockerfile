@@ -12,7 +12,7 @@ FROM --platform=$BUILDPLATFORM rust:alpine AS builder
   COPY . /build
   
   # copy openssl binary to a known location
-  RUN cp /$(xx-info triple)/usr/lib/openssl /usr/lib/openssl
+  RUN cp /$(xx-info triple)/usr/bin/openssl /usr/bin/openssl
 
   ARG BINARY=smppgc
   ARG RELEASE
@@ -65,7 +65,7 @@ EOF
 FROM scratch AS prod
   COPY --from=dev /app /app
   COPY --from=dev /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
-  COPY --from=dev /usr/lib/openssl /usr/lib/openssl
+  COPY --from=dev /usr/bin/openssl /usr/bin/openssl
 
   EXPOSE 8080
 
