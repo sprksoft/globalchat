@@ -1,6 +1,6 @@
 [package]
 name = "smppgc"
-version="2025.7.5"
+version.workspace=true
 authors.workspace = true
 edition.workspace = true
 
