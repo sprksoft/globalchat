@@ -2,15 +2,19 @@ FROM --platform=$BUILDPLATFORM tonistiigi/xx AS xx
 
 FROM --platform=$BUILDPLATFORM rust:alpine AS builder
   COPY --from=xx / /
-  ARG TARGETPLATFORM
   RUN apk update && apk add clang pkgconfig ca-certificates lld
+  ARG TARGETPLATFORM
   RUN xx-apk update && xx-apk add musl musl-dev openssl-dev openssl
+
+  # copy libraries
+  RUN mkdir /native_libs \
+  && cp /$(xx-info triple)/usr/lib/libssl.so.3 /native_libs/libssl.so.3 \
+  && cp /$(xx-info triple)/usr/lib/libcrypto.so.3 /native_libs/libcrypto.so.3
 
   ENV RUSTUP_TOOLCHAIN=stable
   ENV SQLX_OFFLINE=true
 
   COPY . /build
-  
 
   ARG BINARY=smppgc
   ARG RELEASE
@@ -36,9 +40,6 @@ cp target/$(xx-cargo --print-target-triple)/$PROFILE/$BINARY /app/app
 xx-verify /app/app
 EOF
 
-  # copy libraries
-  RUN cp /$(xx-info triple)/usr/lib/libssl.so.3 /usr/lib/libssl.so.3
-  RUN cp /$(xx-info triple)/usr/lib/libcrypto.so.3 /usr/lib/libcrypto.so.3
 
 ############## SMPPGC ##############
 
@@ -67,8 +68,7 @@ EOF
 FROM scratch AS prod
   COPY --from=dev /app /app
   COPY --from=dev /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
-  COPY --from=dev /usr/lib/libcrypto.so.3 /usr/lib/libcrypto.so.3
-  COPY --from=dev /usr/lib/libssl.so.3 /usr/lib/libssl.so.3
+  COPY --from=dev /native_libs /usr/lib
 
   EXPOSE 8080
 
