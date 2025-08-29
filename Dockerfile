@@ -4,12 +4,8 @@ FROM --platform=$BUILDPLATFORM rust:alpine AS builder
   COPY --from=xx / /
   RUN apk update && apk add clang pkgconfig ca-certificates lld
   ARG TARGETPLATFORM
-  RUN xx-apk update && xx-apk add musl musl-dev openssl-dev openssl
-
-  # copy libraries
-  RUN mkdir /native_libs \
-  && cp /$(xx-info triple)/usr/lib/libssl.so.3 /native_libs/libssl.so.3 \
-  && cp /$(xx-info triple)/usr/lib/libcrypto.so.3 /native_libs/libcrypto.so.3
+  RUN xx-apk update && xx-apk add gcc musl musl-dev openssl-dev openssl-libs-static
+  RUN xx-clang --setup-target-triple
 
   ENV RUSTUP_TOOLCHAIN=stable
   ENV SQLX_OFFLINE=true
@@ -34,10 +30,13 @@ then
 fi
 
 export OPENSSL_DIR="/$(xx-info triple)/usr"
+export OPENSSL_STATIC=1
+export CC="xx-clang"
+
 mkdir /app
 xx-cargo build $REL_ARG --bin $BINARY
 cp target/$(xx-cargo --print-target-triple)/$PROFILE/$BINARY /app/app
-xx-verify /app/app
+xx-verify /app/app --static
 EOF
 
 
@@ -68,7 +67,6 @@ EOF
 FROM scratch AS prod
   COPY --from=dev /app /app
   COPY --from=dev /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
-  COPY --from=dev /native_libs /usr/lib
 
   EXPOSE 8080
 
