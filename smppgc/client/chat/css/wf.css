@@ -21,10 +21,14 @@
 }
 
 .bad {
-  text-decoration: var(--color-bad) underline 2px;
+  text-decoration: var(--color-bad) underline;
+  /* Specify text-decoration-thickness because some browsers don't support it*/
+  text-decoration-thickness: 2px;
 }
 .unknown {
-  text-decoration: var(--color-unknown) underline 2px;
+  text-decoration: var(--color-unknown) underline;
+  /* Specify text-decoration-thickness because some browsers don't support it*/
+  text-decoration-thickness: 2px;
 }
 
 #wfcommit-spinner {

@@ -280,7 +280,7 @@ impl Chat {
                 let new_mesg: Arc<Message> = Arc::from(new_mesg);
                 let _ = self.event_sender.send(ChatEvent::MessageChange(
                     new_mesg.clone(),
-                    MessageChangeType::Filter(mesg.prof()),
+                    MessageChangeType::Filter(new_mesg.prof()),
                 ));
                 *mesg = new_mesg;
             }

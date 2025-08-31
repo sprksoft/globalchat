@@ -70,7 +70,9 @@ button {
 
 .unimportantbtn:hover {
   color: var(--color-accent);
-  text-decoration: var(--color-accent) underline 2px;
+  text-decoration: var(--color-accent) underline;
+  /* Specify text-decoration-thickness because some browsers don't support it*/
+  text-decoration-thickness: 2px;
 }
 
 .unimportantbtn:disabled {

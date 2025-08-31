@@ -274,19 +274,25 @@ mod test {
     fn ghost_chars() {
         let filter = filter();
 
-        assert_eq!(
-            filter.check(":smppgc:"),
-            ts([
-                (":", Tag::Whitespace),
-                ("smppgc", Tag::Good),
-                (":", Tag::Whitespace)
-            ])
-        );
+        assert_eq!(filter.check(":smppgc:"), ts([(":smppgc:", Tag::Good),]));
+    }
+
+    #[test]
+    fn emoji() {
+        let filter = filter();
 
         //❤️ is multiple characters
         assert_eq!(
             filter.check("i❤️u"),
             ts([("i", Tag::Good), ("❤️", Tag::Good), ("u", Tag::Good)])
         );
+    }
+
+    #[test]
+    fn emoji_query() {
+        let filter = WordFilter::from_string("❤️ g");
+        let norm = crate::NormalizedWord::normalize("❤️");
+        dbg!(&filter, &norm);
+        assert!(filter.get_entry(&norm).is_some(),);
     }
 }

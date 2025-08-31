@@ -331,10 +331,10 @@ async fn on_event(
                 wsclient.forward_message_del(message.id()).await?;
             }
             MessageChangeType::Filter(blocked) => {
-                if !wsclient.role().is_mod() && blocked {
-                    wsclient.forward_message_del(message.id()).await?;
-                } else {
+                if wsclient.role().is_mod() || blocked {
                     wsclient.forward(&message).await?;
+                } else {
+                    wsclient.forward_message_del(message.id()).await?;
                 }
             }
         },
