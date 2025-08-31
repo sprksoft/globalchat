@@ -117,7 +117,7 @@ function getMessageIndexBelow(snowflake: Snowflake): number | null {
 }
 function getMessageIndex(snowflake: Snowflake): number | null {
   const index = getMessageIndexBelow(snowflake);
-  if (!index || messages[index]!.message.snowflake !== snowflake) {
+  if (index === null || messages[index]!.message.snowflake != snowflake) {
     return null;
   }
   return index;
@@ -229,7 +229,7 @@ socketmgr.on_message = (sender_id: number, message: Message) => {
 
 socketmgr.on_message_del = (snowflake: Snowflake) => {
   const result = getMessageIndex(snowflake);
-  if (!result) {
+  if (result == null) {
     return;
   }
   delMessage(result);

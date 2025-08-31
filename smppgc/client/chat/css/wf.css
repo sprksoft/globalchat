@@ -21,14 +21,18 @@
 }
 
 .bad {
-  text-decoration: var(--color-bad) underline;
-  /* Specify text-decoration-thickness because some browsers don't support it*/
+  text-decoration: underline;
+  /* Specify text-decoration-thickness because some browsers don't support it */
   text-decoration-thickness: 2px;
+  text-decoration-color: var(--color-bad);
+  -webkit-text-decoration-color: var(--color-bad);
 }
 .unknown {
-  text-decoration: var(--color-unknown) underline;
-  /* Specify text-decoration-thickness because some browsers don't support it*/
+  text-decoration: underline;
+  /* Specify text-decoration-thickness because some browsers don't support it */
   text-decoration-thickness: 2px;
+  text-decoration-color: var(--color-unknown);
+  -webkit-text-decoration-color: var(--color-unknown);
 }
 
 #wfcommit-spinner {

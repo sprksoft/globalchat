@@ -2,16 +2,6 @@
 const STICKERS = ["404", "spinny"];
 const IMAGE_STICKERS = ["nightmarebirb", "smpp", "smppoud", "smpplite", "gc", "fire", "arch", "tux", "ferris", "gopher", "keith", "slonik", "mobydock",]; // avail stickers (used to prevent unneeded 404s to the server)
 
-export function mkProfHighlighted(message, start, end, parent_el) {
-  let span = document.createElement("span");
-  span.appendChild(document.createTextNode(message.substring(0, start)));
-  let hi = document.createElement("mark");
-  hi.classList.add("profanity-mark")
-  hi.innerText = message.substring(start, end);
-  span.appendChild(hi);
-  span.appendChild(document.createTextNode(message.substring(end, message.length)));
-  parent_el.appendChild(span);
-}
 
 export function mksender(sender, parent_el) {
   let special = sender == "system";
@@ -43,14 +33,6 @@ export function mkspan(innerText) {
   let span = document.createElement("span");
   span.innerText = innerText;
   return span;
-}
-export function mkprofmarkspan(innerText, parent_el) {
-  let span = document.createElement("span");
-  let mark = document.createElement("mark");
-  mark.classList.add("profanity-mark");
-  mark.innerText = innerText;
-  span.appendChild(mark);
-  parent_el.appendChild(span)
 }
 export function mka(link, parent_el) {
   let a = document.createElement("a");
@@ -95,28 +77,3 @@ export function mksticker(name: string): HTMLElement {
   }
   return el;
 }
-
-// Parse the string message and generate html elements for stickers, links,...
-export function mkcontent(message, highlight, parent_el) {
-  if (highlight) {
-    mkcontent(message.substring(0, highlight[0]), null, parent_el);
-    mkprofmarkspan(message.substring(highlight[0], highlight[1]), parent_el)
-    mkcontent(message.substring(highlight[1], message.length), null, parent_el);
-  } else {
-    const findStickerRegex = /:[a-z0-9_-]{1,15}:/g;
-    const matches = message.matchAll(findStickerRegex);
-    let last_index = 0;
-    for (const match of matches) {
-      parent_el.appendChild(mkspan(message.substring(last_index, match.index)));
-
-      last_index = match.index;
-      let name = match[0].substring(1, match[0].length - 1);
-      if (IMAGE_STICKERS.includes(name) || STICKERS.includes(name)) {
-        parent_el.appendChild(mksticker(name));
-        last_index += match[0].length;
-      }
-    }
-    parent_el.appendChild(mkspan(message.substring(last_index)));
-  }
-}
-
