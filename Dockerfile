@@ -30,6 +30,9 @@ then
 fi
 
 export OPENSSL_DIR="/$(xx-info triple)/usr"
+if ! xx-info is-cross ; then
+  export OPENSSL_DIR="/usr"
+fi
 export OPENSSL_STATIC=1
 export CC="xx-clang"
 

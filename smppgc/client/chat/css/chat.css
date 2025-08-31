@@ -178,12 +178,6 @@ a.goto-chat-link {
   font-size: 0.8em;
   margin: 0px;
 }
-.profanity-mark {
-  text-decoration: var(--color-error) underline 2px;
-  font-weight: bold;
-  background: inherit;
-  color: var(--color-error);
-}
 
 #profwarn-dialog {
   max-width: 600px;
