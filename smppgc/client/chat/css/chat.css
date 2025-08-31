@@ -124,16 +124,6 @@ a.goto-chat-link {
   display:flex;
   flex-direction: column;
 }
-.prof-message .content {
-  text-decoration: var(--color-error) underline 2px;
-  font-weight: bold;
-  color: var(--color-error);
-  filter: blur(5px);
-  transition: filter 0.4s;
-}
-.prof-message-show .content {
-  filter: blur(0px);
-}
 .message_top {
   display:flex;
   flex-direction: row;

@@ -1,7 +1,7 @@
 use std::{
     collections::HashSet,
     fs,
-    io::{self, stdin, Read},
+    io::{self, stdin, Read, Write},
 };
 
 use ansii::*;
@@ -19,13 +19,17 @@ struct Cli {
     #[arg(long, short = 'g')]
     add_good: Vec<String>,
 
+    /// bad data to add to the filter. (this will add all words as bad)
+    #[arg(long, short = 'b')]
+    add_bad: Vec<String>,
+
     /// Check the data in the file against the filter (use - for stdin)
     #[arg(long)]
     check: Option<String>,
 
-    /// Bad data to add to the filter interactively.
-    #[arg(long, short = 'b')]
-    bad: Vec<String>,
+    /// Answer yes to all questions
+    #[arg(short = 'y', long)]
+    yes: bool,
 
     /// Optional output file of the resulting filter
     /// When the output file ends in .txt write the filter as text
@@ -54,22 +58,29 @@ fn get_input_data(path: &str) -> io::Result<String> {
     }
 }
 
-fn ask_yn(question: &str) -> bool {
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Mark {
+    Good,
+    Bad,
+}
+
+fn ask_mark() -> Mark {
     loop {
-        println!("{} >", question);
+        print!("mark (g/b) > ");
+        let _ = io::stdout().flush();
         let mut str = String::new();
         io::stdin().read_line(&mut str).unwrap();
         let str = str.trim();
-        if str == "y" || str == "yes" || str == "g" || str == "good" {
-            return true;
-        } else if str == "n" || str == "no" || str == "b" || str == "bad" {
-            return false;
+        if str == "g" || str == "good" {
+            return Mark::Good;
+        } else if str == "b" || str == "bad" {
+            return Mark::Bad;
         }
     }
 }
 
-fn add_good_file(filter: &mut WordFilter, path: &str) {
-    println!("ADDING GOOD WORDS FROM: {}", path);
+fn add_file(filter: &mut WordFilter, path: &str, good: bool, yes: bool) {
+    println!("ADDING WORDS FROM: {}", path);
     for line in get_input_data(path)
         .unwrap()
         .lines()
@@ -77,18 +88,37 @@ fn add_good_file(filter: &mut WordFilter, path: &str) {
         .flatten()
     {
         let str = filter.check(line);
-        for (word, tag) in str.words() {
+        for (word, tag, norm_word) in str.norm_words() {
             match tag {
                 Tag::Unknown => {
-                    filter.train_word(word, true);
+                    filter.train_word(word, good);
                 }
                 Tag::Bad => {
-                    println!("'{}' ({}) {COLOR_RED}bad{RESET}", line, word);
-                    if ask_yn("mark as good?") {
-                        filter.train_word(word, true);
+                    if good {
+                        println!(
+                            "'{}' ({}) ({}) {COLOR_RED}bad{RESET}",
+                            line,
+                            word,
+                            norm_word.root()
+                        );
+                        if yes || ask_mark() == Mark::Good {
+                            filter.train_word(word, true);
+                        }
                     }
                 }
-                Tag::Good => {}
+                Tag::Good => {
+                    if !good {
+                        println!(
+                            "'{}' ({}) ({}) {COLOR_GREEN}good{RESET}",
+                            line,
+                            word,
+                            norm_word.root()
+                        );
+                        if yes || ask_mark() == Mark::Bad {
+                            filter.train_word(word, false);
+                        }
+                    }
+                }
                 Tag::Whitespace => {}
             }
         }
@@ -100,14 +130,15 @@ fn interactive_check(
     filter: &mut WordFilter,
     str: &str,
     good: &mut HashSet<Box<str>>,
-    bad: &mut HashSet<Box<str>>,
+    bad: &mut HashSet<(Box<str>, usize)>,
     unknown: &mut HashSet<Box<str>>,
-    lines_good: &mut usize,
+    lines_good: &mut HashSet<Box<str>>,
+    linenum: usize,
 ) {
     let str = filter.check(str);
     let mut wc = 0;
     if str.good() {
-        *lines_good += 1;
+        lines_good.insert(str.to_string().into());
     }
     for (word, tag) in str.words() {
         match tag {
@@ -117,7 +148,7 @@ fn interactive_check(
             }
             Tag::Bad => {
                 print!("{COLOR_RED}{}{RESET}", word);
-                bad.insert(word.into());
+                bad.insert((word.into(), linenum));
             }
             Tag::Unknown => {
                 print!("{COLOR_GRAY}{}{RESET}", word);
@@ -152,7 +183,7 @@ fn main() {
         let mut good = HashSet::new();
         let mut bad = HashSet::new();
         let mut unknown = HashSet::new();
-        let mut lines_good = 0;
+        let mut lines_good = HashSet::new();
         if check_file == "-" {
             let mut line = String::new();
             loop {
@@ -168,10 +199,15 @@ fn main() {
                     &mut bad,
                     &mut unknown,
                     &mut lines_good,
+                    1,
                 );
             }
         } else {
-            for line in std::fs::read_to_string(check_file).unwrap().lines() {
+            for (index, line) in std::fs::read_to_string(check_file)
+                .unwrap()
+                .lines()
+                .enumerate()
+            {
                 println!("'{}'", line);
                 interactive_check(
                     &mut filter,
@@ -180,6 +216,7 @@ fn main() {
                     &mut bad,
                     &mut unknown,
                     &mut lines_good,
+                    index + 1,
                 );
             }
         }
@@ -189,12 +226,19 @@ fn main() {
         println!("{}\twords good", good.len());
         println!("{}\twords bad", bad.len());
         println!("{}\twords unknown", unknown.len());
-        println!("{}\tlines good", lines_good);
+        println!("{}\tlines good", lines_good.len());
+
+        if lines_good.len() < 50 {
+            println!("\nlines good: ");
+            for line in lines_good.iter() {
+                println!("  {}", line);
+            }
+        }
 
         if bad.len() < 50 {
             println!("\nbad words: ");
-            for word in bad.iter() {
-                println!("  {}", word);
+            for (word, line) in bad.iter() {
+                println!("  {}  {}", word, line);
             }
         }
         if unknown.len() < 50 {
@@ -211,7 +255,13 @@ fn main() {
         if output.is_none() && cli.filter.len() == 1 {
             output = Some(cli.filter[0].clone());
         }
-        add_good_file(&mut filter, &path);
+        add_file(&mut filter, &path, true, cli.yes);
+    }
+    for path in cli.add_bad {
+        if output.is_none() && cli.filter.len() == 1 {
+            output = Some(cli.filter[0].clone());
+        }
+        add_file(&mut filter, &path, false, cli.yes);
     }
 
     if cli.short_words {
@@ -241,12 +291,10 @@ fn main() {
     //     }
     // }
 
-    println!("done");
+    let bytes = filter.save_string().into_bytes();
+    println!("filter entries: {}", filter.entry_count());
+    println!("filter size: {}kB", bytes.len() / 1000);
     if let Some(output) = output {
-        let bytes = filter.save_string().into_bytes();
-        println!("filter entries: {}", filter.entry_count());
-        println!("filter size: {}kB", bytes.len() / 1000);
-
         std::fs::write(&output, bytes).unwrap()
     }
 }

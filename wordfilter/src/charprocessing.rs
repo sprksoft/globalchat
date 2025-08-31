@@ -1,8 +1,9 @@
 use std::str::Chars;
 
 /// NOTE: Will be ignored by the normalizer
-/// Ex. wo*ord == woord
-const EXTRA_CHARS: [char; 6] = ['*', '.', '!', '?', '\'', ':'];
+/// Ex. zo'n == zon
+/// Ex. :fire: == fire
+const GHOST_CHARS: [char; 2] = ['\'', ':'];
 
 pub enum NormCharsIter<'a> {
     Single(char),
@@ -59,13 +60,10 @@ pub fn is_void(char: char) -> bool {
     }
 }
 pub fn is_ignored(char: char) -> bool {
-    if char.is_numeric() {
+    if char.is_numeric() || char.is_whitespace() {
         return true;
     }
-    if EXTRA_CHARS.contains(&char) {
-        return true;
-    }
-    is_void(char)
+    GHOST_CHARS.contains(&char)
 }
 
 #[derive(PartialEq, Eq, Debug)]
@@ -77,11 +75,11 @@ pub enum CharType {
 impl CharType {
     pub fn new(char: char) -> Self {
         for char in normalize_char(char) {
-            if char.is_alphanumeric() || EXTRA_CHARS.contains(&char) {
-                return CharType::Normal;
-            }
             if is_emoji(char) {
                 return CharType::Emoji;
+            }
+            if char.is_alphanumeric() || GHOST_CHARS.contains(&char) {
+                return CharType::Normal;
             }
         }
         CharType::Whitespace
@@ -107,18 +105,22 @@ mod test {
     fn char_type() {
         assert_eq!(super::CharType::new('i'), CharType::Normal);
         assert_eq!(super::CharType::new('k'), CharType::Normal);
-        assert_eq!(super::CharType::new('*'), CharType::Normal);
         assert_eq!(super::CharType::new('a'), CharType::Normal);
         assert_eq!(super::CharType::new('A'), CharType::Normal);
         assert_eq!(super::CharType::new('し'), CharType::Normal);
 
         assert_eq!(super::CharType::new('1'), CharType::Normal);
-        assert_eq!(super::CharType::new('*'), CharType::Normal);
-        assert_eq!(super::CharType::new('!'), CharType::Normal);
+        assert_eq!(super::CharType::new('!'), CharType::Whitespace);
+        assert_eq!(super::CharType::new('*'), CharType::Whitespace);
         assert_eq!(super::CharType::new(')'), CharType::Whitespace);
         assert_eq!(super::CharType::new(' '), CharType::Whitespace);
+        assert_eq!(super::CharType::new('\t'), CharType::Whitespace);
 
         assert_eq!(super::CharType::new('😐'), CharType::Emoji);
         assert_eq!(super::CharType::new('🙅'), CharType::Emoji);
+        assert_eq!(super::CharType::new('卐'), CharType::Normal);
+        assert_eq!(super::CharType::new('à'), CharType::Normal);
+        assert_eq!(super::CharType::new('€'), CharType::Normal);
+        assert_eq!(super::CharType::new('Œ'), CharType::Normal);
     }
 }

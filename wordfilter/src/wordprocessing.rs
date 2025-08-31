@@ -54,69 +54,125 @@ pub trait TokenTag: Clone + Copy + PartialEq + Eq {}
 impl TokenTag for Tag {}
 
 #[inline]
-fn push_normalized(string: &mut String, mut prev_char: Option<char>, char: char) -> Option<char> {
-    let mut last_pushed = None;
-    for char in normalize_char(char) {
-        if !is_ignored(char) && prev_char.map(|prev| prev != char).unwrap_or(true) {
-            string.push(char);
-            prev_char = Some(char);
-            last_pushed = Some(char);
-        }
-    }
-    last_pushed
+fn should_modify(word: &mut NormalizedWord, fix: &'static str) -> bool {
+    word.root().len() >= 4 + fix.len()
 }
 
 #[inline]
-fn suffix(word: &mut NormalizedWord, suffix: &'static str) {
-    if word.root().len() >= 3 + suffix.len() && word.root().ends_with(suffix) {
-        word.root_end -= suffix.len();
+fn suffix(word: &mut NormalizedWord, suffix: impl IntoIterator<Item = &'static str>) -> bool {
+    for suffix in suffix.into_iter() {
+        if should_modify(word, suffix) && word.root().ends_with(suffix) {
+            word.root_end -= suffix.len();
+            return true;
+        }
     }
+    false
+}
+
+#[inline]
+fn prefix(word: &mut NormalizedWord, prefix: impl IntoIterator<Item = &'static str>) -> bool {
+    for prefix in prefix.into_iter() {
+        if should_modify(word, prefix) && word.root().starts_with(prefix) {
+            word.root_start += prefix.len();
+            return true;
+        }
+    }
+    false
+}
+macro_rules! ret {
+    ($expr:expr) => {{
+        if $expr {
+            return true;
+        }
+    }};
 }
 
 #[derive(Clone, Hash, Debug, PartialEq, Eq)]
 pub struct NormalizedWord {
     root_end: usize,
+    root_start: usize,
     word: String,
 }
 impl NormalizedWord {
     pub fn normalize(str: &str) -> NormalizedWord {
         let mut word = String::with_capacity(str.len());
         let mut prev_char = None;
+        let mut rep_count = 0;
         for char in str.chars() {
-            if let Some(char) = push_normalized(&mut word, prev_char, char) {
+            for char in normalize_char(char) {
+                let char = char.to_ascii_lowercase();
+                if is_ignored(char) {
+                    continue;
+                }
+                if prev_char.map(|prev| prev == char).unwrap_or(false) {
+                    rep_count += 1;
+                } else {
+                    rep_count = 0;
+                }
+                if rep_count >= 2 {
+                    continue;
+                }
+                word.push(char);
                 prev_char = Some(char);
             }
         }
 
         let mut word = NormalizedWord {
             root_end: word.len(),
+            root_start: 0,
             word,
         };
 
-        // EN
-        suffix(&mut word, "y");
-        suffix(&mut word, "est");
-        suffix(&mut word, "er");
-        suffix(&mut word, "ing");
-        // NL
+        if !Self::stem_dutch(&mut word) {
+            Self::stem_english(&mut word);
+        }
+
+        word
+    }
+
+    #[inline]
+    fn stem_english(word: &mut NormalizedWord) -> bool {
+        // VD
+        ret!(suffix(word, ["ed"]));
+
+        // verklein woorden
+        ret!(suffix(word, ["y"]));
+
+        // compare
+        ret!(suffix(word, ["est", "er"]));
+
+        // Continuous tense
+        ret!(suffix(word, ["ing"]));
 
         // meervoud
-        suffix(&mut word, "en");
-        suffix(&mut word, "je");
-        suffix(&mut word, "jes");
+        ret!(suffix(word, ["ies", "s"]));
+
+        false
+    }
+    #[inline]
+    fn stem_dutch(word: &mut NormalizedWord) -> bool {
+        // voltooid deel woord
+        if prefix(word, ["ge"]) {
+            suffix(word, ["d", "t"]);
+            return true;
+        }
+
+        // verkleinwoorden
+        ret!(suffix(word, ["jes", "tje", "pje", "etje", "je"]));
 
         // adjectief
-        suffix(&mut word, "baar");
-        suffix(&mut word, "lijk");
+        ret!(suffix(word, ["baar", "lijk", "ig", "achtig"]));
 
-        suffix(&mut word, "e");
-        word
+        // meervoud
+        ret!(suffix(word, ["en", "e"]));
+
+        false
     }
     pub fn str(&self) -> &str {
         &self.word
     }
     pub fn root(&self) -> &str {
-        &self.word[..self.root_end]
+        &self.word[self.root_start..self.root_end]
     }
 }
 impl From<NormalizedWord> for Box<str> {
@@ -319,6 +375,14 @@ impl TokenizedString {
     pub fn colored<'a>(&'a self) -> ColoredFmt<'a> {
         ColoredFmt(&self)
     }
+
+    pub fn to_string(&self) -> String {
+        let mut str = String::new();
+        for (word, _) in self.words() {
+            str.push_str(word);
+        }
+        str
+    }
 }
 
 pub struct ColoredFmt<'a>(&'a TokenizedString);
@@ -390,36 +454,42 @@ mod test {
     }
 
     #[test]
-    fn normalized_word() {
+    fn ghost_chars() {
         assert_eq!(
-            Box::<str>::from(NormalizedWord::normalize("fuckery")),
-            "fuck".into()
+            TokenizedString::tokenize(":word:"),
+            TokenizedString::from_words([(":word:", Tag::Unknown),])
         );
-        assert_eq!(NormalizedWord::normalize("fuckery").root(), "fuck");
     }
 
     #[test]
-    fn push_normalized() {
-        let mut string = "a".to_string();
-        assert_eq!(super::push_normalized(&mut string, Some('a'), 'a'), None);
-        assert_eq!(string, "a");
-
-        let mut string = "t".to_string();
+    fn stemming_test() {
         assert_eq!(
-            super::push_normalized(&mut string, Some('t'), '™'),
-            Some('m')
+            Box::<str>::from(NormalizedWord::normalize("fucken")),
+            "fuck".into()
         );
-        assert_eq!(string, "tm");
+        assert_eq!(NormalizedWord::normalize("fucken").root(), "fuck");
 
-        let mut string = "m".to_string();
+        assert_eq!(NormalizedWord::normalize("fucking").root(), "fuck");
+        assert_eq!(NormalizedWord::normalize("studies").root(), "stud");
+        assert_eq!(NormalizedWord::normalize("smppgc").root(), "smppgc");
+        assert_eq!(NormalizedWord::normalize("filters").root(), "filter");
+
+        assert_eq!(NormalizedWord::normalize("persen").root(), "pers");
+        assert_eq!(NormalizedWord::normalize("pers").root(), "pers");
+        assert_eq!(NormalizedWord::normalize("taller").root(), "tall");
+        assert_eq!(NormalizedWord::normalize("tallest").root(), "tall");
+        assert_eq!(NormalizedWord::normalize("ben").root(), "ben");
+        assert_eq!(NormalizedWord::normalize("are").root(), "are");
+
+        assert_eq!(NormalizedWord::normalize("卍").root(), "wan");
+        assert_eq!(NormalizedWord::normalize("™").root(), "tm");
+
+        assert_eq!(NormalizedWord::normalize("nee").root(), "nee");
+        assert_eq!(NormalizedWord::normalize("neee").root(), "nee");
+        assert_eq!(NormalizedWord::normalize("hiiii").root(), "hii");
         assert_eq!(
-            super::push_normalized(&mut string, Some('m'), '™'),
-            Some('m')
+            NormalizedWord::normalize("niiiiggggaaaaaa").root(),
+            "niiggaa"
         );
-        assert_eq!(string, "mtm");
-
-        let mut string = "".to_string();
-        assert_eq!(super::push_normalized(&mut string, None, '™'), Some('m'));
-        assert_eq!(string, "tm");
     }
 }

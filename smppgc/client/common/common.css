@@ -135,7 +135,9 @@ a {
   cursor: pointer;
 }
 a:hover {
-  text-decoration: underline 2px;
+  /* Specify text-decoration-thickness because some browsers don't support it*/
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
 }
 
 kbd {

@@ -1,4 +1,4 @@
-use snowball::SnowballEnv;
+use super::SnowballEnv;
 
 pub struct Among<T: 'static>(
     pub &'static str,
