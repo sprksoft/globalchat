@@ -19,9 +19,9 @@
   {% endif %}
   <div class="layered-section" id="ban" style="display:none">
     <h1 class="center-title">Je bent verbannen 🔨</h1>
-    <p>Je bent verbannen door een moderator met de volgende reden:</p>
+    <p>Door ongepast gebruik van de chat ben je verbannen wegens:</p>
     <p id="ban-reason">Loading...</p>
-    <small>Je kunt terug joinen over <span id="ban-release-time">55 minuten</span></small>
+    <small>Je kan terug joinen over <span id="ban-release-time">55 minuten</span></small>
   </div>
   <span id="err-mesg" class="err"></span>
   <div class="container">
@@ -35,7 +35,7 @@
     </button>
   </div>
   {% if readonly %}
-  <a class="goto-chat-link" href="/v1">Ga naar de echte chat</a>
+  <a class="goto-chat-link" href="/v1">Terug naar de gewone chat</a>
   {% endif %}
 </dialog>
 
@@ -44,10 +44,9 @@
 </dialog>
 
 <dialog id="profwarn-dialog">
-  <h1>Je bericht bevat mogelijks een ongepast woord</h1>
+  <h1>Je bericht bevat mogelijks een ongepast woord:</h1>
   <div class="flex-col" id="profwarn-message"></div>
-  <p>Dit is automatisch gedetecteerd maar je kunt nog steeds verbannen worden door menselijke moderators.<br>Je kunt weer chatten binnen <time id="profwarn-countdown"></time>.</p>
-
+  <p>Dit werd automatisch gedetecteerd maar je kan nog steeds verbannen worden door moderators.<br>Je kan weer chatten na <time id="profwarn-countdown"></time>.</p>
   <button class="pillbtn" id="profwarn-ok">Ok</button>
 </dialog>
 
@@ -75,7 +74,7 @@
     {% include "svg/arrow_l" %}
   </button>
 
-  <h1 class="header-title chat-name">Global chat</h1>
+<h1 class="header-title chat-name">Global Chat</h1>
 </header>
 <div id="mesgs"></div>
 <div class="bottom">

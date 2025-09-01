@@ -1,4 +1,4 @@
 <div class="logo">
 {% include "svg/gclogo" %}
-<p>Chat met iedereen die Smartschool++ gebruikt</p>
+<p>Chat met iedere Smartschool++ gebruiker</p>
 </div>

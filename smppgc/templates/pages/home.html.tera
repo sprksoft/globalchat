@@ -30,7 +30,7 @@ Home - Global Chat
   <a class="button" href="/login?redirect=/">login</a>
   {% endif %}
 
-  <a class="button" href="/rochat"><img style="filter: saturate(0%)" class="btnicon" src="{{ url(path="/static/logo.webp")}}"><span>Alleen Lezen Chat</span></a>
+  <a class="button" href="/rochat"><img style="filter: saturate(0%)" class="btnicon" src="{{ url(path="/static/logo.webp")}}"><span>Alleen lezen chat</span></a>
 
   {% if is_admin %}
   <a class="button" href="/prof">Profanity filter</a>

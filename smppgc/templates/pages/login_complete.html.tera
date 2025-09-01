@@ -16,8 +16,8 @@ Login Compleet - Global Chat
 {% block content %}
 <div class="view">
   <main>
-    <h1>Je bent ingelogd</h1>
-    <p>Keer terug naar de pagina waar je vandaan komt</p>
+    <h1>Je bent ingelogd!</h1>
+    <p>Dit tablad mag gesloten worden</p>
   </main>
 </div>
 
