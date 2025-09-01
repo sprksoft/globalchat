@@ -16,8 +16,8 @@ Login - Global Chat
 {% block content %}
 
 <dialog id="waiting-prompt">
-  <h2 style="text-align:center">Wachten op login</h2>
-  <p>Log verder in op de pagina die net is geopend</p>
+  <h2 style="text-align:center">Wachten op login...</h2>
+  <p>Ga verder op de pagina die net geopend is</p>
   <span class="loading-spinner">Loading</span>
 </dialog>
 
@@ -29,8 +29,8 @@ Login - Global Chat
       <div class="layered-section">
         <label for="disclaimer-check">
           <input disabled id="disclaimer-check" type="checkbox" >
-          Ik heb alles gelezen en ga er mee akkoord</label>
-        <p id="disclaimer-countdown-text">Je kunt accepteren binnen <time id="disclaimer-countdown"></time></p>
+          Ik heb alles gelezen en ben akkoord</label>
+        <p id="disclaimer-countdown-text">Je kan accepteren binnen <time id="disclaimer-countdown"></time></p>
       </div>
     </div>
 
@@ -39,7 +39,7 @@ Login - Global Chat
       <button disabled class="button oauth-btn" id="sm-login-btn" data-oauth-provider="smartschool">
         <img src="/static/smlogo.svg">
         <div class="sepatator"></div>
-        <span>Aanmelden met Smartschool</span>
+        <span>Inloggen met Smartschool</span>
       </button>
       {% endif %}
 
@@ -59,7 +59,7 @@ Login - Global Chat
       {% endif %}
     </div>
 
-    <span>Geen account? <a href="/rochat">Alleen Lezen Chat</a></span>
+    <span>Geen account? <a href="/rochat">Alleen lezen chat</a></span>
   </main>
 </div>
 

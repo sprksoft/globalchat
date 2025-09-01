@@ -3,10 +3,10 @@
   <select autocomplete="off" id="ban-dialog-preset">
     <option value="0" selected disabled hidden>Kies een reden</option>
     <option value="1" data-duration="600" data-fullreason="Je hebt een waarschuwing ontvangen wegens ongepast gedrag.">Waarschuwing</option> {# 10 minuten #}
-    <option value="2" data-duration="18000" data-fullreason="Spammen of het plaatsen van racistische, seksistische of andere ongepaste berichten.">Spam, racistische of seksistische uitingen, ...</option> {# 5 uur #}
-    <option value="3" data-duration="86400" data-fullreason="Herhaaldelijk spammen of het plaatsen van racistische, seksistische of andere kwetsende inhoud.">Herhaaldelijke spam, racistische of seksistische uitingen, ...</option> {# 1 dag #}
-    <option value="4" data-duration="604800" data-fullreason="Racistische, seksistische of discriminerende opmerkingen tegenover andere gebruikers.">Racistische of seksistische uitingen tegenover andere gebruikers</option> {# 1 week #}
-    <option value="5" data-duration="31536000" data-fullreason="Ernstige overtredingen zoals doxing of pesten van andere gebruikers.">Ernstig, Doxing, pesten</option> {# 1 jaar #}
+    <option value="2" data-duration="18000" data-fullreason="Spammen of racistische, seksistische of andere ongepaste berichten.">Spam, racisme of seksisme</option> {# 5 uur #}
+    <option value="3" data-duration="86400" data-fullreason="Herhaaldelijk spammen of het plaatsen van racistische, seksistische of andere kwetsende inhoud.">Herhaaldelijke spam, racisme of seksisme</option> {# 1 dag #}
+    <option value="4" data-duration="604800" data-fullreason="Racistische, seksistische of discriminerende opmerkingen tegenover andere gebruikers.">Racisme, Seksisme of haat naar andere gebruikers</option> {# 1 week #}
+    <option value="5" data-duration="15768000" data-fullreason="Ernstige overtredingen zoals doxing of pesten van andere gebruikers.">Ernstig: Anderen: doxen, pesten...</option> {# 0.5 jaar #}
   </select>
   <textarea id="ban-dialog-reason"></textarea>
   <div id="ban-dialog-buttons">
