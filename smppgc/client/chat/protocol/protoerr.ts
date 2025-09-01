@@ -14,6 +14,7 @@ export enum ProtoError {
   err_username_length = "err_username_length",
   err_username_taken = "err_username_taken",
   err_username_prof = "err_username_prof",
+  err_disclaimer = "err_disclaimer",
 
   retry = "retry",
 }

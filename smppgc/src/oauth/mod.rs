@@ -17,8 +17,8 @@ use sqlx;
 use uuid::Uuid;
 
 use crate::themes::{self};
+use crate::users::SesId;
 use crate::{db::Db, users::UserConfig};
-use crate::{disclaimer::DisclaimerVer, users::SesId};
 
 use self::client::{OAuthError, OAuthProviderConfig};
 
@@ -89,14 +89,8 @@ fn oauth_start(
     oauth: &State<OAuth>,
     cookiejar: &CookieJar<'_>,
     provider: &str,
-    accepted_disclaimer: DisclaimerVer,
 ) -> Result<OAuthResponse, response::Debug<OAuthError>> {
     total_started_oauth_flows::inc();
-    if accepted_disclaimer != DisclaimerVer::LATEST {
-        return Ok(OAuthResponse::fail_flow_422(
-            "Disclaimer niet geaccepteerd.",
-        ));
-    }
 
     match oauth.begin_flow(pses_id.to_string(), provider, cookiejar) {
         Ok(r) => Ok(OAuthResponse::Redirect(r)),

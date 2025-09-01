@@ -72,7 +72,8 @@ kick_reason! {
         UsernameProfanity(Error,"err_username_prof"),
         UsernameTaken(Error,"err_username_taken"),
         UsernameInvalid(Error,"err_username_invalid"),
-        UsernameInvalidLength(Error,"err_username_length")
+        UsernameInvalidLength(Error,"err_username_length"),
+        Disclaimer(Policy,"err_disclaimer")
     }
 }
 

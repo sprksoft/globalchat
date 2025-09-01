@@ -253,7 +253,10 @@ socketmgr.on_leave = (data: string | Ban, protoerr: ProtoError) => {
     time = -1;
     ban.setBan(data as Ban);
   }
-  if (typeof data === "string") {
+
+  if (protoerr == ProtoError.err_disclaimer) {
+    $("#err-mesg").html("De disclaimer is nog niet geaccepteerd. <a href='/login?redirect=/v1'>Accepteer hem hier</a>");
+  } else if (typeof data === "string") {
     $("#err-mesg").text(data);
   }
   cooldown(time);

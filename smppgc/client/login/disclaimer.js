@@ -6,10 +6,10 @@ const countdownTextEl = document.getElementById("disclaimer-countdown-text");
 let disclaimerCountdown = 15;
 
 function checkEnable() {
-  if (disclaimerInterval)
-    clearInterval(disclaimerInterval);
+  if (disclaimerInterval) clearInterval(disclaimerInterval);
   checkbox.disabled = false;
-  countdownTextEl.innerText="Ga akkoord met de regels om op global chat te kunnen chatten.";
+  countdownTextEl.innerText =
+    "Ga akkoord met de regels om op global chat te kunnen chatten.";
 }
 
 function updateCountdown(count) {
@@ -44,10 +44,14 @@ if (ENABLE_CHECK) {
 checkbox.addEventListener("change", (e) => {
   if (e.target.checked) {
     setAccepted(true);
-    document.cookie = "accepted_disclaimer="+disclaimerEl.dataset.disclaimerVer+" ;expires=Wed, 20 May 2026 15:06:13 GMT";
+    document.cookie =
+      "accepted_disclaimer=" +
+      disclaimerEl.dataset.disclaimerVer +
+      " ;Max-Age=100000000; SameSite=None; Secure";
+    console.log("set cookie");
   } else {
     setAccepted(false);
-    document.cookie = "accepted_disclaimer=0 ;expires=Wed, 20 May 2026 15:06:13 GMT";
+    document.cookie = "accepted_disclaimer=0 ;Max-Age=0; SameSite=None; Secure";
+    console.log("clear cookie");
   }
 });
-

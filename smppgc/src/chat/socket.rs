@@ -8,6 +8,7 @@ use wordfilter::TrainResult;
 
 use crate::{
     chat::{message_limits::LimitType, Chat, ChatEvent, MessageChangeType, NewClientError},
+    disclaimer::DisclaimerVer,
     users::{Ban, BanError, NameClaimError, User, UserManager},
     wf::Filter,
     wsprotocol::{AdminCmd, C2SPacket, KickReason, WsClient},
@@ -51,7 +52,11 @@ pub async fn chat_socket<'a>(
     chat: &'a State<Chat>,
     mut shutdown: Shutdown,
     user: Option<User>,
+    disclaimer_ver: DisclaimerVer,
 ) -> Result<ChatSocketResponder<'a>, response::Debug<sqlx::Error>> {
+    if disclaimer_ver != DisclaimerVer::LATEST {
+        return Ok(ChatSocketResponder::ws_close(ws, KickReason::Disclaimer));
+    }
     let Some(user) = user else {
         return Ok(ChatSocketResponder::ws_close(ws, KickReason::NoSession));
     };
