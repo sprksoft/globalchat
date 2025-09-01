@@ -106,6 +106,7 @@ fn rocket() -> _ {
         .register("/", catchers![internal_server_error, forbidden])
         .mount("/", routes![server_version, err_test, csrf_test])
         .mount("/metrics", metrics)
+        .attach(lmetrics::http_errors_metrics())
         .attach(db::stage())
         .attach(static_routing::stage())
         .attach(users::stage())
