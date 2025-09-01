@@ -13,14 +13,6 @@ main {
   flex-direction:column;
 }
 
-a {
-  color: var(--color-accent);
-  text-decoration: none;
-}
-a:hover {
-  text-decoration: underline;
-}
-
 #botbar{
   background: var(--color-base01);
   display: flex;

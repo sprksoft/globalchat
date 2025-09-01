@@ -7,19 +7,24 @@ use crate::{
 use rocket::{get, State};
 use rocket_dyn_templates::{context, Template};
 
-#[get("/login?<redirect>")]
+#[get("/login?<redirect>&<external>")]
 pub fn login(
     theme: Theme,
     redirect: String,
+    external: Option<bool>,
     oauth: &State<OAuth>,
     ses_store: &State<PendingSessionStore>,
     accepted_disclaimer: DisclaimerVer,
     in_iframe: InIframe,
 ) -> AllowSmFrame<Template> {
-    let login_type = match in_iframe {
-        InIframe::Yes => LoginType::External,
-        InIframe::No => LoginType::Internal,
-        InIframe::Unknown => LoginType::External,
+    let login_type = match external {
+        Some(true) => LoginType::External,
+        Some(false) => LoginType::Internal,
+        None => match in_iframe {
+            InIframe::Yes => LoginType::External,
+            InIframe::No => LoginType::Internal,
+            InIframe::Unknown => LoginType::External,
+        },
     };
     let id = ses_store.new_pending(redirect.into(), login_type).simple();
     AllowSmFrame(Template::render(

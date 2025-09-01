@@ -42,7 +42,8 @@ async fn promote(
         PromoteResponse::Redirect(Redirect::to("/"))
     } else if status == "notloggedin" {
         PromoteResponse::Redirect(Redirect::to(uri!(crate::pages::login(
-            redirect = origin.to_string()
+            redirect = origin.to_string(),
+            external = Option::<bool>::None,
         ))))
     } else {
         PromoteResponse::Template(Template::render(

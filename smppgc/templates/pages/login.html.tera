@@ -16,7 +16,8 @@ Login - Global Chat
 {% block content %}
 
 <dialog id="waiting-prompt">
-  <h2>We zijn je aan het inloggen</h2>
+  <h2 style="text-align:center">Wachten op login</h2>
+  <p>Log verder in op de pagina die net is geopend</p>
   <span class="loading-spinner">Loading</span>
 </dialog>
 
