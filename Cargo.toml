@@ -5,7 +5,7 @@ members= ["smppgc", "lmetrics", "string_tree", "profanity", "wordfilter"]
 [workspace.package]
 authors=["ldev <ldev@ldev.eu.org>"]
 edition = "2021"
-version = "2025.8.4"
+version = "2025.8.5"
 
 [patch.crates-io]
 rocket = { git="https://github.com/Xgames123/Rocket.git", branch="v0.5" }
