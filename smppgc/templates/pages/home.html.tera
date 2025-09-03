@@ -33,7 +33,6 @@ Home - Global Chat
   <a class="button" href="/rochat"><img style="filter: saturate(0%)" class="btnicon" src="{{ url(path="/static/logo.webp")}}"><span>Alleen lezen chat</span></a>
 
   {% if is_admin %}
-  <a class="button" href="/prof">Profanity filter</a>
   <a class="button" href="/mods">Moderators</a>
   {% endif %}
 </main>

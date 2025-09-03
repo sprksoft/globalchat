@@ -214,15 +214,6 @@ checksum = "383d29d513d8764dcdc42ea295d979eb99c3c9f00607b3692cf68a431f7dca72"
 
 [[package]]
 name = "bincode"
-version = "1.3.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b1f45e9417d87227c7a56d22e471c6206462cba514c7590c09aff4cf6d1ddcad"
-dependencies = [
- "serde",
-]
-
-[[package]]
-name = "bincode"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "36eaf5d7b090263e8150820482d5d93cd964a81e4019913c972f4edcc6edb740"
@@ -2599,14 +2590,12 @@ name = "smppgc"
 version = "2025.8.4"
 dependencies = [
  "base64 0.22.1",
- "bincode 1.3.3",
  "circular-queue",
  "dashmap",
  "futures-util",
  "lazy_static",
  "lmetrics",
  "log",
- "profanity",
  "reqwest",
  "rocket",
  "rocket_db_pools",
@@ -3884,7 +3873,7 @@ dependencies = [
 name = "wordfilter"
 version = "0.1.0"
 dependencies = [
- "bincode 2.0.1",
+ "bincode",
  "clap",
  "unidecode",
 ]
