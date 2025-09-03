@@ -111,15 +111,22 @@ async fn mods(
         .fetch_all(&mut **db)
         .await?
         .drain(..)
-        .map(|k| TableKey {
-            new_role: Role::from_i32(k.new_role)
-                .map(|r| r.to_str())
-                .unwrap_or("unknown"),
-            used_by: k.irl_name.as_ref().map(|n|shorten_name(n))
-                .unwrap_or("No one".to_string()),
-            key: k.key,
+        .flat_map(|k| {
+            if k.new_role >= admin_user.0.role().to_i32() {
+                return None;
+            }
+
+            Some(TableKey {
+                new_role: Role::from_i32(k.new_role)
+                    .map(|r| r.to_str())
+                    .unwrap_or("unknown"),
+                    used_by: k.irl_name.as_ref().map(|n|shorten_name(n))
+                        .unwrap_or("No one".to_string()),
+                        key: k.key,
+            })
         })
         .collect();
+
     Ok(Template::render(
         "pages/mods",
         context! {

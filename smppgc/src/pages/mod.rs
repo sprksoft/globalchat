@@ -10,7 +10,6 @@ use crate::{
 
 mod api;
 mod login;
-mod prof;
 mod promote;
 mod templating;
 
@@ -85,7 +84,6 @@ pub fn stage() -> AdHoc {
                 chat,
                 ro_chat,
                 chat_noses,
-                prof::prof,
                 home
             ],
         )
