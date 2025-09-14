@@ -10,7 +10,7 @@ use std::ops::Deref;
 use thiserror::Error;
 use wordfilter::TokenizedString;
 
-use crate::{db::Db, wf::Filter, wsprotocol::KickReason};
+use crate::{db::Db, wf::Filter, wsprotocol::ProtoError};
 
 use super::{role::Role, User, UserConfig, UserId};
 
@@ -25,11 +25,11 @@ pub enum NameInvalidReason {
 }
 
 impl NameInvalidReason {
-    pub fn into_kickreason(self) -> KickReason {
+    pub fn into_kickreason(self) -> ProtoError {
         match self {
-            Self::Profanity => KickReason::UsernameProfanity,
-            Self::Taken => KickReason::UsernameTaken,
-            Self::Length => KickReason::UsernameInvalidLength,
+            Self::Profanity => ProtoError::UsernameProfanity,
+            Self::Taken => ProtoError::UsernameTaken,
+            Self::Length => ProtoError::UsernameInvalidLength,
         }
     }
 }

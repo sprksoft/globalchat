@@ -1,6 +1,6 @@
 [workspace]
 resolver="2"
-members= ["smppgc", "lmetrics", "string_tree", "profanity", "wordfilter"]
+members= ["smppgc", "lmetrics", "string_tree", "profanity", "wordfilter", "ts_import"]
 
 [workspace.package]
 authors=["ldev <ldev@ldev.eu.org>"]

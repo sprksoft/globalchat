@@ -14,9 +14,12 @@ use rocket_ws::{
 use std::{borrow::Cow, ops::Range, sync::Arc};
 use thiserror::Error;
 use tokio_tungstenite::tungstenite;
+use ts_import::import;
 
 mod packets;
 pub use packets::{AdminCmd, C2SPacket};
+
+import!({ Test, Test2 } from "../../client/chat/protocol/protoerr.ts");
 
 #[derive(Debug, Error)]
 pub enum PacketsError {
@@ -60,7 +63,7 @@ macro_rules! kick_reason {
     };
 }
 kick_reason! {
-    pub KickReason{
+    pub ProtoError{
         Kick(Policy,"err_kick"),
         Cmd(Abnormal,"err_cmd"),
         NoSession(Policy, "err_no_session"),
@@ -139,7 +142,7 @@ impl WsClient {
         })
     }
 
-    pub async fn disconnect(&mut self, reason: KickReason) -> Result<()> {
+    pub async fn disconnect(&mut self, reason: ProtoError) -> Result<()> {
         self.ws.close(Some(reason.into_close_frame())).await
     }
     pub async fn ban(&mut self, ban: Ban) -> Result<()> {

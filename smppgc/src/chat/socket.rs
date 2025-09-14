@@ -11,7 +11,7 @@ use crate::{
     disclaimer::DisclaimerVer,
     users::{Ban, BanError, NameClaimError, User, UserManager},
     wf::Filter,
-    wsprotocol::{AdminCmd, C2SPacket, KickReason, WsClient},
+    wsprotocol::{AdminCmd, C2SPacket, ProtoError, WsClient},
     Snowflake,
 };
 
@@ -23,7 +23,7 @@ pub enum ChatSocketResponder<'a> {
     Channel(Channel<'a>),
 }
 impl<'a> ChatSocketResponder<'a> {
-    pub fn ws_close(ws: WebSocket, reason: KickReason) -> ChatSocketResponder<'a> {
+    pub fn ws_close(ws: WebSocket, reason: ProtoError) -> ChatSocketResponder<'a> {
         ChatSocketResponder::Channel(ws.channel(move |mut stream| {
             Box::pin(async move { stream.close(Some(reason.into_close_frame())).await })
         }))
@@ -55,10 +55,10 @@ pub async fn chat_socket<'a>(
     disclaimer_ver: DisclaimerVer,
 ) -> Result<ChatSocketResponder<'a>, response::Debug<sqlx::Error>> {
     if disclaimer_ver != DisclaimerVer::LATEST {
-        return Ok(ChatSocketResponder::ws_close(ws, KickReason::Disclaimer));
+        return Ok(ChatSocketResponder::ws_close(ws, ProtoError::Disclaimer));
     }
     let Some(user) = user else {
-        return Ok(ChatSocketResponder::ws_close(ws, KickReason::NoSession));
+        return Ok(ChatSocketResponder::ws_close(ws, ProtoError::NoSession));
     };
 
     let start_time = start_time.unwrap_or(Snowflake::ZERO);
@@ -88,10 +88,10 @@ pub async fn chat_socket<'a>(
             info!("Closing connection: {:?}", e);
             match e {
                 NewClientError::AlreadyInChat => {
-                    return Ok(ChatSocketResponder::ws_close(ws, KickReason::AlreadyInChat))
+                    return Ok(ChatSocketResponder::ws_close(ws, ProtoError::AlreadyInChat))
                 }
                 NewClientError::MaxConcurrentUserCount => {
-                    return Ok(ChatSocketResponder::ws_close(ws, KickReason::ChatFull))
+                    return Ok(ChatSocketResponder::ws_close(ws, ProtoError::ChatFull))
                 }
             }
         }
@@ -112,7 +112,7 @@ pub async fn chat_socket<'a>(
             loop {
                 tokio::select! {
                     _ = &mut shutdown => {
-                        wsclient.disconnect(KickReason::ServerShutdown).await?;
+                        wsclient.disconnect(ProtoError::ServerShutdown).await?;
                         continue;
                     }
                     mesg = wsclient.try_recv() => {
@@ -163,7 +163,7 @@ async fn on_packet<'a>(
                     }
                     Err(LimitType::Rate) => {
                         messages_blocked::inc("ratelimit");
-                        return wsclient.disconnect(KickReason::RateLimit).await;
+                        return wsclient.disconnect(ProtoError::RateLimit).await;
                     }
                     Err(LimitType::Size) => {
                         messages_blocked::inc("size");
@@ -265,10 +265,10 @@ pub async fn readonly_chat_socket<'a>(
     let mut chat_client = match chat.new_roclient().await {
         Ok(c) => c,
         Err(NewClientError::AlreadyInChat) => {
-            return Ok(ChatSocketResponder::ws_close(ws, KickReason::AlreadyInChat))
+            return Ok(ChatSocketResponder::ws_close(ws, ProtoError::AlreadyInChat))
         }
         Err(NewClientError::MaxConcurrentUserCount) => {
-            return Ok(ChatSocketResponder::ws_close(ws, KickReason::ChatFull))
+            return Ok(ChatSocketResponder::ws_close(ws, ProtoError::ChatFull))
         }
     };
 
@@ -281,7 +281,7 @@ pub async fn readonly_chat_socket<'a>(
             loop {
                 tokio::select! {
                     _ = &mut shutdown => {
-                        wsclient.disconnect(KickReason::ServerShutdown).await?;
+                        wsclient.disconnect(ProtoError::ServerShutdown).await?;
                         continue;
                     }
                     mesg = wsclient.try_recv() => {
@@ -350,7 +350,7 @@ async fn on_event(
                 .map(|c| c.user().user_id() == user_id)
                 .unwrap_or(false)
             {
-                wsclient.disconnect(KickReason::Kick).await?;
+                wsclient.disconnect(ProtoError::Kick).await?;
             }
         }
     }

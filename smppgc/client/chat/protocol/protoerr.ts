@@ -1,3 +1,13 @@
+export enum Test {
+  A = 1,
+  B = 2,
+}
+
+export enum Test2 {
+  A = "a",
+  B = "b",
+}
+
 export enum ProtoError {
   ok = "",
   err_kick = "err_kick",
@@ -41,7 +51,10 @@ const ERRORS: any = {
 
 export namespace ProtoError {
   export function humanize(protoerr: ProtoError): string {
-    if (protoerr == ProtoError.err_ratelimit && Math.floor(Math.random() * 505) == 1) {
+    if (
+      protoerr == ProtoError.err_ratelimit &&
+      Math.floor(Math.random() * 505) == 1
+    ) {
       return ProtoError.err_505;
     }
     let herr = ERRORS[protoerr as string];

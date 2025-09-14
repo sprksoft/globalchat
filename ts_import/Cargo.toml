@@ -1,0 +1,13 @@
+[package]
+name = "ts_import"
+authors.workspace = true
+edition.workspace = true
+version.workspace = true
+
+[lib]
+proc-macro = true
+
+[dependencies]
+unsynn={version="0.1.1"}
+proc-macro2={version="1.0.101"}
+quote={version="1.0.40"}
