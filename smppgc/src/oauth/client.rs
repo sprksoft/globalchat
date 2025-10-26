@@ -228,6 +228,7 @@ impl OAuth {
                 .max_age(Duration::new(300, 0))
                 .http_only(true)
                 .same_site(rocket::http::SameSite::Lax)
+                .partitioned(true)
                 .path("/")
                 .build(),
         );

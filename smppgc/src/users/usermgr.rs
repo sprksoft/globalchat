@@ -27,9 +27,9 @@ pub enum NameInvalidReason {
 impl NameInvalidReason {
     pub fn into_kickreason(self) -> ProtoError {
         match self {
-            Self::Profanity => ProtoError::UsernameProfanity,
+            Self::Profanity => ProtoError::UsernameProf,
             Self::Taken => ProtoError::UsernameTaken,
-            Self::Length => ProtoError::UsernameInvalidLength,
+            Self::Length => ProtoError::UsernameLength,
         }
     }
 }

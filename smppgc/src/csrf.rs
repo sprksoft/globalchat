@@ -39,6 +39,7 @@ pub fn stage() -> AdHoc {
             req.cookies().add(
                 Cookie::build(("csrf-protect", Uuid::new_v4().simple().to_string()))
                     .max_age(Duration::days(365))
+                    .partitioned(true)
                     .same_site(SameSite::None)
                     .secure(true),
             )

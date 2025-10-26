@@ -13,11 +13,11 @@ unsynn! {
     pub struct TsEnum {
         enumkw: Enum,
         pub name: Ident,
-        content: BraceGroupContaining<TsEnumContent>,
+        variants: BraceGroupContaining<TsEnumVariants>,
     }
-    pub enum TsEnumContent {
-        StringLit(TsEnumItems<StringBacked>),
-        NumLit(TsEnumItems<NumBacked>),
+    pub enum TsEnumVariants {
+        StringBacked(TsEnumItems<StringBacked>),
+        NumBacked(TsEnumItems<NumBacked>),
         Normal(TsEnumItems<Nothing>),
     }
     pub struct NumBacked {
@@ -32,6 +32,12 @@ unsynn! {
 
 #[derive(Debug)]
 pub struct TsEnumItems<Backing>(Repeats<1, { usize::MAX }, Cons<Ident, Backing>, Comma>);
+
+impl<B: Backing> TsEnumItems<B> {
+    pub fn variant_names(&self) -> impl Iterator<Item = &Ident> {
+        self.0 .0.iter().map(|i| &i.value.first)
+    }
+}
 
 impl<Backing: ToTokens> ToTokens for TsEnumItems<Backing> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
@@ -54,7 +60,14 @@ impl<Backing: Parse> unsynn::Parser for TsEnumItems<Backing> {
     }
 }
 
-trait Backing {
+pub trait Backing {
+    // Add the type of this backing to the rust enum definition
+    // Example:
+    // enum Test {
+    // Test=0
+    // Test1=1
+    // Test2=2
+    // }
     const ADD_LITERAL_TO_ENUM_VARIANT: bool;
     fn rust_ty() -> TokenStream;
     fn literal(&self) -> Literal;
@@ -80,16 +93,15 @@ impl Backing for StringBacked {
 }
 
 impl TsEnum {
+    pub fn variants(&self) -> &TsEnumVariants {
+        &self.variants.content
+    }
+
     fn gen_backed_enum<B: Backing>(
         name: &Ident,
         enum_items: &TsEnumItems<B>,
     ) -> (TokenStream, TokenStream) {
-        let idents: Vec<Ident> = enum_items
-            .0
-             .0
-            .iter()
-            .map(|item| item.value.first.clone())
-            .collect();
+        let idents: Vec<&Ident> = enum_items.variant_names().collect();
         let backing: Vec<Literal> = enum_items
             .0
              .0
@@ -128,12 +140,11 @@ impl TsEnum {
     }
 
     pub fn emit(&self, vis: &Visiblity) -> TokenStream {
-        let content = &self.content.content;
         let name = &self.name;
-        let (enum_content, impls) = match content {
-            TsEnumContent::Normal(items) => (quote! {#items}, quote! {}),
-            TsEnumContent::NumLit(items) => Self::gen_backed_enum(name, items),
-            TsEnumContent::StringLit(items) => Self::gen_backed_enum(name, items),
+        let (enum_content, impls) = match self.variants() {
+            TsEnumVariants::Normal(items) => (quote! {#items}, quote! {}),
+            TsEnumVariants::NumBacked(items) => Self::gen_backed_enum(name, items),
+            TsEnumVariants::StringBacked(items) => Self::gen_backed_enum(name, items),
         };
 
         quote! {
@@ -150,20 +161,20 @@ impl TsEnum {
 mod test {
     use unsynn::{Parse, ToTokens};
 
-    use super::{NumBacked, StringBacked, TsEnumContent, TsEnumItems};
+    use super::{NumBacked, StringBacked, TsEnumItems, TsEnumVariants};
 
     #[test]
     fn enum_content() {
         let mut tokens = "Test = 5, Test2 = 2".into_token_iter();
-        let items = TsEnumContent::parse(&mut tokens).unwrap();
+        let items = TsEnumVariants::parse(&mut tokens).unwrap();
         match items {
-            TsEnumContent::NumLit(_) => {
-                assert!(true, "NumLit")
+            TsEnumVariants::NumBacked(_) => {
+                assert!(true, "NumBacked")
             }
-            TsEnumContent::StringLit(l) => {
-                assert!(false, "StringLit")
+            TsEnumVariants::StringBacked(l) => {
+                assert!(false, "StringBacked")
             }
-            TsEnumContent::Normal(_) => {
+            TsEnumVariants::Normal(_) => {
                 assert!(false, "Normal")
             }
         }

@@ -194,6 +194,7 @@ fn set_ses_id(cookiejar: &CookieJar<'_>, ses_id: SesId, user_config: &UserConfig
             .http_only(true)
             .secure(true)
             .same_site(SameSite::None)
+            .partitioned(true)
             .max_age(Duration::seconds(
                 user_config.max_session_age.saturating_sub(10) as i64,
             ))

@@ -108,13 +108,11 @@ fn import_impl(
     for item in import.items.content.0.iter() {
         let import_item = &item.value;
         let tsitem = ts_file
-            .exported_items
-            .0
-            .iter()
-            .find(|tsitem| tsitem.value.item.name() == &import_item.item)
+            .exported_items()
+            .find(|tsitem| tsitem.item.name() == &import_item.item)
             .ok_or(("Couldn't find this item", import_item.item.span()))?;
 
-        emitted_items.push(tsitem.value.item.emit(&import_item.vis));
+        emitted_items.push(tsitem.item.emit(&import_item.vis));
     }
 
     Ok(quote! { const _: &str = include_str!(#import_path); #(#emitted_items)*})

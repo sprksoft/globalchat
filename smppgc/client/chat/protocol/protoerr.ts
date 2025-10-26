@@ -1,45 +1,33 @@
-export enum Test {
-  A = 1,
-  B = 2,
-}
-
-export enum Test2 {
-  A = "a",
-  B = "b",
-}
-
 export enum ProtoError {
-  ok = "",
-  err_kick = "err_kick",
-  err_ratelimit = "err_ratelimit",
-  err_ipratelimit = "err_ipratelimit",
-  err_505 = "err_505",
-  err_full = "err_full",
-  err_shutdown = "err_shutdown",
-  err_already_in_chat = "err_already_in_chat",
-  err_no_session = "err_no_session",
-  err_banned = "err_banned",
+  Ok = "",
+  Kick = "err_kick",
+  RateLimit = "err_ratelimit",
+  IPRateLimit = "err_ipratelimit",
+  ChatFull = "err_full",
+  Shutdown = "err_shutdown",
+  AlreadyInChat = "err_already_in_chat",
+  NoSession = "err_no_session",
+  Banned = "err_banned",
 
-  err_username_invalid = "err_username_invalid",
-  err_username_length = "err_username_length",
-  err_username_taken = "err_username_taken",
-  err_username_prof = "err_username_prof",
-  err_disclaimer = "err_disclaimer",
+  UsernameInvalid = "err_username_invalid",
+  UsernameLength = "err_username_length",
+  UsernameTaken = "err_username_taken",
+  UsernameProf = "err_username_prof",
+  Disclaimer = "err_disclaimer",
 
-  retry = "retry",
+  Retry = "retry",
 }
 
 const ERRORS: any = {
-  err_kick: "Je bent uit de chat gezet door een admin.",
+  err_kick: "Je bent gekicked uit de chat.",
   err_ratelimit:
     "Te veel berichten. Typ langzamer.\nJe kunt terug joinen binnen een paar seconden",
   err_ipratelimit: "Er zijn spammers met het zelfde ip als jou.",
-  err_505:
-    "Stop and wait a sec when you look at me like that my darling what do you expect. In my imagination you're waiting lying on your side with your hands between your theights.",
+  err_505: "Stop and wait a sec When you look at me like that, my darlin', what did you expect? I'd probably still adore you with your hands around my neck",
   err_full: "De chat zit vol.",
   err_shutdown: "De server wordt herstart. Sorry voor het ongemak.",
   err_already_in_chat:
-    "Je bent al in de chat op een anderen tab of een ander aparaat.",
+    "Je bent al in de chat op een anderen tab of een ander apparaat.",
   err_no_session:
     "Je bent nog niet gelinked met smartschool. Ga terug naar de start pagina.",
 
@@ -52,10 +40,10 @@ const ERRORS: any = {
 export namespace ProtoError {
   export function humanize(protoerr: ProtoError): string {
     if (
-      protoerr == ProtoError.err_ratelimit &&
+      protoerr == ProtoError.RateLimit &&
       Math.floor(Math.random() * 505) == 1
     ) {
-      return ProtoError.err_505;
+      return ERRORS["err_505"];
     }
     let herr = ERRORS[protoerr as string];
     if (!herr) {

@@ -1,49 +1,111 @@
 #login {
-  color:var(--text_color);
+  color: var(--text_color);
 
   align-self: center;
   width: 45em;
   padding: 2em;
-  overflow:visible;
+  overflow: visible;
   flex-direction: column;
   margin: auto;
 }
 @media (max-width: 50em) {
   #login {
-    padding: 0.5em;
+    margin: 0px;
+    width: auto;
+    border: none;
+    padding: 1rem;
+    background: transparent;
   }
 }
 #login[open] {
-  display:flex;
+  display: flex;
 }
 
+#login > .container:has(#name-input:focus-visible) {
+  outline: 2px ridge var(--color-accent);
+}
+#name-input:focus-visible {
+  outline: none !important;
+}
+
+.logout {
+  margin-left: auto;
+  display: flex;
+  transition: transform 0.4s;
+}
+.logout svg {
+  transition: transform 0.4s;
+}
+.logout:hover {
+  transform: translateX(10px);
+}
+.logout:hover svg {
+  transform: translateX(5px);
+}
+.logout span {
+  font-weight: bold;
+  margin-right: 0.5rem;
+}
 
 #login > .container {
-  transition: transform 0.6s;
-  margin: 1em 0 .5em;
-  display:flex;
+  margin: 1em 0 0.5em;
+  display: flex;
   flex-direction: row;
   background: var(--color-base01);
   border: solid var(--color-base02) var(--border-size);
   border-radius: 10000px;
-  overflow:hidden;
+  overflow: hidden;
 }
 #login[open] > .container {
-  transform: scale(1);
+  animation: popin 1.3s ease;
+}
+#login[open] > .logout {
+  animation: logout_popin 1.3s ease;
+}
+
+@keyframes logout_popin {
+  0% {
+    opacity: 0;
+    transform: translateX(-30vw) scaleX(3);
+  }
+
+  30% {
+    opacity: 0;
+    transform: translateX(-30vw) scaleX(3);
+  }
+  65% {
+    opacity: 1;
+    transform: translateX(2vw) scaleX(0.8);
+  }
+  100% {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes popin {
+  0% {
+    transform: scale(3);
+  }
+  60% {
+    transform: scale(0.9);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
 #name-input {
   font-family: inherit;
   font-size: inherit;
-  border:none;
+  border: none;
   background: var(--color-base01);
   color: var(--color-text);
   display: block;
-  padding: 14px 20px;
-  flex-grow:10;
+  padding: 0.7rem 1.5rem;
+  flex-grow: 10;
   margin: 3px;
   border-radius: 10000px;
-  min-width:0px;
+  min-width: 0px;
 }
 
 #name-input::placeholder {

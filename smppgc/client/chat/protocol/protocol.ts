@@ -158,16 +158,16 @@ export class SocketMgr {
       let data;
       if (
         this.#user_wants_leave ||
-        (protoerr == ProtoError.ok && e.code == 1000)
+        (protoerr == ProtoError.Ok && e.code == 1000)
       ) {
         // Normal Closure or the user wants to leave
         data = "";
-      } else if (e.code == 1006 && protoerr == ProtoError.ok) {
-        protoerr = ProtoError.retry;
+      } else if (e.code == 1006 && protoerr == ProtoError.Ok) {
+        protoerr = ProtoError.Retry;
         data = "Kon niet verbinden met de server.";
       } else if (protoerr.startsWith("err_banned:")) {
         data = parseBan(e.reason);
-        protoerr = ProtoError.err_banned;
+        protoerr = ProtoError.Banned;
       } else {
         data = ProtoError.humanize(protoerr);
       }

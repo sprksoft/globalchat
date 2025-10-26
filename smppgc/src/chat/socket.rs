@@ -88,7 +88,8 @@ pub async fn chat_socket<'a>(
             info!("Closing connection: {:?}", e);
             match e {
                 NewClientError::AlreadyInChat => {
-                    return Ok(ChatSocketResponder::ws_close(ws, ProtoError::AlreadyInChat))
+                    chat.kick(user.id());
+                    return Ok(ChatSocketResponder::ws_close(ws, ProtoError::AlreadyInChat));
                 }
                 NewClientError::MaxConcurrentUserCount => {
                     return Ok(ChatSocketResponder::ws_close(ws, ProtoError::ChatFull))
@@ -112,7 +113,7 @@ pub async fn chat_socket<'a>(
             loop {
                 tokio::select! {
                     _ = &mut shutdown => {
-                        wsclient.disconnect(ProtoError::ServerShutdown).await?;
+                        wsclient.disconnect(ProtoError::Shutdown).await?;
                         continue;
                     }
                     mesg = wsclient.try_recv() => {
@@ -281,7 +282,7 @@ pub async fn readonly_chat_socket<'a>(
             loop {
                 tokio::select! {
                     _ = &mut shutdown => {
-                        wsclient.disconnect(ProtoError::ServerShutdown).await?;
+                        wsclient.disconnect(ProtoError::Shutdown).await?;
                         continue;
                     }
                     mesg = wsclient.try_recv() => {
@@ -336,11 +337,9 @@ async fn on_event(
                 wsclient.forward_message_del(message.id()).await?;
             }
             MessageChangeType::Filter(blocked) => {
-                dbg!("message change: {}", blocked);
                 if wsclient.role().is_mod() || !blocked {
                     wsclient.forward(&message).await?;
                 } else {
-                    dbg!("del");
                     wsclient.forward_message_del(message.id()).await?;
                 }
             }

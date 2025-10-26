@@ -13,6 +13,9 @@
 {% block content %}
 
 <dialog id="login">
+  {% if not readonly or true %} 
+  <a class="logout" href="/login?redirect=/v1"><span>uitloggen</span>{% include "svg/arrow_r" %}</a>
+  {% endif %}
   {% include "logo_header" %}
   {% if is_mod %}
   <label for="show-mod-badge" style="text-align:center"><input id="show-mod-badge" type="checkbox"> Moderator badge</label>
@@ -76,9 +79,9 @@
 
 <h1 class="header-title chat-name">Global Chat</h1>
 </header>
+<main>
 <div id="mesgs"></div>
-<div class="bottom">
-  {% if not readonly %}
+  {% if not readonly or true %}
   <div id="botbar">
     <div id="send-input" contenteditable data-plaintext="true" enterkeyhint="send" placeholder="Enter a message"></div> <!--Er is denk ik geen goede manier om textareas niet raar te laten zijn dus we moeten hier wel een div gebruiken :(-->
     <button id="sendbtn" class="button">
@@ -86,7 +89,7 @@
     </button>
   </div>
   {% endif %}
-</div>
+</main>
 
 {% endblock content %}
 

@@ -82,15 +82,11 @@ export function setupProfWarn() {
   });
 }
 
-export function showProfWarn(mesg: Message) {
+export function showProfWarn(mesg: Message, time = 10) {
   const dialog = $("#profwarn-dialog").get(0) as HTMLDialogElement;
   if (dialog.open) {
     console.error("prof dialog already open");
     return;
-  }
-  let time = 10;
-  if (Message.containsUnknown(mesg)) {
-    time = 5;
   }
 
   countdown = time;

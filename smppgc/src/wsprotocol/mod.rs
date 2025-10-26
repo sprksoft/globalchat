@@ -19,7 +19,7 @@ use ts_import::import;
 mod packets;
 pub use packets::{AdminCmd, C2SPacket};
 
-import!({ Test, Test2 } from "../../client/chat/protocol/protoerr.ts");
+import!({ pub ProtoError } from "../../client/chat/protocol/protoerr.ts");
 
 #[derive(Debug, Error)]
 pub enum PacketsError {
@@ -39,44 +39,26 @@ impl From<tungstenite::Error> for PacketsError {
     }
 }
 
-macro_rules! kick_reason {
-    ($vis:vis $ty:ident{$($enum:ident($code:ident, $proto_mesg:literal)),*}) => {
-        #[derive(Clone)]
-        $vis enum $ty {
-            $(
-                $enum
-            ),*
-        }
+impl ProtoError {
+    pub fn into_close_frame(self) -> CloseFrame<'static> {
+        let code = match self {
+            Self::Ok => CloseCode::Normal,
+            Self::Disclaimer
+            | Self::AlreadyInChat
+            | Self::NoSession
+            | Self::IPRateLimit
+            | Self::RateLimit
+            | Self::Kick => CloseCode::Policy,
 
-        impl $ty{
-            pub fn into_close_frame(self) -> CloseFrame<'static>{
-                match self{
-                    $(
-                        Self::$enum => CloseFrame{
-                            code: CloseCode::$code,
-                            reason: Cow::Borrowed($proto_mesg)
-                        }
-                    ),*
-                }
-            }
+            Self::ChatFull => CloseCode::Again,
+            Self::Shutdown => CloseCode::Away,
+
+            _ => CloseCode::Error,
+        };
+        CloseFrame {
+            code: code,
+            reason: Cow::Borrowed(self.to_backing_type()),
         }
-    };
-}
-kick_reason! {
-    pub ProtoError{
-        Kick(Policy,"err_kick"),
-        Cmd(Abnormal,"err_cmd"),
-        NoSession(Policy, "err_no_session"),
-        AlreadyInChat(Policy, "err_already_in_chat"),
-        IpRateLimit(Policy, "err_ipratelimit"),
-        RateLimit(Policy,"err_ratelimit"),
-        ServerShutdown(Away,"err_shutdown"),
-        ChatFull(Again,"err_full"),
-        UsernameProfanity(Error,"err_username_prof"),
-        UsernameTaken(Error,"err_username_taken"),
-        UsernameInvalid(Error,"err_username_invalid"),
-        UsernameInvalidLength(Error,"err_username_length"),
-        Disclaimer(Policy,"err_disclaimer")
     }
 }
 

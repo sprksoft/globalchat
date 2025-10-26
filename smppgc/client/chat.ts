@@ -212,7 +212,14 @@ socketmgr.on_message = (sender_id: number, message: Message) => {
   );
 
   if (lastMessage && me && Message.containsProf(message)) {
-    showProfWarn(message);
+    if (Message.containsUnknown(message)) {
+      showProfWarn(message, 2);
+      if (sendinput) {
+        sendinput.innerText = Message.stringContent(message);
+      }
+    } else {
+      showProfWarn(message, 10);
+    }
     if (!IS_MOD) {
       return;
     }
@@ -239,9 +246,9 @@ socketmgr.on_leave = (data: string | Ban, protoerr: ProtoError) => {
   constatus.close();
 
   let time = 1000;
-  if (protoerr == ProtoError.err_ratelimit) {
+  if (protoerr == ProtoError.RateLimit) {
     time = 5000;
-  } else if (protoerr == ProtoError.retry) {
+  } else if (protoerr == ProtoError.Retry || protoerr == ProtoError.AlreadyInChat) {
     let now = Date.now();
     if (last_retry == 0 || now - last_retry > 10_000) {
       // join again if we should retry
@@ -249,12 +256,12 @@ socketmgr.on_leave = (data: string | Ban, protoerr: ProtoError) => {
       connect(true, last_message_snowflake);
       return;
     }
-  } else if (protoerr == ProtoError.err_banned) {
+  } else if (protoerr == ProtoError.Banned) {
     time = -1;
     ban.setBan(data as Ban);
   }
 
-  if (protoerr == ProtoError.err_disclaimer) {
+  if (protoerr == ProtoError.Disclaimer) {
     $("#err-mesg").html("De disclaimer is nog niet geaccepteerd. <a href='/login?redirect=/v1'>Accepteer hem hier</a>");
   } else if (typeof data === "string") {
     $("#err-mesg").text(data);
@@ -270,7 +277,7 @@ socketmgr.on_leave = (data: string | Ban, protoerr: ProtoError) => {
 
   login_popup.showModal();
 
-  if (protoerr === ProtoError.err_no_session) {
+  if (protoerr === ProtoError.NoSession) {
     log("Got no session error. Redirecting to login page...");
     location.href = "/login?redirect=/v1";
   }
@@ -365,7 +372,7 @@ connectbtn.addEventListener("click", () => {
   sendinput?.focus();
 });
 
-$("#mesgs").on("scrollend", function() {
+$("main").on("scrollend", function() {
   const bottom =
     Math.abs(this.scrollTop + this.clientHeight - this.scrollHeight) < 2;
   scrollLock = bottom;
