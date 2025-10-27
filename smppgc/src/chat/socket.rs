@@ -4,7 +4,7 @@ use rocket::{get, response, Responder, Shutdown, State};
 use log::*;
 use rocket_ws::{Channel, WebSocket};
 use tokio::sync::broadcast::error::RecvError;
-use wordfilter::TrainResult;
+use wordfilter::{Tag, TrainResult};
 
 use crate::{
     chat::{message_limits::LimitType, Chat, ChatEvent, MessageChangeType, NewClientError},
@@ -155,8 +155,14 @@ async fn on_packet<'a>(
                         let lock = filter.read().await;
                         let content = lock.wf.check(&content);
                         drop(lock);
-                        if !content.good() {
-                            messages_blocked::inc("profanity");
+                        if let Some((_, tag)) = content.words().find(|(_, tag)| tag.bad()) {
+                            messages_blocked::inc(if tag == Tag::Unknown {
+                                "profanity (unknown)"
+                            } else if tag == Tag::Bad {
+                                "profanity (bad)"
+                            } else {
+                                "profanity (unreachable (this is a bug))"
+                            });
                         }
                         let mesg = chat_client.new_message(content);
                         wsclient.forward(&mesg).await?;
@@ -238,18 +244,11 @@ async fn on_admin_cmd<'a>(
             }
         },
         AdminCmd::WFMark { word, good } => {
-            let mut lock = filter.write().await;
-            match lock.wf.train_word(&word, good) {
-                TrainResult::Unchanged => {}
-                _ => {
-                    lock.dirty = true;
-                }
-            }
-            drop(lock);
+            filter.mark_word(&word, good).await;
         }
         AdminCmd::WFCommit => {
             debug!("WFCommit");
-            filter.save_run(chat).await;
+            filter.save_rerun(chat).await;
         }
     }
     Ok(())

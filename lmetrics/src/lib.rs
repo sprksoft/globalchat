@@ -6,7 +6,9 @@ mod nanohttp;
 mod rocket;
 
 pub use once_cell;
-use prometheus::{core::Collector, IntCounter, IntCounterVec, Opts, Registry, TextEncoder};
+use prometheus::{
+    core::Collector, IntCounter, IntCounterVec, IntGauge, IntGaugeVec, Opts, Registry, TextEncoder,
+};
 
 #[cfg(feature = "rocket")]
 pub use {httpmetrics::*, rocket::*};
@@ -23,39 +25,43 @@ macro_rules! register {
         }
     };
 }
+
+#[macro_export()]
+macro_rules! metrics_gen_extra_impl_items {
+    (counter [$($label:ident),*]) => {};
+    (gauge [$($label:ident),*]) => {
+        pub fn set(value: i64, $($label: &str),*) {
+            METRIC.set(value, &[$($label,)*]);
+        }
+    };
+}
+
 #[macro_export()]
 macro_rules! metrics {
 
 
-    ($vis:vis counter $name:ident ($help:literal);) => {
+    ($vis:vis $type:ident $name:ident ($help:literal $(, [$($label:ident),*])?);) => {
         #[allow(dead_code)]
         #[allow(unused)]
         $vis mod $name {
             pub static METRIC: $crate::once_cell::sync::Lazy<$crate::Metric> = $crate::once_cell::sync::Lazy::new(|| {
-                $crate::Metric::new_counter(stringify!($name), $help)
+                $crate::Metric::$type(stringify!($name), $help, &[$($(stringify!($label)),*)?])
             });
-            pub fn inc(){
-                METRIC.inc(&[]);
+            pub fn inc($($($label: &str,)*)?){
+                METRIC.inc(1, &[$($($label,)*)?]);
             }
-        }
-    };
 
-    ($vis:vis counter $name:ident ($help:literal, [$($label:ident),*]);) => {
-        #[allow(dead_code)]
-        #[allow(unused)]
-        $vis mod $name {
-            pub static METRIC: $crate::once_cell::sync::Lazy<$crate::Metric> = $crate::once_cell::sync::Lazy::new(|| {
-                $crate::Metric::new_counter_vec(stringify!($name), $help, &[$(stringify!($label)),*])
-            });
-            pub fn inc($($label: &str,)*){
-                METRIC.inc(&[$($label,)*]);
+            pub fn inc_by(count: u64, $($($label: &str,)*)?){
+                METRIC.inc(count, &[$($($label,)*)?]);
             }
+            $crate::metrics_gen_extra_impl_items!{$type [$($($label),*)?]}
+
         }
     };
 
     ($($vis:vis $type:ident $name:ident $args:tt;)*) => {
         $(
-            metrics!($vis $type $name $args;);
+            $crate::metrics!($vis $type $name $args;);
         )*
     };
 
@@ -65,30 +71,61 @@ macro_rules! metrics {
 pub enum Metric {
     Counter(IntCounter),
     CounterVec(IntCounterVec),
+    Gauge(IntGauge),
+    GaugeVec(IntGaugeVec),
 }
 
 impl Metric {
-    pub fn new_counter_vec(name: &str, help: &str, labels: &[&str]) -> Self {
-        Self::CounterVec(
-            IntCounterVec::new(Opts::new(name, help), labels).expect("Could not create counter"),
-        )
+    pub fn counter(name: &str, help: &str, labels: &[&str]) -> Self {
+        if labels.len() == 0 {
+            Self::Counter(IntCounter::new(name, help).expect("Could not create metrics counter"))
+        } else {
+            Self::CounterVec(
+                IntCounterVec::new(Opts::new(name, help), labels)
+                    .expect("Could not create metrics counter vec"),
+            )
+        }
     }
-    pub fn new_counter(name: &str, help: &str) -> Self {
-        Self::Counter(IntCounter::new(name, help).expect("Could not create counter"))
+    pub fn gauge(name: &str, help: &str, labels: &[&str]) -> Self {
+        if labels.len() == 0 {
+            Self::Gauge(IntGauge::new(name, help).expect("Could not create metrics gauge"))
+        } else {
+            Self::GaugeVec(
+                IntGaugeVec::new(Opts::new(name, help), labels)
+                    .expect("Could not create metrics gauge vec"),
+            )
+        }
     }
-    pub fn inc(&self, labels: &[&str]) {
+
+    pub fn set(&self, value: i64, labels: &[&str]) {
         match self {
+            Self::Gauge(g) => g.set(value),
+            Self::GaugeVec(g) => g.with_label_values(labels).set(value),
+            _ => {
+                panic!("Set is only supported on gauge metrics")
+            }
+        }
+    }
+
+    pub fn inc(&self, count: u64, labels: &[&str]) {
+        match self {
+            Self::Gauge(g) => g.add(count as i64),
+            Self::GaugeVec(g) => {
+                g.with_label_values(labels).add(count as i64);
+            }
             Self::Counter(c) => {
-                c.inc();
+                c.inc_by(count);
             }
             Self::CounterVec(c) => {
-                c.with_label_values(labels).inc();
+                c.with_label_values(labels).inc_by(count);
             }
         }
     }
 
     pub fn into_collector(self) -> Box<dyn Collector> {
         match self {
+            Self::Gauge(g) => Box::new(g),
+            Self::GaugeVec(g) => Box::new(g),
             Self::Counter(c) => Box::new(c),
             Self::CounterVec(c) => Box::new(c),
         }

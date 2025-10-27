@@ -27,13 +27,20 @@ impl Filter {
     pub async fn read(&self) -> RwLockReadGuard<'_, FilterWrapper> {
         self.wf.read().await
     }
+
     #[inline]
-    pub async fn write(&self) -> RwLockWriteGuard<'_, FilterWrapper> {
-        self.wf.write().await
+    pub async fn mark_word(&self, word: &str, good: bool) {
+        let mut lock = self.wf.write().await;
+        match lock.wf.train_word(&word, good) {
+            TrainResult::Unchanged => {}
+            _ => {
+                lock.dirty = true;
+            }
+        }
     }
 
     #[inline]
-    pub async fn save_run(&self, chat: &Chat) {
+    pub async fn save_rerun(&self, chat: &Chat) {
         let lock = self.read().await;
         if !lock.dirty {
             return;
@@ -49,7 +56,7 @@ impl Filter {
             Ok(()) => {}
         }
         drop(lock);
-        self.write().await.dirty = false;
+        self.wf.write().await.dirty = false;
     }
 }
 

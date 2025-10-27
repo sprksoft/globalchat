@@ -236,9 +236,9 @@ fn main() {
         }
 
         if bad.len() < 50 {
-            println!("\nbad words: ");
+            println!("\nbad words:");
             for (word, line) in bad.iter() {
-                println!("  {}  {}", word, line);
+                println!("  {}     \tline: {}", word, line);
             }
         }
         if unknown.len() < 50 {

@@ -156,8 +156,8 @@ impl Chat {
                                 return;
                             },
                             Err(RecvError::Lagged(count))=>{
-                                history_events_lost_total::inc();
-                                error!("Lost {} left events. while recording history", count);
+                                history_events_lost_total::inc_by(count);
+                                error!("Lost {} chat events. while recording history", count);
                             }
                         }
                     }

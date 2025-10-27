@@ -1,10 +1,5 @@
 use std::str::Chars;
 
-/// NOTE: Will be ignored by the normalizer
-/// Ex. zo'n == zon
-/// Ex. :fire: == fire
-const GHOST_CHARS: [char; 2] = ['\'', ':'];
-
 pub enum NormCharsIter<'a> {
     Single(char),
     Multiple(Chars<'a>),
@@ -27,7 +22,7 @@ impl<'a> Iterator for NormCharsIter<'a> {
 
 pub fn normalize_char(char: char) -> NormCharsIter<'static> {
     let char = char.to_ascii_lowercase();
-    let decode = unidecode::unidecode_char(char);
+    let decode = unidecode::unidecode_char(char).trim();
     if decode == "[?]" || decode == "" {
         return NormCharsIter::Single(char);
     }
@@ -59,12 +54,6 @@ pub fn is_void(char: char) -> bool {
         _ => false,
     }
 }
-pub fn is_ignored(char: char) -> bool {
-    if char.is_numeric() || char.is_whitespace() {
-        return true;
-    }
-    GHOST_CHARS.contains(&char)
-}
 
 #[derive(PartialEq, Eq, Debug)]
 pub enum CharType {
@@ -78,11 +67,11 @@ impl CharType {
             if is_emoji(char) {
                 return CharType::Emoji;
             }
-            if char.is_alphanumeric() || GHOST_CHARS.contains(&char) {
-                return CharType::Normal;
+            if char.is_whitespace() {
+                return CharType::Whitespace;
             }
         }
-        CharType::Whitespace
+        CharType::Normal
     }
 }
 
@@ -110,9 +99,9 @@ mod test {
         assert_eq!(super::CharType::new('し'), CharType::Normal);
 
         assert_eq!(super::CharType::new('1'), CharType::Normal);
-        assert_eq!(super::CharType::new('!'), CharType::Whitespace);
-        assert_eq!(super::CharType::new('*'), CharType::Whitespace);
-        assert_eq!(super::CharType::new(')'), CharType::Whitespace);
+        assert_eq!(super::CharType::new('!'), CharType::Normal);
+        assert_eq!(super::CharType::new('*'), CharType::Normal);
+        assert_eq!(super::CharType::new(')'), CharType::Normal);
         assert_eq!(super::CharType::new(' '), CharType::Whitespace);
         assert_eq!(super::CharType::new('\t'), CharType::Whitespace);
 

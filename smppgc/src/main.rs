@@ -1,7 +1,5 @@
 #![allow(dead_code)]
 use csrf::CSRFProtect;
-use lmetrics::metrics;
-use lmetrics::LMetrics;
 use rocket::catch;
 use rocket::catchers;
 use rocket::get;
@@ -17,6 +15,7 @@ mod chat;
 mod csrf;
 mod db;
 mod disclaimer;
+mod metrics;
 mod oauth;
 mod pages;
 mod ratelimit;
@@ -39,13 +38,8 @@ pub struct ChatConfig {
     pub max_ro_users: usize,
 }
 
-metrics! {
-    pub counter total_500_responses("Total amount of 500 responses");
-}
-
 #[catch(500)]
 fn internal_server_error() -> AllowSmFrame<Template> {
-    total_500_responses::inc();
     let theme = themes::DEFAULT_THEME.clone();
     AllowSmFrame(Template::render(
         "pages/error_page",
@@ -86,27 +80,10 @@ fn server_version(conf: &rocket::Config) -> String {
 
 #[launch]
 fn rocket() -> _ {
-    let metrics = LMetrics::new(&[
-        &crate::total_500_responses::METRIC,
-        &oauth::total_started_oauth_flows::METRIC,
-        &oauth::total_failed_oauth_flows::METRIC,
-        &oauth::total_logins::METRIC,
-        &static_routing::static_req_total::METRIC,
-        &chat::joined_total::METRIC,
-        &chat::left_total::METRIC,
-        &chat::ro_joined_total::METRIC,
-        &chat::ro_left_total::METRIC,
-        &chat::history_events_lost_total::METRIC,
-        &chat::socket::messages_total::METRIC,
-        &chat::socket::messages_blocked::METRIC,
-        &lmetrics::http_errors_total::METRIC,
-        &lmetrics::http_req_total::METRIC,
-    ]);
     rocket::build()
         .register("/", catchers![internal_server_error, forbidden])
         .mount("/", routes![server_version, err_test, csrf_test])
-        .mount("/metrics", metrics)
-        .attach(lmetrics::http_errors_metrics())
+        .attach(metrics::stage())
         .attach(db::stage())
         .attach(static_routing::stage())
         .attach(users::stage())

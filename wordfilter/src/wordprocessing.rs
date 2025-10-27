@@ -4,12 +4,12 @@ use std::{
     sync::OnceLock,
 };
 
-use crate::{ansii::*, is_ignored, is_void, normalize_char, CharType};
+use crate::{ansii::*, is_void, normalize_char, CharType};
 
 use crate::WordFilter;
 
 #[derive(Hash, Clone, Copy, Debug, PartialEq, Eq, Default)]
-#[repr(usize)]
+#[repr(u8)]
 pub enum Tag {
     #[default]
     Unknown = 0,
@@ -36,6 +36,24 @@ impl Tag {
             _ => false,
         }
     }
+
+    pub fn char(self) -> char {
+        match self {
+            Tag::Unknown => 'u',
+            Tag::Good => 'g',
+            Tag::Bad => 'b',
+            Tag::Whitespace => 'w',
+        }
+    }
+    pub fn from_char(char: char) -> Option<Self> {
+        match char {
+            'u' => Some(Self::Unknown),
+            'g' => Some(Self::Good),
+            'b' => Some(Self::Bad),
+            'w' => Some(Self::Whitespace),
+            _ => None,
+        }
+    }
 }
 impl Into<u8> for Tag {
     fn into(self) -> u8 {
@@ -47,7 +65,7 @@ impl From<u8> for Tag {
         if value > Self::Whitespace.into() {
             return Self::Unknown;
         }
-        unsafe { std::mem::transmute(value as usize) }
+        unsafe { std::mem::transmute(value) }
     }
 }
 pub trait TokenTag: Clone + Copy + PartialEq + Eq {}
@@ -101,7 +119,7 @@ impl NormalizedWord {
         for char in str.chars() {
             for char in normalize_char(char) {
                 let char = char.to_ascii_lowercase();
-                if is_ignored(char) {
+                if char.is_whitespace() {
                     continue;
                 }
                 if prev_char.map(|prev| prev == char).unwrap_or(false) {
@@ -265,14 +283,17 @@ impl TokenizedString {
             if is_void(char) {
                 continue;
             }
-            let ty = CharType::new(char);
             if let Some(prev_char) = prev_char {
+                let ty = CharType::new(char);
                 let prev_ty = CharType::new(prev_char);
+
+                // Split tokens on char type boundaries
                 if ty != prev_ty {
+                    // Assign whitespace tag if the char type is whitespace.
                     let tag = if prev_ty == CharType::Whitespace {
                         Tag::Whitespace
                     } else {
-                        Tag::default()
+                        Tag::default() // other types of tags will be assigned during checking.
                     };
                     tokens.push(Token::new(start_index..index, tag));
                     start_index = index;
@@ -415,6 +436,20 @@ mod test {
     #[test]
     fn tokenize_test() {
         assert_eq!(
+            TokenizedString::tokenize("strawberry <3"),
+            TokenizedString::from_words([
+                ("strawberry", Tag::Unknown),
+                (" ", Tag::Whitespace),
+                ("<3", Tag::Unknown),
+            ])
+        );
+
+        assert_eq!(
+            TokenizedString::tokenize("\nstuf"),
+            TokenizedString::from_words([("\n", Tag::Whitespace), ("stuf", Tag::Unknown)])
+        );
+
+        assert_eq!(
             TokenizedString::tokenize("ik ben sibe"),
             TokenizedString::from_words([
                 ("ik", Tag::Unknown),
@@ -453,13 +488,13 @@ mod test {
         );
     }
 
-    #[test]
-    fn ghost_chars() {
-        assert_eq!(
-            TokenizedString::tokenize(":word:"),
-            TokenizedString::from_words([(":word:", Tag::Unknown),])
-        );
-    }
+    // #[test]
+    // fn ghost_chars() {
+    //     assert_eq!(
+    //         TokenizedString::tokenize(":word:"),
+    //         TokenizedString::from_words([(":word:", Tag::Unknown),])
+    //     );
+    // }
 
     #[test]
     fn stemming_test() {

@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT (SELECT COUNT(*) FROM users) AS user_count, (SELECT COUNT(*) FROM bans WHERE expiration_time-EXTRACT(epoch from now()) > 0) AS ban_count",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "user_count",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "ban_count",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      null,
+      null
+    ]
+  },
+  "hash": "76d375e35ebb77f0fcc667ca095a525466a5ca337f550950f2d053edc79a28d4"
+}
