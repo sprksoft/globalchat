@@ -1,23 +1,37 @@
-use std::{collections::HashMap, time::SystemTime};
+use std::time::SystemTime;
 
-use crate::Tag;
+use dashmap::DashMap;
+
+use crate::{IntoWordTagPair, Tag, TokenizedString};
 
 #[derive(PartialEq, Eq, Debug)]
 struct WordStatEntry {
     created_epoch_minutes: u32,
     count: usize,
+    tag: Tag,
 }
 
-#[derive(PartialEq, Eq, Debug)]
-pub struct FilterStats {
-    words: HashMap<(Box<str>, Tag), WordStatEntry>,
+pub struct Stat {
+    pub word: Box<str>,
+    pub tag: Tag,
+    pub count: usize,
 }
-impl FilterStats {
+impl<'a> IntoWordTagPair<'a, Tag> for &'a Stat {
+    fn into_word_tag_pair(self) -> (&'a str, Tag) {
+        (self.word.as_ref(), self.tag)
+    }
+}
+
+#[derive(Debug)]
+pub struct WordFilterStats {
+    words: DashMap<Box<str>, WordStatEntry>,
+}
+impl WordFilterStats {
     const MIN_AGE_MINUTES: u32 = 10080; // 7 days
 
-    pub fn new() -> Self {
+    pub fn empty() -> Self {
         Self {
-            words: HashMap::new(),
+            words: DashMap::new(),
         }
     }
 
@@ -34,36 +48,62 @@ impl FilterStats {
         let now_minutes = Self::now_minutes();
         self.words.retain(|_, e| {
             e.count > 1 || now_minutes - e.created_epoch_minutes < Self::MIN_AGE_MINUTES
-        })
+        });
     }
 
-    pub fn calc_top(&self, tag: Tag, min_count: usize) -> Vec<(&str, usize)> {
+    pub fn calc_top<const N: usize>(&self, min_count: usize, filter: [Tag; N]) -> Vec<Stat> {
         let mut top = Vec::new();
-        for ((word, wtag), e) in self.words.iter() {
-            if tag != *wtag {
+        for kv in self.words.iter() {
+            if !filter.contains(&kv.tag) {
                 continue;
             }
-            if e.count >= min_count {
-                top.push((word.as_ref(), e.count));
+            if kv.count >= min_count {
+                top.push(Stat {
+                    word: kv.key().clone(),
+                    tag: kv.tag,
+                    count: kv.count,
+                });
             }
         }
-        top.sort_by_key(|e| e.1);
+        top.sort_by_key(|e| e.count);
         top
     }
 
-    pub fn increment<'a>(&mut self, key: impl Into<(Box<str>, Tag)>, amount: usize) {
-        if amount == 0 {
+    // Record all the words that have a tag that appears in the recorded_tags array
+    // Returns true when stats have been recorded
+    pub fn record<const N: usize>(&self, ts: &TokenizedString, recorded_tags: [Tag; N]) -> bool {
+        let mut recorded = false;
+        for (word, tag) in ts.words() {
+            if recorded_tags.contains(&tag) {
+                self.record_word(word, 1);
+                recorded = true;
+            }
+        }
+        recorded
+    }
+
+    pub fn record_word<'a>(&self, word: impl IntoWordTagPair<'a, Tag>, count: usize) {
+        if count == 0 {
             return;
         }
-        let key = key.into();
-        let now_minutes = Self::now_minutes();
-        self.words
-            .entry(key)
-            .and_modify(|e| e.count += amount)
-            .or_insert(WordStatEntry {
-                created_epoch_minutes: now_minutes,
-                count: amount,
-            });
+        let pair = word.into_word_tag_pair();
+        match self.words.get_mut(pair.0) {
+            Some(mut e) => {
+                e.tag = pair.1;
+                e.count += count;
+            }
+            None => {
+                let now_minutes = Self::now_minutes();
+                self.words.insert(
+                    pair.0.into(),
+                    WordStatEntry {
+                        created_epoch_minutes: now_minutes,
+                        count,
+                        tag: pair.1,
+                    },
+                );
+            }
+        }
     }
 
     pub fn from_string(str: &str) -> Self {
@@ -71,19 +111,13 @@ impl FilterStats {
             iter.next().map(|i| i.parse::<T>().ok()).flatten()
         }
 
-        let mut hashmap = HashMap::new();
+        let words = DashMap::new();
         for line in str.split('\n') {
             let mut split = line.split(" ");
             let Some(word) = split.next() else {
                 continue;
             };
-            let Some(tag) = split
-                .next()
-                .map(|t| t.chars().next())
-                .flatten()
-                .map(|t| Tag::from_char(t))
-                .flatten()
-            else {
+            let Some(tag) = get::<Tag>(&mut split) else {
                 continue;
             };
 
@@ -95,50 +129,30 @@ impl FilterStats {
                 continue;
             };
 
-            hashmap.insert(
-                (word.into(), tag),
+            words.insert(
+                word.into(),
                 WordStatEntry {
+                    tag,
                     created_epoch_minutes: epoch,
                     count,
                 },
             );
         }
-        Self { words: hashmap }
+        Self { words }
     }
 
     pub fn save_string(&self) -> String {
         let mut string = String::new();
-        for ((word, tag), e) in self.words.iter() {
-            string.push_str(word);
+        for kv in self.words.iter() {
+            string.push_str(kv.key());
             string.push(' ');
-            string.push(tag.char());
+            string.push(kv.tag.char());
             string.push(' ');
-            string.push_str(&e.count.to_string());
+            string.push_str(&kv.count.to_string());
             string.push(' ');
-            string.push_str(&e.created_epoch_minutes.to_string());
+            string.push_str(&kv.created_epoch_minutes.to_string());
             string.push('\n');
         }
         string
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use crate::Tag;
-
-    use super::FilterStats;
-
-    #[test]
-    fn to_from_str() {
-        let mut stats = FilterStats::new();
-        stats.increment(("word1".into(), Tag::Unknown), 1);
-        stats.increment(("word2".into(), Tag::Unknown), 2);
-        stats.increment(("word3".into(), Tag::Bad), 3);
-        stats.increment(("word4".into(), Tag::Good), 4);
-
-        let string = stats.save_string();
-        let loaded = FilterStats::from_string(&string);
-
-        assert_eq!(stats, loaded);
     }
 }

@@ -6,7 +6,7 @@ use rocket::{
 };
 use rocket_db_pools::Connection;
 use sqlx::query;
-use std::ops::Deref;
+use std::{ops::Deref, sync::Arc};
 use thiserror::Error;
 use wordfilter::TokenizedString;
 
@@ -75,16 +75,16 @@ impl Ban {
     }
 }
 
-pub struct UserManager<'r> {
+pub struct UserManager {
     con: Connection<Db>,
-    filter: &'r Filter,
+    filter: Arc<Filter>,
     max_name_len: usize,
     max_claimed_names: usize,
     max_name_retention: usize,
 }
 
 #[rocket::async_trait]
-impl<'r> FromRequest<'r> for UserManager<'r> {
+impl<'r> FromRequest<'r> for UserManager {
     type Error = Option<rocket_db_pools::Error<sqlx::Error>>;
 
     async fn from_request(
@@ -93,7 +93,7 @@ impl<'r> FromRequest<'r> for UserManager<'r> {
         let con = try_outcome!(req.guard::<Connection<Db>>().await);
         let filter = req
             .rocket()
-            .state::<Filter>()
+            .state::<Arc<Filter>>()
             .expect("Failed to get word filter");
         let user_config = req
             .rocket()
@@ -102,7 +102,7 @@ impl<'r> FromRequest<'r> for UserManager<'r> {
 
         Outcome::Success(UserManager {
             con,
-            filter,
+            filter: filter.clone(),
             max_name_len: user_config.max_username_len,
             max_claimed_names: user_config.max_claimed_names,
             max_name_retention: user_config.max_name_retention,
@@ -118,7 +118,7 @@ pub enum BanError {
     Sqlx(#[from] sqlx::Error),
 }
 
-impl<'r> UserManager<'r> {
+impl UserManager {
     fn tokenized_to_normalized(ts: TokenizedString) -> String {
         let mut output = String::new();
         for (_, _, word) in ts.norm_words() {
@@ -138,9 +138,7 @@ impl<'r> UserManager<'r> {
             return Err(NameInvalidReason::Length.into());
         }
         let (norm_name, name) = {
-            let lock = self.filter.read().await;
-            let ts = lock.wf.check(name);
-            drop(lock);
+            let ts = self.filter.check(name).await;
 
             if !ts.good() {
                 return Err(NameInvalidReason::Profanity.into());

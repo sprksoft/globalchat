@@ -4,7 +4,7 @@ port = 8080
 ip_header="CF-Connecting-IP"
 
 wordfilter="/var/proffilter/wf.filter.txt"
-prof_filter_file="/var/proffilter/rules.txt"
+wordfilter_stats="/var/proffilter/wf.stats.txt"
 static_dir="/app/www"
 template_dir="/app/templates"
 

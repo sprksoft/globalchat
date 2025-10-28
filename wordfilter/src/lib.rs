@@ -8,8 +8,10 @@ use bincode::{
 
 //mod stemming;
 mod charprocessing;
+mod tag;
 mod wordprocessing;
 pub use charprocessing::*;
+pub use tag::*;
 pub use wordprocessing::*;
 mod ansii;
 pub mod stats;

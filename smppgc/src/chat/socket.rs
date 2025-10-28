@@ -1,10 +1,11 @@
+use std::sync::Arc;
+
 use lmetrics::metrics;
 use rocket::{get, response, Responder, Shutdown, State};
 
 use log::*;
 use rocket_ws::{Channel, WebSocket};
 use tokio::sync::broadcast::error::RecvError;
-use wordfilter::{Tag, TrainResult};
 
 use crate::{
     chat::{message_limits::LimitType, Chat, ChatEvent, MessageChangeType, NewClientError},
@@ -46,9 +47,9 @@ pub async fn chat_socket<'a>(
     start_time: Option<Snowflake>,
     mod_badge: Option<bool>,
     ws: WebSocket,
-    mut user_manager: UserManager<'a>,
+    mut user_manager: UserManager,
     mesg_limiter: &'a State<MessageLimiter>,
-    filter: &'a State<Filter>,
+    filter: &'a State<Arc<Filter>>,
     chat: &'a State<Chat>,
     mut shutdown: Shutdown,
     user: Option<User>,
@@ -138,27 +139,26 @@ pub async fn chat_socket<'a>(
 }
 
 #[inline]
-async fn on_packet<'a>(
+async fn on_packet(
     packet: C2SPacket,
     wsclient: &mut WsClient,
     chat_client: &ChatClient,
     chat: &Chat,
     filter: &Filter,
     mesg_limiter: &MessageLimiter,
-    user_manager: &mut UserManager<'a>,
+    user_manager: &mut UserManager,
 ) -> tokio_tungstenite::tungstenite::Result<()> {
     match packet {
         C2SPacket::Message(content) => {
             let mesg = {
                 match mesg_limiter.feed(chat_client.user().user_id(), content) {
                     Ok(content) => {
-                        let lock = filter.read().await;
-                        let content = lock.wf.check(&content);
-                        drop(lock);
-                        if let Some((_, tag)) = content.words().find(|(_, tag)| tag.bad()) {
-                            messages_blocked::inc(if tag == Tag::Unknown {
+                        let content = filter.check(&content).await;
+
+                        if let Some((_, tag)) = content.words().find(|(_, tag)| !tag.good()) {
+                            messages_blocked::inc(if tag.unknown() {
                                 "profanity (unknown)"
-                            } else if tag == Tag::Bad {
+                            } else if tag.bad() {
                                 "profanity (bad)"
                             } else {
                                 "profanity (unreachable (this is a bug))"
@@ -199,12 +199,12 @@ async fn on_packet<'a>(
 }
 
 #[inline]
-async fn on_admin_cmd<'a>(
+async fn on_admin_cmd(
     cmd: AdminCmd,
     wsclient: &mut WsClient,
     chat: &Chat,
     filter: &Filter,
-    user_manager: &mut UserManager<'a>,
+    user_manager: &mut UserManager,
 ) -> tokio_tungstenite::tungstenite::Result<()> {
     match cmd {
         AdminCmd::DelMsg(snowflake) => {
