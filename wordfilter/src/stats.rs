@@ -1,20 +1,21 @@
-use std::time::SystemTime;
-
 use dashmap::DashMap;
 
-use crate::{IntoWordTagPair, Tag, TokenizedString};
+use crate::{IntoWordTagPair, Tag, TokenizedString, WFTime};
 
 #[derive(PartialEq, Eq, Debug)]
 struct WordStatEntry {
-    created_epoch_minutes: u32,
+    last_modified: WFTime,
     count: usize,
     tag: Tag,
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[derive(Debug)]
 pub struct Stat {
     pub word: Box<str>,
     pub tag: Tag,
     pub count: usize,
+    pub last_modified: WFTime,
 }
 impl<'a> IntoWordTagPair<'a, Tag> for &'a Stat {
     fn into_word_tag_pair(self) -> (&'a str, Tag) {
@@ -35,23 +36,15 @@ impl WordFilterStats {
         }
     }
 
-    fn now_minutes() -> u32 {
-        (SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .expect("time older than unix_epoch")
-            .as_secs()
-            * 60) as u32
-    }
-
     // Removes all old entries with a count of 1
     pub fn purge_stale(&mut self) {
-        let now_minutes = Self::now_minutes();
+        let now = WFTime::now();
         self.words.retain(|_, e| {
-            e.count > 1 || now_minutes - e.created_epoch_minutes < Self::MIN_AGE_MINUTES
+            e.count > 1 || e.last_modified.duration_since(now) < Self::MIN_AGE_MINUTES
         });
     }
 
-    pub fn calc_top<const N: usize>(&self, min_count: usize, filter: [Tag; N]) -> Vec<Stat> {
+    pub fn calc_top(&self, min_count: usize, filter: &[Tag]) -> Vec<Stat> {
         let mut top = Vec::new();
         for kv in self.words.iter() {
             if !filter.contains(&kv.tag) {
@@ -62,10 +55,11 @@ impl WordFilterStats {
                     word: kv.key().clone(),
                     tag: kv.tag,
                     count: kv.count,
+                    last_modified: kv.last_modified,
                 });
             }
         }
-        top.sort_by_key(|e| e.count);
+        top.sort_by_key(|e| std::cmp::Reverse(e.count));
         top
     }
 
@@ -75,7 +69,7 @@ impl WordFilterStats {
         let mut recorded = false;
         for (word, tag) in ts.words() {
             if recorded_tags.contains(&tag) {
-                self.record_word(word, 1);
+                self.record_word((word, tag), 1);
                 recorded = true;
             }
         }
@@ -87,21 +81,19 @@ impl WordFilterStats {
             return;
         }
         let pair = word.into_word_tag_pair();
+        let mut entry = WordStatEntry {
+            last_modified: WFTime::now(),
+            count,
+            tag: pair.1,
+        };
+
         match self.words.get_mut(pair.0) {
             Some(mut e) => {
-                e.tag = pair.1;
-                e.count += count;
+                entry.count += e.count;
+                *e = entry;
             }
             None => {
-                let now_minutes = Self::now_minutes();
-                self.words.insert(
-                    pair.0.into(),
-                    WordStatEntry {
-                        created_epoch_minutes: now_minutes,
-                        count,
-                        tag: pair.1,
-                    },
-                );
+                self.words.insert(pair.0.into(), entry);
             }
         }
     }
@@ -125,7 +117,7 @@ impl WordFilterStats {
                 continue;
             };
 
-            let Some(epoch) = get::<u32>(&mut split) else {
+            let Some(epoch) = get::<WFTime>(&mut split) else {
                 continue;
             };
 
@@ -133,7 +125,7 @@ impl WordFilterStats {
                 word.into(),
                 WordStatEntry {
                     tag,
-                    created_epoch_minutes: epoch,
+                    last_modified: epoch,
                     count,
                 },
             );
@@ -150,7 +142,7 @@ impl WordFilterStats {
             string.push(' ');
             string.push_str(&kv.count.to_string());
             string.push(' ');
-            string.push_str(&kv.created_epoch_minutes.to_string());
+            string.push_str(&kv.last_modified.to_string());
             string.push('\n');
         }
         string

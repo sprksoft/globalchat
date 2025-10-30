@@ -1,4 +1,4 @@
-.word {
+.editable-word {
   transition:
     border-color 0.2s,
     background-color 0.2s;
@@ -10,29 +10,14 @@
   padding: 0px 0px;
   margin: 0px -2px; /* border size + padding */
 }
-.word.good:hover {
+.editable-word.tag-g:hover {
   border-color: var(--color-bad);
   background-color: var(--color-bad-bg);
 }
-.word.bad:hover,
-.word.unknown:hover {
+.editable-word.tag-b:hover,
+.editable-word.tag-u:hover {
   border-color: var(--color-good);
   background-color: var(--color-good-bg);
-}
-
-.bad {
-  text-decoration: underline;
-  /* Specify text-decoration-thickness because some browsers don't support it */
-  text-decoration-thickness: 2px;
-  text-decoration-color: var(--color-bad);
-  -webkit-text-decoration-color: var(--color-bad);
-}
-.unknown {
-  text-decoration: underline;
-  /* Specify text-decoration-thickness because some browsers don't support it */
-  text-decoration-thickness: 2px;
-  text-decoration-color: var(--color-unknown);
-  -webkit-text-decoration-color: var(--color-unknown);
 }
 
 #wfcommit-spinner {

@@ -77,3 +77,13 @@ impl From<u8> for Tag {
 }
 pub trait TokenTag: Clone + Copy + PartialEq + Eq {}
 impl TokenTag for Tag {}
+
+#[cfg(feature = "serde")]
+impl serde::Serialize for Tag {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_char(self.char())
+    }
+}

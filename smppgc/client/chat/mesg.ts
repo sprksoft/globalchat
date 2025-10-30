@@ -131,16 +131,16 @@ export function createMessage(
       }
     }
     const span = $("<span></span>").text(word.word);
-    span.addClass(WFTag.toString(word.tag));
+    span.addClass("tag-" + WFTag.toString(word.tag));
     if (wfEdit && word.tag !== WFTag.Whitespace) {
-      span.addClass("word");
+      span.addClass("editable-word");
       span.on("click", function() {
         const w = $(this);
-        if (w.hasClass("unknown")) {
+        if (w.hasClass("tag-u")) {
           markGood(this);
-        } else if (w.hasClass("good")) {
+        } else if (w.hasClass("tag-g")) {
           markBad(this);
-        } else if (w.hasClass("bad")) {
+        } else if (w.hasClass("tag-b")) {
           markGood(this);
         }
       });

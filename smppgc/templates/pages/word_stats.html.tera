@@ -1,0 +1,38 @@
+{% extends "base" %}
+<!-- vim: set ft=html: -->
+
+{% block title %}
+Word stats - Global Chat
+{% endblock title %}
+
+{% block head %}
+
+<style type="text/css">
+{{theme_css}}
+</style>
+
+<link rel="stylesheet" href="{{ url(path="/static/stats.css") }}" />
+{% endblock head %}
+
+{% block content %}
+
+<div class="view">
+<header class="slim-header">
+  <a href="/" class="button">
+    {% include "svg/arrow_l" %}
+  </a>
+  <h1 class="header-title">Moderators</h1>
+</header>
+<main>
+  <ol id="stats-list">
+{% for stat in stats %}
+      <li><span class="word tag-{{ stat.tag }}">{{ stat.word }}</span> <span class="count">{{ stat.count }}</span></li>
+{% endfor %}
+  </ol>
+</main>
+</div>
+
+{% endblock content %}
+
+{% block scripts %}
+{% endblock scripts %}

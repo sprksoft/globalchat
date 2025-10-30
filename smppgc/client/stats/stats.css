@@ -1,0 +1,28 @@
+main {
+  flex-grow: 100;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+}
+
+#stats-list {
+  display: flex;
+  flex-direction: column;
+  padding: 0px;
+  overflow: scroll;
+}
+
+.word {
+  flex-grow: 100;
+}
+
+#stats-list li {
+  display: flex;
+  flex-direction: row;
+
+  background-color: var(--color-base01);
+  border: solid 2px var(--color-base02);
+  border-radius: 1000px;
+  padding: 0.5rem 1rem;
+  margin: 0.2rem;
+}

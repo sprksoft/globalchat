@@ -1,33 +1,9 @@
 import { socketmgr } from "../chat";
 import { createMessage, Message } from "./mesg";
+import { WFTag } from '../common/wf.ts';
+export { WFTag };
 
-export enum WFTag {
-  Unknown = 0,
-  Good = 1,
-  Bad = 2,
-  Whitespace = 3,
-}
-export namespace WFTag {
-  export function toString(tag: WFTag): string {
-    switch (tag) {
-      case WFTag.Unknown:
-        return "unknown";
-      case WFTag.Good:
-        return "good";
-      case WFTag.Bad:
-        return "bad";
-      case WFTag.Whitespace:
-        return "whitespace";
-    }
-  }
-  export function fromNum(num: number): WFTag {
-    if (num < 0 || num > WFTag.Whitespace) {
-      console.error("tried to create a WFTag from an out of range number");
-      return WFTag.Unknown;
-    }
-    return num as WFTag;
-  }
-}
+
 
 let commitTimeout: number | null = null;
 function scheduleCommit() {
@@ -45,8 +21,8 @@ function scheduleCommit() {
 
 export function markGood(word: string | HTMLElement) {
   if (word instanceof HTMLElement) {
-    word.classList.remove("bad", "unknown");
-    word.classList.add("good");
+    word.classList.remove("tag-b", "tag-u");
+    word.classList.add("tag-g");
     markGood(word.innerText);
   } else {
     socketmgr.markWord(word, true);
@@ -56,8 +32,8 @@ export function markGood(word: string | HTMLElement) {
 
 export function markBad(word: string | HTMLElement) {
   if (word instanceof HTMLElement) {
-    word.classList.remove("good", "unknown");
-    word.classList.add("bad");
+    word.classList.remove("tag-g", "tag-u");
+    word.classList.add("tag-b");
     markBad(word.innerText);
   } else {
     socketmgr.markWord(word, false);

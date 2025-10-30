@@ -44,7 +44,7 @@ impl Filter {
     }
 
     #[inline]
-    pub fn calc_stats<const N: usize>(&self, min_count: usize, filter: [Tag; N]) -> Vec<Stat> {
+    pub fn calc_stats(&self, min_count: usize, filter: &[Tag]) -> Vec<Stat> {
         self.stats.calc_top(min_count, filter)
     }
 
@@ -118,15 +118,20 @@ pub fn stage() -> AdHoc {
             wf: RwLock::new(FilterIMut { wf, dirty: false }),
         });
 
-        let r = r.manage(fil.clone());
-
+        let bgsave_fil = fil.clone();
         tokio::spawn(async move {
             loop {
-                tokio::time::sleep(Duration::from_secs(60)).await;
+                tokio::time::sleep(Duration::from_secs(60 * 60 * 24)).await;
                 debug!("starting filter save..");
-                fil.save_all().await;
+                bgsave_fil.save_all().await;
             }
         });
-        r
+        r.manage(fil.clone())
+            .attach(AdHoc::on_shutdown("word filter shutdown save", |_| {
+                Box::pin(async move {
+                    info!("Saving filter+stats because of shutdown...");
+                    fil.save_all().await;
+                })
+            }))
     })
 }

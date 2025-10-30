@@ -4012,6 +4012,7 @@ dependencies = [
  "bincode",
  "clap",
  "dashmap",
+ "serde",
  "unidecode",
 ]
 
