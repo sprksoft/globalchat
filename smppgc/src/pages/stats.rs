@@ -8,6 +8,7 @@ use crate::{themes::Theme, wf::Filter};
 
 #[get("/words?<min_count>&<max_len>&<tags>")]
 fn word_stats(
+    _ses: AdminUser,
     filter: &State<Arc<Filter>>,
     min_count: Option<usize>,
     max_len: Option<usize>,
