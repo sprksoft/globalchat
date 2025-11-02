@@ -202,7 +202,7 @@ mod test {
 
     fn filter() -> WordFilter {
         WordFilter::from_string(
-            "f good haar\nk bad ben\nsibe good\nben good\nwacht good\nfuck bad\njij good\nldev good\nsmppgc good\n❤️ good\nu good\ni good",
+            "f good haar\nk bad ben\nsibe good\nben good\nwacht good\nfuck bad\njij good\nldev good\nsmppgc good\n❤️ good\nu good\ni good\n69 bad",
         )
     }
     fn ts<'a>(words: impl IntoIterator<Item = impl IntoWordTagPair<'a, Tag>>) -> TokenizedString {
@@ -227,6 +227,15 @@ mod test {
                 ("jij", Tag::Good)
             ])
         );
+    }
+
+    #[test]
+    fn number_check() {
+        let filter = filter();
+
+        assert_eq!(filter.check("123.5%"), ts([("123.5%", Tag::Good)]));
+        assert_eq!(filter.check("5€"), ts([("5€", Tag::Good)]));
+        assert_eq!(filter.check("69"), ts([("69", Tag::Bad)]));
     }
 
     #[test]

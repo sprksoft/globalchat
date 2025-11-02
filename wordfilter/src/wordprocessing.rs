@@ -129,6 +129,47 @@ impl NormalizedWord {
     pub fn root(&self) -> &str {
         &self.word[self.root_start..self.root_end]
     }
+
+    pub fn is_number(&self) -> bool {
+        let word = Self::remove_fixes(
+            &self.word,
+            ["eur"],
+            [
+                "%", "$", "eur", /* € */
+                "y=",  /* ¥ */
+                "ps",  /* £ */
+                "km", "kg", "m", "l", "kb", "mb", "gb", "tb",
+            ],
+        );
+
+        println!("{}", word);
+
+        for char in word.chars() {
+            if !(char.is_digit(10) || char == ',' || char == '.') {
+                return false;
+            }
+        }
+        true
+    }
+
+    fn remove_fixes<'a, const PC: usize, const SC: usize>(
+        str: &'a str,
+        prefixes: [&'static str; PC],
+        suffixes: [&'static str; SC],
+    ) -> &'a str {
+        for m in prefixes {
+            if str.starts_with(m) {
+                return &str[m.len()..];
+            }
+        }
+
+        for m in suffixes {
+            if str.ends_with(m) {
+                return &str[..str.len() - m.len()];
+            }
+        }
+        str
+    }
 }
 impl From<NormalizedWord> for Box<str> {
     fn from(mut value: NormalizedWord) -> Self {
@@ -288,7 +329,11 @@ impl TokenizedString {
                 continue;
             }
             let Some(entry) = filter.get_entry(norm) else {
-                set!(token.tag, Tag::Unknown);
+                if norm.is_number() {
+                    set!(token.tag, Tag::Good);
+                } else {
+                    set!(token.tag, Tag::Unknown);
+                }
                 continue;
             };
 
@@ -440,6 +485,7 @@ mod test {
             "fuck".into()
         );
         assert_eq!(NormalizedWord::normalize("fucken").root(), "fuck");
+        assert_eq!(NormalizedWord::normalize("10kg").root(), "10kg");
 
         assert_eq!(NormalizedWord::normalize("fucking").root(), "fuck");
         assert_eq!(NormalizedWord::normalize("studies").root(), "stud");
@@ -463,5 +509,30 @@ mod test {
             NormalizedWord::normalize("niiiiggggaaaaaa").root(),
             "niiggaa"
         );
+
+        assert_eq!(NormalizedWord::normalize("123").root(), "123");
+    }
+
+    #[test]
+    fn is_number() {
+        assert!(NormalizedWord::normalize("123").is_number());
+        assert!(NormalizedWord::normalize("123,0").is_number());
+        assert!(NormalizedWord::normalize("12.3").is_number());
+        assert!(NormalizedWord::normalize("12.3%").is_number());
+        assert!(NormalizedWord::normalize("12.3€").is_number());
+        assert!(NormalizedWord::normalize("€12.3").is_number());
+        assert!(NormalizedWord::normalize("12$").is_number());
+        assert!(NormalizedWord::normalize("50.3%").is_number());
+        assert!(NormalizedWord::normalize(".50").is_number());
+
+        assert!(NormalizedWord::normalize("100¥").is_number());
+        assert!(NormalizedWord::normalize("100£").is_number());
+        assert!(NormalizedWord::normalize("10kg").is_number());
+        assert!(NormalizedWord::normalize("10KG").is_number());
+        assert!(NormalizedWord::normalize("10l").is_number());
+
+        assert!(!NormalizedWord::normalize("123a").is_number());
+        assert!(!NormalizedWord::normalize("1$50").is_number());
+        assert!(!NormalizedWord::normalize("1%50").is_number());
     }
 }
