@@ -1,12 +1,11 @@
-use std::ops::Range;
-
+use nanotime::snowflake::Snowflake;
 use rocket::time::Duration;
+use std::ops::Range;
 use tokio_tungstenite::tungstenite;
 
 use crate::{
     chat::{ChatUser, Message, MessageLen},
     users::role::Role,
-    Snowflake,
 };
 use log::*;
 

@@ -1,5 +1,6 @@
 use circular_queue::CircularQueue;
 use log::*;
+use nanotime::snowflake::{Snowflake, SnowflakeGenerator};
 use rocket::{fairing::AdHoc, routes};
 use std::{
     collections::HashMap,
@@ -23,7 +24,7 @@ pub use message_limits::*;
 use crate::{
     users::{ClaimedName, User, UserId},
     utils::IdCounter,
-    ChatConfig, Snowflake, SnowflakeGenerator,
+    ChatConfig,
 };
 use lmetrics::metrics;
 use thiserror::Error;

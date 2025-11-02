@@ -18,6 +18,7 @@ dashmap={version="6.1.0"}
 circular-queue={version="0.2.7"}
 lmetrics={path="../lmetrics", features=["rocket"]}
 wordfilter={path="../wordfilter", features=["serde"], default-features=false}
+nanotime={path="../nanotime", features=["rocket"]}
 lazy_static={version="1.5.0"}
 serde_json={version="1.0.128"}
 serde={version="1.0.219"}

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use super::ChatUser;
-use crate::Snowflake;
+use nanotime::snowflake::Snowflake;
 use wordfilter::TokenizedString;
 
 #[derive(Clone, Debug)]

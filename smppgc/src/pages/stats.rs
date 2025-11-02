@@ -29,7 +29,7 @@ fn word_stats(
 
     Template::render(
         "pages/word_stats",
-        context! {stats: stats, theme_css: theme.css()},
+        context! { stats: stats, theme_css: theme.css() },
     )
 }
 

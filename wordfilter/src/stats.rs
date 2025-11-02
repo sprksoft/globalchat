@@ -1,10 +1,11 @@
 use dashmap::DashMap;
+use nanotime::NanoTime;
 
-use crate::{IntoWordTagPair, Tag, TokenizedString, WFTime};
+use crate::{IntoWordTagPair, Tag, TokenizedString};
 
 #[derive(PartialEq, Eq, Debug)]
 struct WordStatEntry {
-    last_modified: WFTime,
+    last_modified: NanoTime,
     count: usize,
     tag: Tag,
 }
@@ -15,7 +16,7 @@ pub struct Stat {
     pub word: Box<str>,
     pub tag: Tag,
     pub count: usize,
-    pub last_modified: WFTime,
+    pub last_modified: NanoTime,
 }
 impl<'a> IntoWordTagPair<'a, Tag> for &'a Stat {
     fn into_word_tag_pair(self) -> (&'a str, Tag) {
@@ -38,7 +39,7 @@ impl WordFilterStats {
 
     // Removes all old entries with a count of 1
     pub fn purge_stale(&mut self) {
-        let now = WFTime::now();
+        let now = NanoTime::now();
         self.words.retain(|_, e| {
             e.count > 1 || e.last_modified.duration_since(now) < Self::MIN_AGE_MINUTES
         });
@@ -82,7 +83,7 @@ impl WordFilterStats {
         }
         let pair = word.into_word_tag_pair();
         let mut entry = WordStatEntry {
-            last_modified: WFTime::now(),
+            last_modified: NanoTime::now(),
             count,
             tag: pair.1,
         };
@@ -117,7 +118,7 @@ impl WordFilterStats {
                 continue;
             };
 
-            let Some(epoch) = get::<WFTime>(&mut split) else {
+            let Some(epoch) = get::<NanoTime>(&mut split) else {
                 continue;
             };
 

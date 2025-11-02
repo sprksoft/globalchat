@@ -1,10 +1,10 @@
 use crate::{
     chat::{ChatUser, Message, MessageLen},
     users::{role::Role, Ban},
-    Snowflake,
 };
 use futures_util::SinkExt;
 use log::*;
+use nanotime::snowflake::Snowflake;
 use packets::parse_c2s;
 use rocket_ws::{
     frame::{CloseCode, CloseFrame},

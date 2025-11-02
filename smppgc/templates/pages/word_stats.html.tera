@@ -26,7 +26,18 @@ Word stats - Global Chat
 <main>
   <ol id="stats-list">
 {% for stat in stats %}
-      <li><span class="word tag-{{ stat.tag }}">{{ stat.word }}</span> <span class="count">{{ stat.count }}</span></li>
+      <li>
+        <span class="word tag-{{ stat.tag }}">{{ stat.word }}</span>
+        <span class="count">{{ stat.count }}</span>
+        <span class="last-modified">
+          <script>
+          document.currentScript.parentElement.innerText=new Date({{ stat.last_modified | nanotime_to_unix_millis }}).toLocaleString(undefined, {
+            dateStyle: "short",
+            timeStyle: "short",
+          })
+          </script>
+        </span>
+      </li>
 {% endfor %}
   </ol>
 </main>

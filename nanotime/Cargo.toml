@@ -1,0 +1,16 @@
+[package]
+name = "nanotime"
+authors.workspace = true
+edition.workspace = true
+version.workspace = true
+
+[dependencies]
+log={version="0.4.28"}
+lazy_static={version="1.5.0"}
+rocket={version="0.5.1", optional=true}
+serde={version="1.0.228", features=["derive"], optional=true}
+
+[features]
+default=[]
+rocket=["dep:rocket"]
+serde=["dep:serde"]

@@ -62,14 +62,14 @@ impl Display for Tag {
     }
 }
 
-impl Into<u8> for Tag {
-    fn into(self) -> u8 {
-        self as u8
+impl From<Tag> for u8 {
+    fn from(value: Tag) -> Self {
+        value as u8
     }
 }
 impl From<u8> for Tag {
     fn from(value: u8) -> Self {
-        if value > Self::Whitespace.into() {
+        if value > u8::from(Self::Whitespace) {
             return Self::Unknown;
         }
         unsafe { std::mem::transmute(value) }

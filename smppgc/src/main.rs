@@ -19,7 +19,6 @@ mod metrics;
 mod oauth;
 mod pages;
 mod ratelimit;
-mod snowflake;
 mod themes;
 mod users;
 mod utils;
@@ -27,7 +26,6 @@ mod version_int;
 mod wf;
 mod wsprotocol;
 
-pub use snowflake::*;
 pub use version_int::*;
 
 #[derive(Deserialize, Debug)]

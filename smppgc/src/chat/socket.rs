@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use lmetrics::metrics;
+use nanotime::snowflake::Snowflake;
 use rocket::{get, response, Responder, Shutdown, State};
 
 use log::*;
@@ -13,7 +14,6 @@ use crate::{
     users::{Ban, BanError, NameClaimError, User, UserManager},
     wf::Filter,
     wsprotocol::{AdminCmd, C2SPacket, ProtoError, WsClient},
-    Snowflake,
 };
 
 use super::{message_limits::MessageLimiter, ChatClient};

@@ -26,3 +26,11 @@ main {
   padding: 0.5rem 1rem;
   margin: 0.2rem;
 }
+
+.last-modified {
+  color: var(--color-text);
+  opacity: 0.5;
+  font-weight: normal;
+  width: 10rem;
+  text-align: right;
+}

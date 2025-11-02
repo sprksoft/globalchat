@@ -10,9 +10,10 @@ clap={ version = "4.5.4", features = ["derive"], optional = true }
 unidecode = { version="0.3.0" }
 dashmap= {version="6.1.0"}
 serde= {version="1.0.228", features=["derive"], optional=true}
+nanotime={path="../nanotime"}
 
 [features]
 default=["cli"]
 bincode=["dep:bincode"]
 cli=["dep:clap"]
-serde=["dep:serde"]
+serde=["dep:serde", "nanotime/serde"]

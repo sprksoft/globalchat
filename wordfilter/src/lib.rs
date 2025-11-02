@@ -9,11 +9,9 @@ use bincode::{
 //mod stemming;
 mod charprocessing;
 mod tag;
-mod wftime;
 mod wordprocessing;
 pub use charprocessing::*;
 pub use tag::*;
-pub use wftime::*;
 pub use wordprocessing::*;
 mod ansii;
 pub mod stats;
