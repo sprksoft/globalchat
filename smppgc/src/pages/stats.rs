@@ -4,7 +4,7 @@ use rocket::{fairing::AdHoc, get, routes, State};
 use rocket_dyn_templates::{context, Template};
 use wordfilter::Tag;
 
-use crate::{themes::Theme, wf::Filter};
+use crate::{themes::Theme, users::AdminUser, wf::Filter};
 
 #[get("/words?<min_count>&<max_len>&<tags>")]
 fn word_stats(

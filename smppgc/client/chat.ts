@@ -1,18 +1,18 @@
 import "./chat/css/styles.css.js";
 import * as ban from "./chat/ban.js";
-import type { Ban } from "./chat/ban.ts";
-import { execLocalCmd, localCmd } from "./chat/commands.ts";
-import { createMessage, Message } from "./chat/mesg.ts";
-import type { Word } from "./chat/mesg.ts";
-import { Role } from "./chat/user.ts";
+import type { Ban } from "./gcapi/ban";
+import { execLocalCmd, localCmd } from "./chat/commands";
+import { createMessage, Message } from "./chat/message";
+import type { Word } from "./gcapi/mesg";
+import { Role } from "./gcapi/user";
 
-import { Snowflake } from "./chat/snowflake.ts";
+import { Snowflake } from "./gcapi/gctime";
 import { fixTextFields } from "./common/text.js";
 import { hasVirtKb, log } from "./common/utils.js";
 
-import { SocketMgr } from "./chat/protocol/protocol.ts";
-import { ProtoError } from "./chat/protocol/protoerr.ts";
-import { clearProfWarn, setupProfWarn, showProfWarn } from "./chat/wf.ts";
+import { GCClient, type ApiVersion } from "./gcapi/protocol";
+import { ProtoError } from "./gcapi/protoerr";
+import { clearProfWarn, setupProfWarn, showProfWarn } from "./chat/wf";
 
 export declare const WEBSOCKET_URL: string;
 export declare const ROLE: Role;
@@ -20,6 +20,7 @@ export declare const IS_MOD: boolean;
 export declare const READONLY: boolean;
 export declare const MIN_MESSAGE_LEN: number;
 export declare const MAX_MESSAGE_LEN: number;
+export declare const VERSION_INT: ApiVersion;
 
 const sendinput = document.getElementById(
   "send-input",
@@ -38,7 +39,7 @@ const constatus = document.getElementById(
 ) as HTMLDialogElement;
 const login_popup = document.getElementById("login") as HTMLDialogElement;
 
-export let socketmgr = new SocketMgr();
+export let gcclient = new GCClient();
 
 export interface HtmlMessage {
   html: HTMLElement;
@@ -93,7 +94,7 @@ function add_message(
 }
 
 function onMessageDelete(_: any, message: Message) {
-  socketmgr.deleteMessage(message.snowflake);
+  gcclient.deleteMessage(message.snowflake);
 }
 function onMessageBan(_: any, message: Message) {
   ban.showDialog(message.snowflake, message.sender);
@@ -135,7 +136,7 @@ localCmd("/clearkey", function() {
   add_system_message("Key cleared.");
 });
 localCmd("/leave", function() {
-  socketmgr.leave();
+  gcclient.leave();
 });
 localCmd("/mesgs", function() {
   console.log("messages");
@@ -155,7 +156,8 @@ function clearSendInput() {
 // Are we currently trying to reconnect in the background
 let background_reconnect = false;
 
-socketmgr.on_join = () => {
+gcclient.on_join = (apiVersion: ApiVersion) => {
+  handle_version_check(apiVersion);
   constatus.close();
   background_reconnect = false;
 };
@@ -199,8 +201,8 @@ function mesgEasterEgg(messageContent: Word[]) {
 }
 
 let last_message_snowflake: Snowflake | null = null;
-socketmgr.on_message = (sender_id: number, message: Message) => {
-  const me = socketmgr.local_id() == sender_id;
+gcclient.on_message = (sender_id: number, message: Message) => {
+  const me = gcclient.localId() == sender_id;
   let lastMessage = false;
   if (!last_message_snowflake || message.snowflake > last_message_snowflake) {
     lastMessage = true;
@@ -234,7 +236,7 @@ socketmgr.on_message = (sender_id: number, message: Message) => {
   }
 };
 
-socketmgr.on_message_del = (snowflake: Snowflake) => {
+gcclient.on_message_del = (snowflake: Snowflake) => {
   const result = getMessageIndex(snowflake);
   if (result == null) {
     return;
@@ -242,7 +244,8 @@ socketmgr.on_message_del = (snowflake: Snowflake) => {
   delMessage(result);
 };
 
-socketmgr.on_leave = (data: string | Ban, protoerr: ProtoError) => {
+gcclient.on_leave = (data: string | Ban, protoerr: ProtoError) => {
+  log("disconnect reason: " + JSON.stringify(data));
   constatus.close();
 
   let time = 1000;
@@ -296,7 +299,7 @@ function send_message(): boolean {
     clearSendInput();
     return true;
   }
-  if (socketmgr.send(message)) {
+  if (gcclient.sendString(message)) {
     clearSendInput();
     return true;
   }
@@ -310,6 +313,24 @@ function get_name(): string {
     local_name = default_name;
   }
   return local_name;
+}
+
+function handle_version_check(apiVersion: ApiVersion) {
+  if (apiVersion !== VERSION_INT) {
+    let last_reload_time = localStorage.getItem("last_client_outdated_reload");
+    let now = new Date().getTime();
+    if (last_reload_time == null || now - parseInt(last_reload_time) > 1000) {
+      localStorage.setItem("last_client_outdated_reload", now.toString());
+      console.log("NEW PROTOCOL VERSION. RELOADING PAGE TO UPDATE CLIENT");
+      location.reload();
+    } else {
+      console.log(
+        "protocol_ver: " + apiVersion + " page_ver: " + VERSION_INT,
+      );
+      console.error("Infinite reload loop detected");
+      alert("Alles is kapot aaaaaaaaaaaaa.");
+    }
+  }
 }
 
 function connect(
@@ -331,7 +352,7 @@ function connect(
   }
 
   background_reconnect = background;
-  socketmgr.join(local_name, start_snowflake, show_mod_badge);
+  gcclient.join(local_name, start_snowflake, show_mod_badge);
 
   constatus.showModal();
 }
@@ -357,7 +378,7 @@ constatus.addEventListener("cancel", (e) => {
   e.preventDefault();
 });
 leavebtn.addEventListener("click", () => {
-  socketmgr.leave();
+  gcclient.leave();
 });
 
 login_popup.addEventListener("close", (_) => {

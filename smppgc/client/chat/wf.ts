@@ -1,8 +1,7 @@
-import { socketmgr } from "../chat";
-import { createMessage, Message } from "./mesg";
-import { WFTag } from '../common/wf.ts';
+import { gcclient } from "../chat";
+import { createMessage, type Message } from "./message";
+import { WFTag } from '../gcapi/wf.ts';
 export { WFTag };
-
 
 
 let commitTimeout: number | null = null;
@@ -15,7 +14,7 @@ function scheduleCommit() {
   commitTimeout = setTimeout(() => {
     $("#wfcommit-spinner").hide();
     commitTimeout = null;
-    socketmgr.wfCommit();
+    gcclient.wfCommit();
   }, 1000);
 }
 
@@ -25,7 +24,7 @@ export function markGood(word: string | HTMLElement) {
     word.classList.add("tag-g");
     markGood(word.innerText);
   } else {
-    socketmgr.markWord(word, true);
+    gcclient.wfMarkWord(word, true);
     scheduleCommit();
   }
 }
@@ -36,7 +35,7 @@ export function markBad(word: string | HTMLElement) {
     word.classList.add("tag-b");
     markBad(word.innerText);
   } else {
-    socketmgr.markWord(word, false);
+    gcclient.wfMarkWord(word, false);
     scheduleCommit();
   }
 }

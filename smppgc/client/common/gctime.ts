@@ -1,1 +1,0 @@
-export const SMPPGC_EPOCH = (2024 - 1970) * 31557600 * 1000;

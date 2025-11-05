@@ -1,4 +1,4 @@
-import type { Snowflake } from "../snowflake";
+import type { Snowflake } from "./gctime.ts";
 
 export class Reader {
   dv: DataView;

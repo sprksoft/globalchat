@@ -1,21 +1,9 @@
 // @ts-nocheck
 import * as chat from "../chat.js";
 import { log } from '../common/utils.js';
+import { Ban } from '../gcapi/ban';
+export { Ban };
 
-export interface Ban {
-  expirationTime: Date;
-  reason: string;
-}
-
-export function parseBan(str): Ban {
-  const match = str.match(/^err_banned:([0-9]*):(.*)$/);
-  const ban = {
-    expirationTime: new Date(parseInt(match[1]) * 1000),
-    reason: match[2],
-  };
-  log(`ban: ${JSON.stringify(ban)}`);
-  return ban;
-}
 
 function updateReasonFromPreset() {
   let reason = $("#ban-dialog-preset :selected").attr("data-fullreason");
@@ -56,7 +44,7 @@ $("#ban-dialog-confirm").on("click", async function() {
   const dur = parseInt($("#ban-dialog-preset :selected").attr("data-duration"));
   const reason = $("#ban-dialog-reason").val();
   const snowflake = BigInt($("#ban-dialog").attr("data-snowflake"));
-  await chat.socketmgr.banMessageAuthor(snowflake, dur, reason);
+  await chat.gcclient.banMessageAuthor(snowflake, dur, reason);
 
   $("#ban-dialog").get(0).close();
 });

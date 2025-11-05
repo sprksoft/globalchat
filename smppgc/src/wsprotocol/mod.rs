@@ -19,7 +19,7 @@ use ts_import::import;
 mod packets;
 pub use packets::{AdminCmd, C2SPacket};
 
-import!({ pub ProtoError } from "../../client/chat/protocol/protoerr.ts");
+import!({ pub ProtoError } from "../../client/gcapi/protoerr.ts");
 
 #[derive(Debug, Error)]
 pub enum PacketsError {
@@ -43,6 +43,7 @@ impl ProtoError {
     pub fn into_close_frame(self) -> CloseFrame<'static> {
         let code = match self {
             Self::Ok => CloseCode::Normal,
+            Self::Protocol => CloseCode::Protocol,
             Self::Disclaimer
             | Self::AlreadyInChat
             | Self::NoSession

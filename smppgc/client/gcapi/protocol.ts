@@ -1,45 +1,28 @@
-import { Snowflake } from "../snowflake.ts";
-import { log } from "../../common/utils.js";
-import { Message } from "./../mesg.ts";
-import { User } from "../user.ts";
-import { ProtoError } from "./protoerr.ts";
-import { parseBan, type Ban } from "../ban.js";
-import { PacketC2SId, PacketId } from "./packets.ts";
-import { type LocalId, Role } from "../user.ts";
-import { Reader, Writer } from "./rw.ts";
-import { WFTag } from '../wf.ts';
+import { Snowflake } from "./gctime";
+import { Message } from "./mesg";
+import { User } from "./user";
+import { ProtoError } from "./protoerr";
+import { Ban } from "./ban";
+import { PacketC2SId, PacketId } from "./packets";
+import { type LocalId, Role } from "./user";
+import { Reader, Writer } from "./rw";
+import { WFTag } from './wf';
 export { ProtoError };
 
-export declare const VERSION_INT: number;
 export declare const WEBSOCKET_URL: string;
 export declare const ROLE: Role;
 
-function handle_version_check(protocol_ver: number) {
-  if (protocol_ver !== VERSION_INT) {
-    let last_reload_time = localStorage.getItem("last_client_outdated_reload");
-    let now = new Date().getTime();
-    if (last_reload_time == null || now - parseInt(last_reload_time) > 1000) {
-      localStorage.setItem("last_client_outdated_reload", now.toString());
-      console.log("NEW PROTOCOL VERSION. RELOADING PAGE TO UPDATE CLIENT");
-      location.reload();
-    } else {
-      console.log(
-        "protocol_ver: " + protocol_ver + " page_ver: " + VERSION_INT,
-      );
-      console.error("Infinite reload loop detected");
-      alert("Alles is kapot aaaaaaaaaaaaa.");
-    }
-  }
-}
 
-export class SocketMgr {
+export type ApiVersion = number;
+
+export class GCClient {
   on_message: ((sender_id: LocalId, message: Message) => void) | null = null;
   on_message_del: ((snowflake: Snowflake) => void) | null = null;
   on_leave: ((data: string | Ban, protoerr: ProtoError) => void) | null = null;
-  on_join: (() => void) | null = null;
+  on_join: ((apiVersion: ApiVersion) => void) | null = null;
 
   #ws: WebSocket | null = null;
-  #local_id: LocalId = -1;
+  #localId: LocalId = -1;
   #users: { [id: LocalId]: User } = {};
   #user_wants_leave: boolean = false;
   #modBadge: boolean = false;
@@ -75,19 +58,16 @@ export class SocketMgr {
       }
 
       case PacketId.SETUP:
-        this.on_join?.();
-        let version = reader.getUint16(0);
-        log("Protocol version: " + version + " My version: " + VERSION_INT);
-        handle_version_check(version);
+        const apiVersion = reader.getUint16(0) as ApiVersion;
 
-        this.#local_id = reader.getUint16();
-        this.#users[this.#local_id] = new User(
+        this.#localId = reader.getUint16();
+        this.#users[this.#localId] = new User(
           this.#username,
           this.#modBadge,
           ROLE,
         );
 
-        log("Setup packet " + this.#local_id);
+        this.on_join?.(apiVersion);
         break;
 
       case PacketId.MODJOIN:
@@ -95,7 +75,6 @@ export class SocketMgr {
         let id = reader.getUint16(0);
         let role = reader.getUint8(0);
         let username = reader.getString();
-        log("user join: " + username + " (" + id + ")" + " role: " + role);
         this.#users[id] = new User(
           username,
           packetId === PacketId.MODJOIN,
@@ -115,12 +94,12 @@ export class SocketMgr {
     }
   }
 
-  local_user(): User {
+  localUser(): User {
     // local user always exists
-    return this.#users[this.#local_id] as User;
+    return this.#users[this.#localId] as User;
   }
-  local_id(): LocalId {
-    return this.#local_id;
+  localId(): LocalId {
+    return this.#localId;
   }
 
   async join(
@@ -146,14 +125,12 @@ export class SocketMgr {
       query += "&mod_badge=true";
     }
     let fullurl = WEBSOCKET_URL + "?" + query.substring(1);
-    log("creating socket: " + fullurl);
     this.#ws = new WebSocket(fullurl);
     this.#ws.binaryType = "arraybuffer";
 
     this.#ws.onclose = async (e) => {
       this.#users = {};
       let protoerr = e.reason as ProtoError;
-      log("disconnect protoerr: " + protoerr);
 
       let data;
       if (
@@ -166,13 +143,17 @@ export class SocketMgr {
         protoerr = ProtoError.Retry;
         data = "Kon niet verbinden met de server.";
       } else if (protoerr.startsWith("err_banned:")) {
-        data = parseBan(e.reason);
+        data = Ban.parse(e.reason);
         protoerr = ProtoError.Banned;
+        if (data == null) {
+          console.error("Can't parse ban received from api");
+          protoerr = ProtoError.Protocol;
+          data = ProtoError.humanize(protoerr);
+        }
       } else {
         data = ProtoError.humanize(protoerr);
       }
 
-      log("disconnect reason: " + JSON.stringify(data));
       this.on_leave?.(data, protoerr);
     };
 
@@ -217,7 +198,7 @@ export class SocketMgr {
     return true;
   }
 
-  markWord(word: string, good: boolean): boolean {
+  wfMarkWord(word: string, good: boolean): boolean {
     if (!this.#ws || this.#ws.readyState !== WebSocket.OPEN) {
       return false;
     }
@@ -237,7 +218,7 @@ export class SocketMgr {
     this.#ws.send(writer.finish());
   }
 
-  send(message: string): boolean {
+  sendString(message: string): boolean {
     if (!this.#ws || this.#ws.readyState !== WebSocket.OPEN) {
       return false;
     }

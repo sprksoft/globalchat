@@ -15,6 +15,7 @@ export enum ProtoError {
   UsernameProf = "err_username_prof",
   Disclaimer = "err_disclaimer",
 
+  Protocol = "err_protocol",
   Retry = "retry",
 }
 
