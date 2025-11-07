@@ -37,6 +37,8 @@ pub fn is_emoji(char: char) -> bool {
         '\u{1F600}'..='\u{1F64F}' => true,
         // Symbols and Pictographs Extended-A
         '\u{1FA70}'..='\u{1FAFF}' => true,
+        // Miscellaneous Symbols
+        '\u{2600}'..='\u{26FF}' => true,
         // Miscellaneous Symbols and Pictographs
         '\u{1F300}'..='\u{1F5FF}' => true,
         // Supplemental Symbols and Pictographs
