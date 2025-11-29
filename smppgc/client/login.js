@@ -6,7 +6,7 @@ import "./common/buttons.css";
 import "./common/logo.css";
 import "./login/login.css";
 
-$(".oauth-btn").on("click", function () {
+$(".oauth-btn").on("click", function() {
   const provider = $(this).attr("data-oauth-provider");
 
   const url = "/oauth/start?provider=" + provider + "&pses_id=" + PENDING_ID;
@@ -14,12 +14,12 @@ $(".oauth-btn").on("click", function () {
   if (INTERNAL_LOGIN) {
     location = url;
   } else {
-    window.open(url, "_blank");
+    window.open(url, "_blank", "popup");
     $("#waiting-prompt").get(0).showModal();
   }
 });
 
-$("#waiting-prompt").on("close", function () {
+$("#waiting-prompt").on("close", function() {
   this.showModal();
 });
 
