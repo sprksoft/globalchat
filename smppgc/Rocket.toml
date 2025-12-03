@@ -69,3 +69,4 @@ redirect_uri="https://gc.smartschoolplusplus.com/oauth/return/google"
 
 [release.databases.sqlx]
 url="postgres://smpp:smpppasswd@db/smpp"
+max_connections=100
