@@ -276,6 +276,7 @@ gcclient.on_leave = (data: string | Ban, protoerr: ProtoError) => {
   $("#mesgs").empty();
   messages = [];
   ban.reset();
+  scrollLock = true;
   clearProfWarn();
 
   login_popup.showModal();
