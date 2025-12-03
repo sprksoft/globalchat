@@ -10,6 +10,7 @@ use crate::{
     db::{Db, DbResult},
     themes::Theme,
     users::{role::Role, AdminUser, SesId},
+    utils::CatchForward,
 };
 
 #[derive(Responder)]
@@ -24,18 +25,18 @@ enum PromoteResponse {
 async fn promote(
     key: &str,
     theme: Theme<'_>,
-    ses_id: Option<SesId>,
+    ses_id: CatchForward<SesId>,
     mut db: Connection<Db>,
     origin: &Origin<'_>,
 ) -> DbResult<PromoteResponse> {
     let status: String = match ses_id {
-        Some(ses_id) => {
+        CatchForward::Success(ses_id) => {
             let result = query!("SELECT claim_key($1,$2)", ses_id.inner(), key)
                 .fetch_one(&mut **db)
                 .await?;
             result.claim_key.unwrap_or("invaliderror".to_string())
         }
-        None => "notloggedin".to_string(),
+        CatchForward::Forward(_) => "notloggedin".to_string(),
     };
 
     Ok(if status == "ok" {

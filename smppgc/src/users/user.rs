@@ -26,10 +26,11 @@ impl User {
         &self.irl_name
     }
 }
+pub type UserGuardError = Option<rocket_db_pools::Error<sqlx::Error>>;
 
 #[async_trait]
 impl<'r> FromRequest<'r> for User {
-    type Error = Option<rocket_db_pools::Error<sqlx::Error>>;
+    type Error = UserGuardError;
     async fn from_request(req: &'r rocket::Request<'_>) -> request::Outcome<Self, Self::Error> {
         let mut con = try_outcome!(req.guard::<Connection<Db>>().await);
         let ses_id = match req.guard::<SesId>().await {

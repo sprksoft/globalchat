@@ -6,17 +6,18 @@ use crate::{
     csrf::CSRFProtect,
     db::{Db, DbResult},
     users::{role::Role, AdminUser, User},
+    utils::CatchForward,
 };
 use rocket::{fairing::AdHoc, get, post, routes, Responder};
 
 #[get("/role")]
-fn role(user: Option<User>) -> &'static str {
+fn role(user: CatchForward<User>) -> &'static str {
     match user.map(|u| u.role()) {
-        None => "not logged in",
-        Some(Role::Owner) => "owner",
-        Some(Role::Mod) => "mod",
-        Some(Role::Admin) => "admin",
-        Some(Role::User) => "user",
+        CatchForward::Forward(_) => "not logged in",
+        CatchForward::Success(Role::Owner) => "owner",
+        CatchForward::Success(Role::Mod) => "mod",
+        CatchForward::Success(Role::Admin) => "admin",
+        CatchForward::Success(Role::User) => "user",
     }
 }
 

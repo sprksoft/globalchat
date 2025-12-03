@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use lmetrics::metrics;
 use nanotime::snowflake::Snowflake;
-use rocket::{get, response, Responder, Shutdown, State};
+use rocket::{get, request::Outcome, response, Responder, Shutdown, State};
 
 use log::*;
 use rocket_ws::{Channel, WebSocket};
@@ -11,7 +11,7 @@ use tokio::sync::broadcast::error::RecvError;
 use crate::{
     chat::{message_limits::LimitType, Chat, ChatEvent, MessageChangeType, NewClientError},
     disclaimer::DisclaimerVer,
-    users::{Ban, BanError, NameClaimError, User, UserManager},
+    users::{Ban, BanError, NameClaimError, User, UserGuardError, UserManager},
     wf::Filter,
     wsprotocol::{AdminCmd, C2SPacket, ProtoError, WsClient},
 };
@@ -52,14 +52,19 @@ pub async fn chat_socket<'a>(
     filter: &'a State<Arc<Filter>>,
     chat: &'a State<Chat>,
     mut shutdown: Shutdown,
-    user: Option<User>,
+    user: Outcome<User, UserGuardError>,
     disclaimer_ver: DisclaimerVer,
 ) -> Result<ChatSocketResponder<'a>, response::Debug<sqlx::Error>> {
     if disclaimer_ver != DisclaimerVer::LATEST {
         return Ok(ChatSocketResponder::ws_close(ws, ProtoError::Disclaimer));
     }
-    let Some(user) = user else {
-        return Ok(ChatSocketResponder::ws_close(ws, ProtoError::NoSession));
+    let user = match user {
+        Outcome::Success(u) => u,
+        Outcome::Error(e) => {
+            error!("User guard failed in gcagent: {:?}", e);
+            return Ok(ChatSocketResponder::ws_close(ws, ProtoError::Unexpected));
+        }
+        Outcome::Forward(_) => return Ok(ChatSocketResponder::ws_close(ws, ProtoError::NoSession)),
     };
 
     let start_time = start_time.unwrap_or(Snowflake::ZERO);

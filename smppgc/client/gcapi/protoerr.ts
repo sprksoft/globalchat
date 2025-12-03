@@ -1,5 +1,6 @@
 export enum ProtoError {
   Ok = "",
+  Unexpected = "INT: unexpected",
   Kick = "err_kick",
   RateLimit = "err_ratelimit",
   IPRateLimit = "err_ipratelimit",

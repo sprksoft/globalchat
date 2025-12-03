@@ -5,7 +5,7 @@ use crate::{
     chat::MessageLimiter,
     themes::Theme,
     users::{role::Role, User, UserConfig},
-    utils::AllowSmFrame,
+    utils::{AllowSmFrame, CatchForward},
 };
 
 mod api;
@@ -17,8 +17,8 @@ mod templating;
 pub use login::*;
 
 #[get("/")]
-fn home(theme: Theme, user: Option<User>) -> AllowSmFrame<Template> {
-    let logged_in = user.is_some();
+fn home(theme: Theme, user: CatchForward<User>) -> AllowSmFrame<Template> {
+    let logged_in = user.is_success();
     let role = user.map(|u| u.role()).unwrap_or(Role::User);
     AllowSmFrame(Template::render(
         "pages/home",
