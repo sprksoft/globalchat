@@ -1,6 +1,7 @@
 use nanotime::snowflake::Snowflake;
 use rocket::time::Duration;
-use std::ops::Range;
+use std::{borrow::Cow, ops::Range};
+use thiserror::Error;
 use tokio_tungstenite::tungstenite;
 
 use crate::{
@@ -41,6 +42,25 @@ macro_rules! packet {
 }
 
 type Packet = tokio_tungstenite::tungstenite::Message;
+
+#[derive(Debug, Error)]
+#[error("Can't parse packet {packet_id}: {error}")]
+pub struct PacketDecodeError {
+    packet_id: u8,
+    error: Cow<'static, str>,
+}
+impl PacketDecodeError {
+    pub fn new(packet_id: u8, error: Cow<'static, str>) -> Self {
+        Self { packet_id, error }
+    }
+    pub fn static_str(packet_id: u8, error: &'static str) -> Self {
+        Self {
+            packet_id,
+            error: Cow::Borrowed(error),
+        }
+    }
+}
+type Error = PacketDecodeError;
 
 pub fn new_setup(id: u16) -> Packet {
     packet! {
@@ -146,23 +166,31 @@ pub enum AdminCmd {
     WFCommit,
 }
 
-fn parse_u64(bytes: &[u8]) -> Result<u64, ()> {
-    Ok(u64::from_be_bytes(bytes[..8].try_into().map_err(|_| ())?))
+fn parse_u64(bytes: &[u8]) -> Result<u64, Cow<'static, str>> {
+    Ok(u64::from_be_bytes(
+        bytes[..8]
+            .try_into()
+            .map_err(|_| Cow::Borrowed("Can't parse u64"))?,
+    ))
 }
-fn parse_u32(bytes: &[u8]) -> Result<u32, ()> {
-    Ok(u32::from_be_bytes(bytes[..4].try_into().map_err(|_| ())?))
+fn parse_u32(bytes: &[u8]) -> Result<u32, Cow<'static, str>> {
+    Ok(u32::from_be_bytes(
+        bytes[..4]
+            .try_into()
+            .map_err(|_| Cow::Borrowed("Can't parse u32"))?,
+    ))
 }
-fn parse_dur(bytes: &[u8]) -> Result<Duration, ()> {
+fn parse_dur(bytes: &[u8]) -> Result<Duration, Cow<'static, str>> {
     Ok(Duration::seconds(parse_u32(bytes)? as i64))
 }
-fn parse_snowflake(bytes: &[u8]) -> Result<Snowflake, ()> {
+fn parse_snowflake(bytes: &[u8]) -> Result<Snowflake, Cow<'static, str>> {
     Ok(Snowflake::from_u64(parse_u64(bytes)?))
 }
 fn parse_str(bytes: &[u8]) -> String {
     String::from_utf8_lossy(bytes).to_string()
 }
 
-pub fn parse_c2s(data: Vec<u8>) -> Result<C2SPacket, ()> {
+pub fn parse_c2s(data: Vec<u8>) -> Result<C2SPacket, PacketDecodeError> {
     let packet_id = data[0];
     let data = &data[1..];
     match packet_id {
@@ -170,7 +198,8 @@ pub fn parse_c2s(data: Vec<u8>) -> Result<C2SPacket, ()> {
             String::from_utf8_lossy(data).trim().to_string(),
         )),
         PACKET_C2S_DELMSG => {
-            let snowflake = parse_snowflake(&data[..8])?;
+            let snowflake =
+                parse_snowflake(&data[..8]).map_err(|e| PacketDecodeError::new(packet_id, e))?;
             Ok(C2SPacket::AdminCmd(AdminCmd::DelMsg(snowflake)))
         }
         PACKET_C2S_BANMSGAUTHOR => {
@@ -179,14 +208,18 @@ pub fn parse_c2s(data: Vec<u8>) -> Result<C2SPacket, ()> {
             //|    u32    | duration (seconds)
             //|           | reason
 
-            let snowflake = parse_snowflake(&data[..8])?;
+            let snowflake =
+                parse_snowflake(&data[..8]).map_err(|e| PacketDecodeError::new(packet_id, e))?;
             let data = &data[8..];
-            let duration = parse_dur(&data[..4])?;
+            let duration =
+                parse_dur(&data[..4]).map_err(|e| PacketDecodeError::new(packet_id, e))?;
             let data = &data[4..];
             let reason = parse_str(&data);
             if reason.len() >= 1000 {
-                error!("Invalid PACKET_C2S_BANMSGAUTHOR packet: Reason field too large");
-                return Err(());
+                return Err(PacketDecodeError::static_str(
+                    packet_id,
+                    "Invalid PACKET_C2S_BANMSGAUTHOR packet: Reason field too large",
+                ));
             }
             Ok(C2SPacket::AdminCmd(AdminCmd::BanMsgAuthor {
                 mesg: snowflake,
@@ -203,9 +236,11 @@ pub fn parse_c2s(data: Vec<u8>) -> Result<C2SPacket, ()> {
             Ok(C2SPacket::AdminCmd(AdminCmd::WFMark { word, good: false }))
         }
         PACKET_C2S_WF_COMMIT => Ok(C2SPacket::AdminCmd(AdminCmd::WFCommit)),
-        id => {
-            error!("Invalid c2s packet_id: {}", id);
-            Err(())
+        _ => {
+            return Err(PacketDecodeError::static_str(
+                packet_id,
+                "Invalid packet_id",
+            ));
         }
     }
 }

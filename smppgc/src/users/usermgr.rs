@@ -67,7 +67,7 @@ impl Ban {
         }
     }
 
-    pub fn into_close_frame(&self) -> rocket_ws::frame::CloseFrame {
+    pub fn into_close_frame(&self) -> rocket_ws::frame::CloseFrame<'static> {
         rocket_ws::frame::CloseFrame {
             code: rocket_ws::frame::CloseCode::Normal,
             reason: format!("err_banned:{}:{}", self.expiration_time, self.reason()).into(),

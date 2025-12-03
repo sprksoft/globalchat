@@ -118,7 +118,7 @@ pub async fn chat_socket<'a>(
                         continue;
                     }
                     mesg = wsclient.try_recv() => {
-                        let Some(packet) = mesg? else { continue; };
+                        let packet = mesg?;
                         on_packet(packet, &mut wsclient, &chat_client, &chat, &filter, &mesg_limiter, &mut user_manager).await?;
                     }
                     event = chat_client.recv() => {

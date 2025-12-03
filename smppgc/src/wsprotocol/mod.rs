@@ -125,11 +125,18 @@ impl WsClient {
         })
     }
 
+    async fn close(&mut self, frame: CloseFrame<'static>) -> Result<()> {
+        self.ws
+            .send(tokio_tungstenite::tungstenite::Message::Close(Some(frame)))
+            .await?;
+        Ok(())
+    }
+
     pub async fn disconnect(&mut self, reason: ProtoError) -> Result<()> {
-        self.ws.close(Some(reason.into_close_frame())).await
+        self.close(reason.into_close_frame()).await
     }
     pub async fn ban(&mut self, ban: Ban) -> Result<()> {
-        self.ws.close(Some(ban.into_close_frame())).await
+        self.close(ban.into_close_frame()).await
     }
     pub async fn system_message(&mut self, content: &str) -> Result<()> {
         self.ws.send(packets::new_system_message(content)).await
@@ -186,25 +193,32 @@ impl WsClient {
         self.ws.flush().await?;
         Ok(())
     }
-    pub async fn try_recv(&mut self) -> Result<Option<C2SPacket>> {
-        let Some(message) = futures_util::StreamExt::next(&mut self.ws).await else {
-            return Err(rocket_ws::result::Error::ConnectionClosed);
-        };
-        let message = message?;
-        if !self.ro && message.is_binary() {
-            match parse_c2s(message.into_data()) {
-                Ok(p) => return Ok(Some(p)),
-                Err(()) => {}
+    pub async fn try_recv(&mut self) -> Result<C2SPacket> {
+        loop {
+            let Some(message) = futures_util::StreamExt::next(&mut self.ws).await else {
+                return Err(rocket_ws::result::Error::ConnectionClosed);
+            };
+            let message = message?;
+            if self.ro {
+                continue;
+            }
+
+            if message.is_binary() {
+                match parse_c2s(message.into_data()) {
+                    Ok(p) => return Ok(p),
+                    Err(e) => {
+                        error!(
+                            "Closing connection because invalid data: Can't parse c2s packet: {}",
+                            e
+                        );
+                        self.close(CloseFrame {
+                            code: CloseCode::Invalid,
+                            reason: Cow::Borrowed("INT: invalid packet"),
+                        })
+                        .await?;
+                    }
+                }
             }
         }
-
-        error!("Closing connection because: invalid packet");
-        self.ws
-            .close(Some(CloseFrame {
-                code: CloseCode::Invalid,
-                reason: Cow::Borrowed("INT: invalid packet"),
-            }))
-            .await?;
-        Ok(None)
     }
 }
