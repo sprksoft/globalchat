@@ -3,11 +3,7 @@ html {
   --color-bad-bg: color-mix(in oklch, var(--color-bad) 30%, transparent);
   --color-good: var(--color-ok);
   --color-good-bg: color-mix(in oklch, var(--color-ok) 30%, transparent);
-  --color-unknown: color-mix(
-    in oklch,
-    var(--color-text) 60%,
-    var(--color-error)
-  );
+  --color-unknown: var(--color-warning);
 }
 
 .tag-b {

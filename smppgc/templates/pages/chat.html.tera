@@ -57,7 +57,9 @@
 
 <template id="message-template">
   <div class="message">
-    <svg class="driehoek_bubble" viewBox="0 0 8 13" height="13" width="8" preserveAspectRatio="xMidYMid meet" version="1.1" x="0px" y="0px" enable-background="new 0 0 8 13"><path fill="currentColor" d="M1.5,2.5L8,11.2V0L2.8,0C1,0,0.5,1.2,1.5,2.6z"></path></svg>
+    <svg class="msg_arrow" viewbox="-0.5 -0.5 5 5">
+      <path d="M 0,0 5.2916666,5.2916666 V 0 Z"></path>
+    </svg>
     <div class="user_content">
       <div class="message_top">
         <span class="user"></span>

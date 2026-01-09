@@ -1,5 +1,7 @@
 html {
   --logo-animation-delay: 0.2s;
+  --msg-arrow-size: 15px;
+  --msg-padding: 6px;
 }
 
 main {
@@ -119,9 +121,9 @@ a.goto-chat-link {
 }
 .message {
   animation: message_slide 0.3s ease-in-out;
-  padding: 10px;
-  padding-top: 0px;
-  background-color: var(--color-base03);
+  padding: var(--msg-padding);
+  background-color: var(--color-base01);
+  border: solid 2px var(--color-base02);
   border-radius: 10px;
   border-top-left-radius: 0px;
   margin: 10px;
@@ -144,11 +146,16 @@ a.goto-chat-link {
   opacity: 0.6;
   color: var(--color-text);
 }
-.driehoek_bubble {
+
+.msg_arrow {
   position: relative;
-  left: -18px;
-  top: 0px;
-  color: var(--color-base03);
+  left: calc(0px - var(--msg-padding) - var(--msg-arrow-size));
+  top: calc(-2.5px - var(--msg-padding));
+  fill: var(--color-base01);
+  stroke: var(--color-base02);
+  stroke-width: 0.6;
+  stroke-linejoin: round;
+  width: var(--msg-arrow-size);
 }
 .user {
   font-weight: bold;
@@ -162,16 +169,22 @@ a.goto-chat-link {
   text-transform: uppercase;
   opacity: 0.6;
   font-weight: bold;
+
+  background: var(--color-base02);
+  border: solid var(--color-base03) 2px;
+  border-radius: 10000px;
+  padding: 0px 3px;
 }
 .role:not(:empty) {
-  padding-left: 0.6rem;
+  margin-left: 0.6rem;
 }
 .mod-badge {
   opacity: 1;
   color: var(--color-accent);
+  border-color: var(--color-accent);
 }
 .user_content {
-  margin-top: -5px; /* To offset the space taken up by the arrow */
+  margin-top: calc(0px - var(--msg-arrow-size));
   max-width: 100%;
   word-wrap: break-word;
   display: flex;
