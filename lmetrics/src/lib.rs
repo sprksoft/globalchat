@@ -13,7 +13,7 @@ use prometheus::{
 #[cfg(feature = "rocket")]
 pub use {httpmetrics::*, rocket::*};
 
-#[macro_export()]
+#[macro_export(local_inner_macros)]
 macro_rules! register {
     ($($metric:path),+) => {
         {
@@ -26,7 +26,7 @@ macro_rules! register {
     };
 }
 
-#[macro_export()]
+#[macro_export(local_inner_macros)]
 macro_rules! metrics_gen_extra_impl_items {
     (counter [$($label:ident),*]) => {};
     (gauge [$($label:ident),*]) => {
@@ -36,7 +36,7 @@ macro_rules! metrics_gen_extra_impl_items {
     };
 }
 
-#[macro_export()]
+#[macro_export(local_inner_macros)]
 macro_rules! metrics {
 
 
@@ -45,7 +45,7 @@ macro_rules! metrics {
         #[allow(unused)]
         $vis mod $name {
             pub static METRIC: $crate::once_cell::sync::Lazy<$crate::Metric> = $crate::once_cell::sync::Lazy::new(|| {
-                $crate::Metric::$type(stringify!($name), $help, &[$($(stringify!($label)),*)?])
+                $crate::Metric::$type(std::stringify!($name), $help, &[$($(std::stringify!($label)),*)?])
             });
             pub fn inc($($($label: &str,)*)?){
                 METRIC.inc(1, &[$($($label,)*)?]);

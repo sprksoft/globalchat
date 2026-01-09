@@ -14,13 +14,24 @@
   <main>
     <h1>{{ title }}</h1>
     <p>{{ error }}</p>
+
+    {% if internal == "404" %}
+    <p>
+      Aanschouw!! <em>Het ei</em>
+      <a href="https://www.youtube.com/watch?v=dQw4w9WgXcQ"><img style="margin:2rem;width:100px;display:block;" src="/static/stickies/404.webp"></a>
+      Wanneer <em>het ei</em> voldoende bewondert is kunt u proberen de pagina te refreshen of
+      <a href="/v1">Terug te keren naar de chat</a>
+    </p>
+    {% else %}
     <code>
       {{ internal }}
     </code>
     <p>
-      Probeer eens je pagina te refreshen of
-      <a href="/v1">Terug naar chat</a>
+      Probeer eens de pagina te refreshen of
+      <a href="/v1">Keer terug naar chat</a>
     </p>
+    {% endif %}
+
   </main>
 </div>
 

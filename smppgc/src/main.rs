@@ -1,9 +1,15 @@
 #![allow(dead_code)]
+use std::convert::Infallible;
+
 use csrf::CSRFProtect;
+use rocket::async_trait;
 use rocket::catch;
 use rocket::catchers;
 use rocket::get;
+use rocket::http::Status;
 use rocket::launch;
+use rocket::request::FromRequest;
+use rocket::request::Outcome;
 use rocket::routes;
 use rocket::serde::Deserialize;
 use rocket_dyn_templates::context;
@@ -50,18 +56,36 @@ fn forbidden() -> AllowSmFrame<Template> {
     let theme = themes::DEFAULT_THEME.clone();
     AllowSmFrame(Template::render(
         "pages/error_page",
-        context! { title: "403 Forbidden", error: "Je hebt geen toegang of je pagina is oud.", theme_css: theme.css(), internal:"403" },
+        context! { title: "403 Forbidden", error: "De pagina is te oud of je hebt momenteel geen toegang", theme_css: theme.css(), internal:"403" },
     ))
 }
 
-#[get("/err_test")]
-fn err_test() -> rocket::response::Debug<()> {
-    rocket::response::Debug(())
+#[catch(503)]
+fn service_unavailible() -> AllowSmFrame<Template> {
+    let theme = themes::DEFAULT_THEME.clone();
+    AllowSmFrame(Template::render(
+        "pages/error_page",
+        context! { title: "503 Service Unavailable", error:"De chat is tijdelijk overbelast waarschijnlijk door een bug. Sorry voor het ongemak", theme_css: theme.css(), internal:"503"},
+    ))
+}
+
+#[catch(404)]
+fn not_found() -> AllowSmFrame<Template> {
+    let theme = themes::DEFAULT_THEME.clone();
+    AllowSmFrame(Template::render(
+        "pages/error_page",
+        context! { title: "404 Not Found", error:"What?!", theme_css: theme.css(), internal:"404"},
+    ))
+}
+
+#[get("/err_test/<code>")]
+fn err_test(code: u16) -> Status {
+    Status::new(code)
 }
 
 #[get("/csrf_protect_test")]
 fn csrf_test(_csrf: CSRFProtect) -> &'static str {
-    "200 ok"
+    "200 ok (If you got here without a direct link CSRF protection has failed)"
 }
 
 #[get("/version")]
@@ -79,7 +103,15 @@ fn server_version(conf: &rocket::Config) -> String {
 #[launch]
 fn rocket() -> _ {
     rocket::build()
-        .register("/", catchers![internal_server_error, forbidden])
+        .register(
+            "/",
+            catchers![
+                internal_server_error,
+                forbidden,
+                service_unavailible,
+                not_found
+            ],
+        )
         .mount("/", routes![server_version, err_test, csrf_test])
         .attach(metrics::stage())
         .attach(db::stage())

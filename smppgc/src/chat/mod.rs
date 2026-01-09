@@ -178,6 +178,19 @@ impl Chat {
         }
     }
 
+    fn gen_client_id(&self, user_lock: &MutexGuard<'_, Users>) -> u16 {
+        loop {
+            let generated_id = self.client_ids.new_id();
+            if user_lock
+                .iter()
+                .find(|(id, _)| **id == generated_id)
+                .is_none()
+            {
+                return generated_id;
+            }
+        }
+    }
+
     pub async fn new_client(
         &self,
         user: &User,
@@ -194,7 +207,7 @@ impl Chat {
         }
 
         let user_id = user.id();
-        let local_id = self.client_ids.new_id();
+        let local_id = self.gen_client_id(&user_lock);
 
         if user_lock
             .iter()
