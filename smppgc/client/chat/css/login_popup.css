@@ -60,25 +60,25 @@
   animation: popin 1.3s ease;
 }
 #login[open] > .logout {
-  animation: logout_popin 1.3s ease;
+  animation: logout_popin 1s ease;
 }
 
 @keyframes logout_popin {
   0% {
     opacity: 0;
-    transform: translateX(-30vw) scaleX(3);
+    transform: translateX(-100%) scaleX(3);
   }
 
   30% {
     opacity: 0;
-    transform: translateX(-30vw) scaleX(3);
+    transform: translateX(-100%) scaleX(3);
   }
   65% {
     opacity: 1;
-    transform: translateX(2vw) scaleX(0.8);
+    transform: translateX(20%) scaleX(0.9);
   }
   100% {
-    transform: scaleX(1);
+    transform: translateX(0%) scaleX(1);
   }
 }
 

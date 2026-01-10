@@ -1,6 +1,6 @@
 // @ts-nocheck
 const STICKERS = ["404", "spinny"];
-const IMAGE_STICKERS = ["nightmarebirb", "smpp", "smppoud", "smpplite", "gc", "fire", "arch", "tux", "ferris", "gopher", "keith", "slonik", "mobydock",]; // avail stickers (used to prevent unneeded 404s to the server)
+const IMAGE_STICKERS = ["nightmarebirb", "smpp", "smppoud", "smpplite", "gc", "fire", "arch", "tux", "ferris", "gopher", "keith", "slonik", "mobydock", "whopper"]; // avail stickers (used to prevent unneeded 404s to the server)
 
 
 export function mksender(sender, parent_el) {
