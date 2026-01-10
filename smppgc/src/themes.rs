@@ -236,6 +236,7 @@ impl<'r> FromRequest<'r> for Theme<'r> {
                 serde_json::to_string(&theme).expect("Failed to convert theme to json");
             req.cookies().add(
                 Cookie::build(("smpptheme", theme_string))
+                    .path("/")
                     .same_site(SameSite::None)
                     .max_age(Duration::days(365)),
             );

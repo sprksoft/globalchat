@@ -1,0 +1,30 @@
+.lock svg,
+.unlock svg {
+  width: 1em;
+  color: var(--color-text);
+  margin: 0em 0.2em;
+}
+
+.lock,
+.unlock {
+  background: none;
+  margin-left: auto;
+}
+
+.lock svg {
+  color: var(--color-accent);
+}
+
+.stat .lock {
+  display: none;
+}
+.stat .unlock {
+  display: inline;
+}
+
+.stat.locked .lock {
+  display: inline;
+}
+.stat.locked .unlock {
+  display: none;
+}

@@ -13,6 +13,7 @@ mod login;
 mod promote;
 mod stats;
 mod templating;
+mod wf;
 
 pub use login::*;
 
@@ -91,6 +92,7 @@ pub fn stage() -> AdHoc {
         .attach(promote::stage())
         .attach(api::stage())
         .attach(stats::stage())
+        .attach(wf::stage())
         .attach(Template::custom(move |engines| {
             templating::setup(&mut engines.tera, profile_name.clone());
         }))

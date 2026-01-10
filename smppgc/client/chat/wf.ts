@@ -1,6 +1,7 @@
 import { gcclient } from "../chat";
 import { createMessage, type Message } from "./message";
 import { WFTag } from '../gcapi/wf.ts';
+import { WFEditor } from "../common/wf.ts";
 export { WFTag };
 
 
@@ -18,27 +19,10 @@ function scheduleCommit() {
   }, 1000);
 }
 
-export function markGood(word: string | HTMLElement) {
-  if (word instanceof HTMLElement) {
-    word.classList.remove("tag-b", "tag-u");
-    word.classList.add("tag-g");
-    markGood(word.innerText);
-  } else {
-    gcclient.wfMarkWord(word, true);
-    scheduleCommit();
-  }
-}
-
-export function markBad(word: string | HTMLElement) {
-  if (word instanceof HTMLElement) {
-    word.classList.remove("tag-g", "tag-u");
-    word.classList.add("tag-b");
-    markBad(word.innerText);
-  } else {
-    gcclient.wfMarkWord(word, false);
-    scheduleCommit();
-  }
-}
+export let wfEditor = new WFEditor((word, good) => {
+  gcclient.wfMarkWord(word, good);
+  scheduleCommit();
+})
 
 let countdown = 0;
 let interval: number;

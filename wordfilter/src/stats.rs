@@ -29,7 +29,7 @@ pub struct WordFilterStats {
     words: DashMap<Box<str>, WordStatEntry>,
 }
 impl WordFilterStats {
-    const MIN_AGE_MINUTES: u32 = 10080; // 7 days
+    // const MIN_AGE_MINUTES: u32 = 10080; // 7 days
 
     pub fn empty() -> Self {
         Self {
@@ -37,13 +37,13 @@ impl WordFilterStats {
         }
     }
 
-    // Removes all old entries with a count of 1
-    pub fn purge_stale(&mut self) {
-        let now = NanoTime::now();
-        self.words.retain(|_, e| {
-            e.count > 1 || e.last_modified.duration_since(now) < Self::MIN_AGE_MINUTES
-        });
-    }
+    // // Removes all old entries with a count of 1
+    // pub fn purge_stale(&mut self) {
+    //     let now = NanoTime::now();
+    //     self.words.retain(|_, e| {
+    //         e.count > 1 || e.last_modified.duration_since(now) < Self::MIN_AGE_MINUTES
+    //     });
+    // }
 
     pub fn calc_top(&self, min_count: usize, filter: &[Tag]) -> Vec<Stat> {
         let mut top = Vec::new();

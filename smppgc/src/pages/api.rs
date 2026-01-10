@@ -1,14 +1,18 @@
+use std::sync::Arc;
+
 use rocket_db_pools::Connection;
 use sqlx::query;
 use uuid::Uuid;
 
 use crate::{
+    chat::{self, Chat},
     csrf::CSRFProtect,
     db::{Db, DbResult},
-    users::{role::Role, AdminUser, User},
+    users::{role::Role, AdminUser, ModUser, User},
     utils::CatchForward,
+    wf::Filter,
 };
-use rocket::{fairing::AdHoc, get, post, routes, Responder};
+use rocket::{fairing::AdHoc, get, post, routes, Responder, State};
 
 #[get("/role")]
 fn role(user: CatchForward<User>) -> &'static str {
@@ -80,8 +84,34 @@ async fn demote(
     }
 }
 
+#[post("/wf/<word>/markgood")]
+async fn wf_markgood(
+    _mod: ModUser,
+    word: &str,
+    chat: &State<Chat>,
+    filter: &State<Arc<Filter>>,
+    _csrf: CSRFProtect,
+) {
+    filter.mark_word(word, true).await;
+    filter.save_rerun(&chat).await;
+}
+#[post("/wf/<word>/markbad")]
+async fn wf_markbad(
+    _mod: ModUser,
+    word: &str,
+    chat: &State<Chat>,
+    filter: &State<Arc<Filter>>,
+    _csrf: CSRFProtect,
+) {
+    filter.mark_word(word, false).await;
+    filter.save_rerun(&chat).await;
+}
+
 pub fn stage() -> AdHoc {
     AdHoc::on_ignite("api", |r| async {
-        r.mount("/api", routes![new_key, role, demote])
+        r.mount(
+            "/api",
+            routes![new_key, role, demote, wf_markbad, wf_markgood],
+        )
     })
 }

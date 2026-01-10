@@ -2,7 +2,7 @@ import { Message } from "../gcapi/mesg";
 import { Snowflake } from "../gcapi/gctime";
 import { Role } from "../gcapi/user";
 import { mksticker } from "./mkels";
-import { markBad, markGood, WFTag } from "./wf";
+import { wfEditor, WFTag } from "./wf";
 
 export { Message };
 
@@ -62,14 +62,7 @@ export function createMessage(
     if (wfEdit && word.tag !== WFTag.Whitespace) {
       span.addClass("editable-word");
       span.on("click", function() {
-        const w = $(this);
-        if (w.hasClass("tag-u")) {
-          markGood(this);
-        } else if (w.hasClass("tag-g")) {
-          markBad(this);
-        } else if (w.hasClass("tag-b")) {
-          markGood(this);
-        }
+        wfEditor.toggle(this);
       });
     }
 

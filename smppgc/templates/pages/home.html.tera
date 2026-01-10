@@ -35,6 +35,7 @@ Home - Global Chat
   {% if is_admin %}
   <a class="button" href="/mods">Moderators</a>
   <a class="button" href="/stats/words">Word stats</a>
+  <a class="button" href="/wf">Word Filter</a>
   {% endif %}
 </main>
 

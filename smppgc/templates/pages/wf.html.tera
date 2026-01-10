@@ -1,0 +1,50 @@
+{% extends "base" %}
+<!-- vim: set ft=html: -->
+
+{% block title %}
+Word stats - Global Chat
+{% endblock title %}
+
+{% block head %}
+
+<style type="text/css">
+{{theme_css}}
+</style>
+
+<link rel="stylesheet" href="{{ url(path="/static/wf_page.css") }}" />
+{% endblock head %}
+
+{% block content %}
+
+<div class="view">
+<header class="slim-header">
+  <a href="/" class="button">
+    {% include "svg/arrow_l" %}
+  </a>
+  <h1 class="header-title">Word filter</h1>
+</header>
+<main>
+    <form method="POST">
+      <input name="message" type="text"></input> <button type="submit">Check</button>
+    </form>
+    <ul class="stats-list">
+      {% if words %}
+      {% for word in words %}
+        {% if word[1] != "w" %}
+        <li class="stat">
+          <span class="editable-word tag-{{word[1]}}">{{ word[0] }}</span>
+          <button class="lock">{% include "svg/locked" %}</button>
+          <button class="unlock">{% include "svg/unlocked" %}</button>
+        </li>
+        {% endif %}
+      {% endfor %}
+      {% endif %}
+    </ul>
+</main>
+</div>
+
+{% endblock content %}
+
+{% block scripts %}
+<script defer type="text/javascript" src="{{ url(path="/static/wf_page.js") }}"></script>
+{% endblock scripts %}

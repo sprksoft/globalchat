@@ -21,12 +21,12 @@ Word stats - Global Chat
   <a href="/" class="button">
     {% include "svg/arrow_l" %}
   </a>
-  <h1 class="header-title">Moderators</h1>
+  <h1 class="header-title">Word Stats</h1>
 </header>
 <main>
-  <ol id="stats-list">
+  <ol class="stats-list">
 {% for stat in stats %}
-      <li>
+      <li class="stat">
         <span class="word tag-{{ stat.tag }}">{{ stat.word }}</span>
         <span class="count">{{ stat.count }}</span>
         <span class="last-modified">
