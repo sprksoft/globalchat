@@ -1,0 +1,71 @@
+.editable-word {
+  transition:
+    border-color 0.2s,
+    background-color 0.2s;
+  background-color: transparent;
+  border: solid transparent 2px;
+  border-radius: 0.4em;
+  cursor: pointer;
+
+  padding: 0px 0px;
+  margin: 0px -2px; /* border size + padding */
+}
+.editable-word.tag-g:hover {
+  border-color: var(--color-bad);
+  background-color: var(--color-bad-bg);
+}
+.editable-word.tag-b:hover,
+.editable-word.tag-u:hover {
+  border-color: var(--color-good);
+  background-color: var(--color-good-bg);
+}
+
+.editable-word.locked {
+  cursor: default;
+}
+
+.wf-lockmode .editable-word:hover,
+.editable-word.locked:hover {
+  border-color: transparent;
+  background-color: transparent;
+}
+
+.editable-word::after {
+  pointer-events: none;
+  margin: -0.6em;
+  display: inline-block;
+  position: relative;
+  left: 0.7em;
+  top: -0.4em;
+  content: "";
+  width: 1.2em;
+  height: 1.2em;
+  background: var(--color-text);
+
+  transition: opacity 0.2s;
+  opacity: 0;
+
+  clip-path: path(
+    "M 5.9365 0 C 2.6716 0 0 2.6716 0 5.9365 v 6.7549 a 1.1697 1.1697 90 0 0 0.0001 0.0192 v 3.0639 c 0 0.6641 0.5346 1.1986 1.1986 1.1986 H 10.6745 c 0.6641 0 1.1988 -0.5346 1.1988 -1.1986 V 9.7051 c 0 -0.009 -0.0001 -0.0179 -0.0003 -0.0269 V 5.9452 C 11.8971 2.6702 9.2013 0 5.9365 0 Z m 0 2.3393 c 2.0006 0 3.6123 1.5987 3.5977 3.5889 a 1.1697 1.1697 90 0 0 0 0.0083 V 8.5065 H 2.3393 V 5.9365 c 0 -2.0006 1.5966 -3.5972 3.5972 -3.5972 z"
+  );
+}
+
+.wf-lockmode .editable-word::after {
+  clip-path: path(
+    "M 5.9366 0 C 2.6718 0 0 2.6718 0 5.9366 v 6.7549 a 1.1697 1.1697 90 0 0 0.0001 0.012 v 3.679 c 0 0.6641 0.5346 1.1986 1.1986 1.1986 h 9.4758 c 0.6641 0 1.1988 -0.5346 1.1988 -1.1986 V 10.3131 c 0 -0.6641 -0.5347 -1.1986 -1.1988 -1.1986 H 2.3394 V 5.9366 c 0 -2.0006 1.5966 -3.5977 3.5972 -3.5977 c 2.0006 0 3.6123 1.5987 3.5977 3.5889 a 1.1696 1.1696 90 0 0 1.1605 1.1782 a 1.1696 1.1696 90 0 0 1.1782 -1.1612 C 11.8971 2.6698 9.2014 0 5.9366 0 Z"
+  );
+}
+
+.wf-lockmode .editable-word:hover::after,
+.editable-word.locked:hover::after {
+  opacity: 1;
+}
+
+.wf-lockmode .editable-word {
+  cursor: pointer;
+}
+
+#wf-lockedit {
+  display: flex;
+  flex-direction: column;
+}

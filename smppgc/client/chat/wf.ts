@@ -1,7 +1,7 @@
 import { gcclient } from "../chat";
 import { createMessage, type Message } from "./message";
 import { WFTag } from '../gcapi/wf.ts';
-import { WFEditor } from "../common/wf.ts";
+import { WFEditor } from "../common/wfedit.ts";
 export { WFTag };
 
 

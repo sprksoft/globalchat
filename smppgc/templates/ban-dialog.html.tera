@@ -1,5 +1,5 @@
 <dialog id="ban-dialog">
-  <h1>Verban <code id="ban-dialog-user"></code></h1>
+  <h1 class="center-title">Verban <code id="ban-dialog-user"></code></h1>
   <select autocomplete="off" id="ban-dialog-preset">
     <option value="0" selected disabled hidden>Kies een reden</option>
     <option value="1" data-duration="600" data-fullreason="Je hebt een waarschuwing ontvangen wegens ongepast gedrag.">Waarschuwing</option> {# 10 minuten #}
@@ -9,7 +9,7 @@
     <option value="5" data-duration="15768000" data-fullreason="Ernstige overtredingen zoals doxing of pesten van andere gebruikers.">Ernstig: Anderen: doxen, pesten...</option> {# 0.5 jaar #}
   </select>
   <textarea id="ban-dialog-reason"></textarea>
-  <div id="ban-dialog-buttons">
+  <div>
     <button id="ban-dialog-cancel" class="pillbtn">Annuleren</button>
     <button id="ban-dialog-confirm" class="pillbtn dangerbtn">Verban</button>
   </div>

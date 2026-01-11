@@ -137,6 +137,7 @@ a.goto-chat-link {
 .message_top {
   display: flex;
   flex-direction: row;
+  margin-bottom: 0.4em;
 }
 .timestamp {
   margin-left: auto;
@@ -169,14 +170,13 @@ a.goto-chat-link {
   text-transform: uppercase;
   opacity: 0.6;
   font-weight: bold;
-
+}
+.role:not(:empty) {
+  margin-left: 0.6rem;
   background: var(--color-base02);
   border: solid var(--color-base03) 2px;
   border-radius: 10000px;
   padding: 0px 3px;
-}
-.role:not(:empty) {
-  margin-left: 0.6rem;
 }
 .mod-badge {
   opacity: 1;

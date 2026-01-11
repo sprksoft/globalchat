@@ -16,6 +16,8 @@ Word stats - Global Chat
 
 {% block content %}
 
+{% include "wfedit" %}
+
 <div class="view">
 <header class="slim-header">
   <a href="/" class="button">
@@ -32,9 +34,7 @@ Word stats - Global Chat
       {% for word in words %}
         {% if word[1] != "w" %}
         <li class="stat">
-          <span class="editable-word tag-{{word[1]}}">{{ word[0] }}</span>
-          <button class="lock">{% include "svg/locked" %}</button>
-          <button class="unlock">{% include "svg/unlocked" %}</button>
+          <span class="locked editable-word tag-{{word[1]}}">{{ word[0] }}</span>
         </li>
         {% endif %}
       {% endfor %}

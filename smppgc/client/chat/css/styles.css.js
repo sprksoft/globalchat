@@ -6,4 +6,3 @@ import "./login_popup.css";
 import "./stickers.css";
 import "./ban.css";
 import "./wf.css";
-import "../../common/wf.css";

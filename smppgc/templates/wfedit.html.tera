@@ -1,0 +1,10 @@
+<dialog id="wf-lockedit">
+  <h1 class="center-title">Lock '<span id="wf-lockedit-word"></span>'</h1>
+  <p>Bewijs aan de hand van voorbeelden waarom dit een goed/slecht woord is.</p>
+  <textarea id="wf-lockedit-reason"></textarea>
+  <div style="display:flex;flex-direction:row;">
+    <button id="wf-lockedit-dialog-cancel" class="pillbtn" style="margin-right:auto;">Annuleren</button>
+    <button id="wf-lockedit-dialog-unlock" class="pillbtn">Unlock</button>
+    <button id="wf-lockedit-dialog-lock" class="pillbtn">Lock</button>
+  </div>
+</dialog>
