@@ -4,7 +4,7 @@ use std::{
     sync::OnceLock,
 };
 
-use crate::{ansii::*, is_void, normalize_char, CharType, Tag, TokenTag};
+use crate::{ansii::*, is_void, normalize_char, CharType, FilterMeta, Tag, TokenTag};
 
 use crate::WordFilter;
 
@@ -294,7 +294,7 @@ impl TokenizedString {
     }
 
     /// Returns true if a tag is changed
-    pub fn recheck(&mut self, filter: &WordFilter) -> bool {
+    pub fn recheck<M: FilterMeta>(&mut self, filter: &WordFilter<M>) -> bool {
         let tokens = &mut self.1;
         let mut changed = false;
 

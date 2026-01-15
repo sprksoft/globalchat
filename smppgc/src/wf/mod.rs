@@ -1,11 +1,11 @@
 use log::*;
-use rocket::fairing::AdHoc;
+use rocket::{fairing::AdHoc, form::validate::Len};
 use serde::Deserialize;
 use std::{path::PathBuf, sync::Arc, time::Duration};
 use tokio::sync::{RwLock, RwLockReadGuard};
 use wordfilter::{
     stats::{Stat, WordFilterStats},
-    Tag, TokenizedString, TrainResult, WordFilter,
+    FilterMeta, Tag, TokenizedString, TrainResult, WordFilter,
 };
 
 use crate::chat::Chat;
@@ -14,6 +14,72 @@ use crate::chat::Chat;
 struct WFConfig {
     wordfilter: PathBuf,
     wordfilter_stats: PathBuf,
+}
+
+macro_rules! escaping {
+    ($($esc:literal:$char:literal),*) => {
+        fn escape(str: &str, buffer: &mut String) {
+            for char in str.chars() {
+                match char {
+                    $(
+                        $char=>{buffer.push('\\'); buffer.push($esc)}
+                    ),*
+                    _=> { buffer.push(char)},
+                }
+            }
+        }
+
+        fn unescape(str: &str) -> String {
+            let mut string = String::with_capacity(str.len());
+            let mut esc = false;
+            for char in str.chars() {
+                if char == '\\' {
+                    esc = true;
+                    continue;
+                }
+                if esc {
+                    match char {
+                        $(
+                            $esc=>{ string.push($char); }
+                        ),*
+                        _=>{},
+                    }
+                } else {
+                    string.push(char);
+                }
+            }
+            string
+        }
+    };
+}
+
+escaping!(
+    '\\':'\\',
+    'n':'\n'
+);
+
+#[derive(Clone)]
+struct Meta {
+    locked: bool,
+    lock_reason: Arc<str>,
+}
+impl FilterMeta for Meta {
+    fn read(str: &str) -> Self {
+        let locked = str.starts_with('L');
+        let str = unescape(&str[1..]).into();
+        Self {
+            locked,
+            lock_reason: str,
+        }
+    }
+    fn write(&self, string: &mut String) {
+        if self.locked {
+            string.push('L');
+        } else {
+            string.push('l');
+        }
+        escape(&self.lock_reason, string);
+    }
 }
 
 //Interior mutable part of the filter

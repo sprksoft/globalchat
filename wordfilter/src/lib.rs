@@ -1,11 +1,5 @@
 use std::collections::HashMap;
 
-#[cfg(feature = "bincode")]
-use bincode::{
-    error::{DecodeError, EncodeError},
-    Decode, Encode,
-};
-
 //mod stemming;
 mod charprocessing;
 mod tag;
@@ -16,22 +10,32 @@ pub use wordprocessing::*;
 mod ansii;
 pub mod stats;
 
-#[cfg_attr(feature = "bincode", derive(Encode, Decode))]
+pub trait FilterMeta: Clone {
+    fn read(str: &str) -> Self;
+    fn write(&self, string: &mut String);
+}
+impl FilterMeta for () {
+    fn write(&self, _: &mut String) {}
+    fn read(_: &str) -> Self {
+        ()
+    }
+}
+
 #[derive(Clone, Debug)]
-struct WordEntry {
+struct WordEntry<M> {
     good: bool,
     forward_ctx: Vec<Box<str>>,
+    meta: M,
 }
-impl WordEntry {
-    pub fn merge(&mut self, other: WordEntry) {
+impl<M> WordEntry<M> {
+    pub fn merge(&mut self, other: WordEntry<M>) {
         self.good = self.good && other.good
     }
 }
 
-#[cfg_attr(feature = "bincode", derive(Encode, Decode))]
 #[derive(Debug)]
-pub struct WordFilter {
-    hashmap: HashMap<Box<str>, WordEntry>,
+pub struct WordFilter<M = ()> {
+    hashmap: HashMap<Box<str>, WordEntry<M>>,
 }
 
 pub enum TrainResult {
@@ -44,7 +48,7 @@ fn normalize_word(word: &str) -> NormalizedWord {
     NormalizedWord::normalize(word)
 }
 
-impl WordFilter {
+impl<M: FilterMeta> WordFilter<M> {
     pub fn empty() -> Self {
         Self {
             hashmap: HashMap::new(),
@@ -53,6 +57,7 @@ impl WordFilter {
     pub fn from_string(str: &str) -> Self {
         let mut hashmap = HashMap::new();
         for line in str.split('\n') {
+            let (line, meta) = line.split_once('\0').unwrap_or((line, ""));
             let mut split = line.split(" ");
             let Some(word) = split.next() else {
                 continue;
@@ -65,13 +70,14 @@ impl WordFilter {
             for word in split {
                 context.push(word.into());
             }
-
+            let meta = M::read(meta);
             if good_bad == "good" || good_bad == "g" {
                 hashmap.insert(
                     word.into(),
                     WordEntry {
                         good: true,
                         forward_ctx: context,
+                        meta,
                     },
                 );
             } else if good_bad == "bad" || good_bad == "b" {
@@ -80,6 +86,7 @@ impl WordFilter {
                     WordEntry {
                         good: false,
                         forward_ctx: context,
+                        meta,
                     },
                 );
             }
@@ -87,7 +94,7 @@ impl WordFilter {
         Self { hashmap }
     }
 
-    pub fn merge(&mut self, other: WordFilter) {
+    pub fn merge(&mut self, other: WordFilter<M>) {
         for (word, entry) in other.hashmap {
             self.hashmap
                 .entry(word)
@@ -98,13 +105,6 @@ impl WordFilter {
 
     pub fn entry_count(&self) -> usize {
         self.hashmap.len()
-    }
-
-    #[cfg(feature = "bincode")]
-    pub fn append_bin(&mut self, data: &[u8]) -> Result<(), DecodeError> {
-        let (other, _) = bincode::decode_from_slice(data, bincode::config::standard())?;
-        self.merge(other);
-        Ok(())
     }
 
     pub fn save_string(&self) -> String {
@@ -120,18 +120,16 @@ impl WordFilter {
                 string.push(' ');
                 string.push_str(&context);
             }
+            string.push('\0');
+            entry.meta.write(&mut string);
+
             string.push('\n');
         }
         string
     }
 
-    #[cfg(feature = "bincode")]
-    pub fn save_bin(&self) -> Result<Vec<u8>, EncodeError> {
-        bincode::encode_to_vec(&self, bincode::config::standard())
-    }
-
     #[inline]
-    pub(crate) fn get_entry(&self, word: &NormalizedWord) -> Option<&WordEntry> {
+    pub(crate) fn get_entry(&self, word: &NormalizedWord) -> Option<&WordEntry<M>> {
         match self.hashmap.get(word.root()) {
             Some(entry) => Some(entry),
             None => match self.hashmap.get(word.str()) {
@@ -147,13 +145,14 @@ impl WordFilter {
         ts
     }
 
-    pub fn train_word(&mut self, word: &str, good: bool) -> TrainResult {
+    pub fn train_word(&mut self, word: &str, good: bool, meta: M) -> TrainResult {
         let word = normalize_word(word);
         match self.hashmap.insert(
             word.root().into(),
             WordEntry {
                 good,
                 forward_ctx: vec![],
+                meta,
             },
         ) {
             Some(old) => {
@@ -167,19 +166,6 @@ impl WordFilter {
         }
     }
 
-    pub fn train_good(&mut self, data: &str) {
-        let ts = TokenizedString::tokenize(data);
-        for (_, _, norm_word) in ts.norm_words() {
-            self.hashmap.insert(
-                norm_word.clone().into(),
-                WordEntry {
-                    good: true,
-                    forward_ctx: vec![],
-                },
-            );
-        }
-    }
-
     pub fn short_words(&self) -> Vec<(Box<str>, bool)> {
         let mut short_words = Vec::new();
         for (word, entry) in self.hashmap.iter() {
@@ -190,7 +176,23 @@ impl WordFilter {
         short_words
     }
 }
-impl Default for WordFilter {
+impl<M: Default> WordFilter<M> {
+    pub fn train_good(&mut self, data: &str) {
+        let ts = TokenizedString::tokenize(data);
+        for (_, _, norm_word) in ts.norm_words() {
+            self.hashmap.insert(
+                norm_word.clone().into(),
+                WordEntry {
+                    good: true,
+                    forward_ctx: vec![],
+                    meta: M::default(),
+                },
+            );
+        }
+    }
+}
+
+impl<M: Default + FilterMeta> Default for WordFilter<M> {
     fn default() -> Self {
         Self::empty()
     }
