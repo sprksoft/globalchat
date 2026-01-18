@@ -44,10 +44,6 @@ pub enum TrainResult {
     Unchanged,
 }
 
-fn normalize_word(word: &str) -> NormalizedWord {
-    NormalizedWord::normalize(word)
-}
-
 impl<M: FilterMeta> WordFilter<M> {
     pub fn empty() -> Self {
         Self {
@@ -139,16 +135,71 @@ impl<M: FilterMeta> WordFilter<M> {
         }
     }
 
-    pub fn check(&self, message: &str) -> TokenizedString {
-        let mut ts = TokenizedString::tokenize(message);
+    pub fn check<T: TokenTag<M>>(&self, message: &str) -> TokenizedString<T> {
+        let mut ts = TokenizedString::<T>::tokenize(message);
         ts.recheck(self);
         ts
     }
 
-    pub fn train_word(&mut self, word: &str, good: bool, meta: M) -> TrainResult {
-        let word = normalize_word(word);
+    pub fn meta<W: IntoNormalizedWord>(&self, word: &W) -> Option<&M> {
+        self.get_entry(&word.into_normalized_word())
+            .map(|e| &e.meta)
+    }
+
+    /// Returns an error if the word was not found.
+    pub fn edit_meta<W: IntoNormalizedWord>(
+        &mut self,
+        word: &W,
+        edit_fn: impl FnOnce(&mut M),
+    ) -> Result<(), ()> {
+        let word = word.into_normalized_word();
+        let (key, mut entry) = self.hashmap.remove_entry(word.root()).ok_or(())?;
+        edit_fn(&mut entry.meta);
+        self.hashmap.insert(key, entry);
+        Ok(())
+    }
+
+    pub fn short_words(&self) -> Vec<(Box<str>, bool)> {
+        let mut short_words = Vec::new();
+        for (word, entry) in self.hashmap.iter() {
+            if word.len() < 3 {
+                short_words.push((word.clone(), entry.good))
+            }
+        }
+        short_words
+    }
+}
+impl<M: FilterMeta + Default> WordFilter<M> {
+    pub fn train_good<T: TokenTag<M>>(&mut self, data: &str) {
+        let ts = TokenizedString::<T>::tokenize(data);
+        for (_, _, norm_word) in ts.norm_words() {
+            self.hashmap.insert(
+                norm_word.clone().into(),
+                WordEntry {
+                    good: true,
+                    forward_ctx: vec![],
+                    meta: M::default(),
+                },
+            );
+        }
+    }
+
+    pub fn train_word<W: IntoNormalizedWord + Sized>(
+        &mut self,
+        word: &W,
+        good: bool,
+    ) -> TrainResult {
+        let word = word.into_normalized_word();
+        let word = word.root().into();
+
+        let meta = self
+            .hashmap
+            .remove::<Box<str>>(&word)
+            .map(|e| e.meta)
+            .unwrap_or_else(|| M::default());
+
         match self.hashmap.insert(
-            word.root().into(),
+            word,
             WordEntry {
                 good,
                 forward_ctx: vec![],
@@ -163,31 +214,6 @@ impl<M: FilterMeta> WordFilter<M> {
                 }
             }
             None => TrainResult::New,
-        }
-    }
-
-    pub fn short_words(&self) -> Vec<(Box<str>, bool)> {
-        let mut short_words = Vec::new();
-        for (word, entry) in self.hashmap.iter() {
-            if word.len() < 3 {
-                short_words.push((word.clone(), entry.good))
-            }
-        }
-        short_words
-    }
-}
-impl<M: Default> WordFilter<M> {
-    pub fn train_good(&mut self, data: &str) {
-        let ts = TokenizedString::tokenize(data);
-        for (_, _, norm_word) in ts.norm_words() {
-            self.hashmap.insert(
-                norm_word.clone().into(),
-                WordEntry {
-                    good: true,
-                    forward_ctx: vec![],
-                    meta: M::default(),
-                },
-            );
         }
     }
 }

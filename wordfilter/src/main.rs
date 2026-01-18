@@ -91,7 +91,7 @@ fn add_file(filter: &mut WordFilter, path: &str, good: bool, yes: bool) {
         for (word, tag, norm_word) in str.norm_words() {
             match tag {
                 Tag::Unknown => {
-                    filter.train_word(word, good);
+                    filter.train_word(&word, good);
                 }
                 Tag::Bad => {
                     if good {
@@ -102,7 +102,7 @@ fn add_file(filter: &mut WordFilter, path: &str, good: bool, yes: bool) {
                             norm_word.root()
                         );
                         if yes || ask_mark() == Mark::Good {
-                            filter.train_word(word, true);
+                            filter.train_word(&word, true);
                         }
                     }
                 }
@@ -115,7 +115,7 @@ fn add_file(filter: &mut WordFilter, path: &str, good: bool, yes: bool) {
                             norm_word.root()
                         );
                         if yes || ask_mark() == Mark::Bad {
-                            filter.train_word(word, false);
+                            filter.train_word(&word, false);
                         }
                     }
                 }

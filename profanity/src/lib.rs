@@ -82,7 +82,7 @@ impl ProfanityFilter {
         &self.rules
     }
 
-    pub fn check(&self, msg: &TokenizedMessage) -> Option<FilterMatch> {
+    pub fn check(&self, msg: &TokenizedMessage) -> Option<FilterMatch<'_>> {
         for rule in self.rules.iter() {
             if let Some(span) = rule.filter(&msg) {
                 return Some(FilterMatch { rule: rule, span });
@@ -90,7 +90,7 @@ impl ProfanityFilter {
         }
         None
     }
-    pub fn check_all(&self, msg: &TokenizedMessage) -> Vec<FilterMatch> {
+    pub fn check_all(&self, msg: &TokenizedMessage) -> Vec<FilterMatch<'_>> {
         let mut matches = vec![];
         for rule in self.rules.iter() {
             if let Some(span) = rule.filter(&msg) {

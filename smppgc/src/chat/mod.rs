@@ -10,12 +10,12 @@ use tokio::sync::{
     broadcast::{self, error::RecvError},
     Mutex, MutexGuard,
 };
-use wordfilter::{TokenizedString, WordFilter};
+use wordfilter::TokenizedString;
 
+pub mod agent;
 mod chatuser;
 mod message;
 mod message_limits;
-pub mod socket;
 pub use chatuser::*;
 pub use message::*;
 
@@ -24,6 +24,7 @@ pub use message_limits::*;
 use crate::{
     users::{ClaimedName, User, UserId},
     utils::IdCounter,
+    wf::WordFilter,
     ChatConfig,
 };
 use lmetrics::metrics;
@@ -287,6 +288,7 @@ impl Chat {
     }
 
     pub async fn run_filter(&self, filter: &WordFilter) {
+        // TODO: mmm how can we make this not crap
         let mut lock = self.history.lock().await;
         for mesg in lock.iter_mut() {
             let mut new_mesg: Message = (*mesg.as_ref()).clone();
@@ -408,7 +410,7 @@ pub fn stage() -> AdHoc {
 
         r.mount(
             "/",
-            routes![socket::chat_socket, socket::readonly_chat_socket],
+            routes![agent::chat_socket, agent::readonly_chat_socket],
         )
         .attach(message_limits::stage())
         .manage(Chat::new(config))

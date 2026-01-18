@@ -253,7 +253,7 @@ async fn on_admin_cmd(
         }
         AdminCmd::WFCommit => {
             debug!("WFCommit");
-            filter.save_rerun(chat).await;
+            filter.rerun(chat).await;
         }
     }
     Ok(())

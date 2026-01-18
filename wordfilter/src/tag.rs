@@ -75,8 +75,53 @@ impl From<u8> for Tag {
         unsafe { std::mem::transmute(value) }
     }
 }
-pub trait TokenTag: Clone + Copy + PartialEq + Eq {}
-impl TokenTag for Tag {}
+pub trait TokenTag<M>: Clone + Copy + PartialEq + Eq {
+    fn from_entry(good: bool, meta: &M) -> Self;
+    fn whitespace() -> Self;
+    fn unknown() -> Self;
+    fn good() -> Self;
+    fn is_whitespace(self) -> bool;
+    fn is_good_or_ws(self) -> bool;
+}
+impl<M> TokenTag<M> for Tag {
+    fn whitespace() -> Self {
+        Self::Whitespace
+    }
+    fn good() -> Self {
+        Self::Good
+    }
+    fn unknown() -> Self {
+        Self::Unknown
+    }
+    fn from_entry(good: bool, _: &M) -> Self {
+        if good {
+            Self::Good
+        } else {
+            Self::Bad
+        }
+    }
+    fn is_whitespace(self) -> bool {
+        self == Self::Whitespace
+    }
+    fn is_good_or_ws(self) -> bool {
+        self == Self::Good || self == Self::Whitespace
+    }
+}
+
+pub trait ColoredTokenTag {
+    fn ansii_color(self) -> &'static str;
+}
+impl ColoredTokenTag for Tag {
+    fn ansii_color(self) -> &'static str {
+        use crate::ansii::*;
+        match self {
+            Tag::Good => COLOR_GREEN,
+            Tag::Bad => COLOR_RED,
+            Tag::Unknown => COLOR_GRAY,
+            Tag::Whitespace => "",
+        }
+    }
+}
 
 #[cfg(feature = "serde")]
 impl serde::Serialize for Tag {

@@ -6,7 +6,7 @@ CREATE TABLE users (
   googleid VARCHAR UNIQUE,
   irl_name VARCHAR NOT NULL,
   role INTEGER NOT NULL DEFAULT 0,
-  ban_count INTEGER NOT NULL DEFAULT 0 -- strike count
+  ban_count INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE sessions (

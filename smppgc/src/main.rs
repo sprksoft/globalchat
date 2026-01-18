@@ -1,15 +1,11 @@
 #![allow(dead_code)]
-use std::convert::Infallible;
 
 use csrf::CSRFProtect;
-use rocket::async_trait;
 use rocket::catch;
 use rocket::catchers;
 use rocket::get;
 use rocket::http::Status;
 use rocket::launch;
-use rocket::request::FromRequest;
-use rocket::request::Outcome;
 use rocket::routes;
 use rocket::serde::Deserialize;
 use rocket_dyn_templates::context;
@@ -85,7 +81,7 @@ fn err_test(code: u16) -> Status {
 
 #[get("/csrf_protect_test")]
 fn csrf_test(_csrf: CSRFProtect) -> &'static str {
-    "200 ok (If you got here without a direct link CSRF protection has failed)"
+    "200 ok (If you got here without a internal link CSRF protection has failed)"
 }
 
 #[get("/version")]

@@ -43,8 +43,8 @@ pub fn stage() -> AdHoc {
             &crate::chat::ro_joined_total::METRIC,
             &crate::chat::ro_left_total::METRIC,
             &crate::chat::history_events_lost_total::METRIC,
-            &crate::chat::socket::messages_total::METRIC,
-            &crate::chat::socket::messages_blocked::METRIC,
+            &crate::chat::agent::messages_total::METRIC,
+            &crate::chat::agent::messages_blocked::METRIC,
             &lmetrics::http_errors_total::METRIC,
             &lmetrics::http_req_total::METRIC,
         ]);

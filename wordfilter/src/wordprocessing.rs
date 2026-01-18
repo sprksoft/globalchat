@@ -1,10 +1,12 @@
+use crate::{
+    ansii::*, is_void, normalize_char, CharType, ColoredTokenTag, FilterMeta, Tag, TokenTag,
+};
 use std::{
+    borrow::Cow,
     fmt::{Debug, Display},
     ops::Range,
     sync::OnceLock,
 };
-
-use crate::{ansii::*, is_void, normalize_char, CharType, FilterMeta, Tag, TokenTag};
 
 use crate::WordFilter;
 
@@ -177,20 +179,33 @@ impl From<NormalizedWord> for Box<str> {
         value.word.into_boxed_str()
     }
 }
+pub trait IntoNormalizedWord {
+    fn into_normalized_word<'a>(&'a self) -> Cow<'a, NormalizedWord>;
+}
+impl IntoNormalizedWord for &str {
+    fn into_normalized_word<'a>(&'a self) -> Cow<'a, NormalizedWord> {
+        Cow::Owned(NormalizedWord::normalize(self))
+    }
+}
+impl IntoNormalizedWord for NormalizedWord {
+    fn into_normalized_word<'a>(&'a self) -> Cow<'a, NormalizedWord> {
+        Cow::Borrowed(self)
+    }
+}
 
 #[derive(Clone)]
-struct Token<T: TokenTag> {
+struct Token<T> {
     tag: T,
     span: Range<usize>,
     norm: OnceLock<NormalizedWord>,
 }
-impl<T: TokenTag> Eq for Token<T> {}
-impl<T: TokenTag> PartialEq for Token<T> {
+impl<T: Eq> Eq for Token<T> {}
+impl<T: Eq> PartialEq for Token<T> {
     fn eq(&self, other: &Self) -> bool {
         self.span == other.span && self.tag == other.tag
     }
 }
-impl<T: TokenTag + Debug> Debug for Token<T> {
+impl<T: Debug> Debug for Token<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str("(")?;
         self.span.fmt(f)?;
@@ -201,7 +216,7 @@ impl<T: TokenTag + Debug> Debug for Token<T> {
     }
 }
 
-impl<T: TokenTag> Token<T> {
+impl<T> Token<T> {
     pub fn new(span: Range<usize>, tag: T) -> Self {
         Token {
             tag,
@@ -231,12 +246,12 @@ impl<'a, T> IntoWordTagPair<'a, T> for (&'a str, T) {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct TokenizedString(Box<str>, Vec<Token<Tag>>);
-impl TokenizedString {
-    pub fn from_words<'a>(words: impl IntoIterator<Item = impl IntoWordTagPair<'a, Tag>>) -> Self {
+pub struct TokenizedString<T: Eq = Tag>(Box<str>, Vec<Token<T>>);
+impl<M: FilterMeta, T: TokenTag<M>> TokenizedString<T> {
+    pub fn from_words<'a>(words: impl IntoIterator<Item = impl IntoWordTagPair<'a, T>>) -> Self {
         let iter = words.into_iter();
 
-        let mut tokens: Vec<Token<Tag>> = Vec::with_capacity(iter.size_hint().1.unwrap_or(1));
+        let mut tokens: Vec<Token<T>> = Vec::with_capacity(iter.size_hint().1.unwrap_or(1));
 
         let mut string = String::new();
         for word in iter {
@@ -251,7 +266,7 @@ impl TokenizedString {
         self.0.len()
     }
 
-    pub fn tokenize(str: impl Into<Box<str>>) -> TokenizedString {
+    pub fn tokenize(str: impl Into<Box<str>>) -> Self {
         let str = str.into();
         let mut tokens = Vec::new();
 
@@ -269,9 +284,9 @@ impl TokenizedString {
                 if ty != prev_ty {
                     // Assign whitespace tag if the char type is whitespace.
                     let tag = if prev_ty == CharType::Whitespace {
-                        Tag::Whitespace
+                        T::whitespace()
                     } else {
-                        Tag::default() // other types of tags will be assigned during checking.
+                        T::unknown() // other types of tags will be assigned during checking.
                     };
                     tokens.push(Token::new(start_index..index, tag));
                     start_index = index;
@@ -284,17 +299,27 @@ impl TokenizedString {
             .map(|c| CharType::new(c) == CharType::Whitespace)
             .unwrap_or(true)
         {
-            Tag::Whitespace
+            T::whitespace()
         } else {
-            Tag::default()
+            T::unknown() // other types of tags will be assigned during checking.
         };
         tokens.push(Token::new(start_index..str.len(), tag));
 
         TokenizedString(str, tokens.into())
     }
 
+    fn get_token(tokens: &Vec<Token<T>>, mut i: usize) -> Option<&Token<T>> {
+        loop {
+            let t = tokens.get(i)?;
+            if !t.tag.is_whitespace() {
+                return Some(t);
+            }
+            i += 1;
+        }
+    }
+
     /// Returns true if a tag is changed
-    pub fn recheck<M: FilterMeta>(&mut self, filter: &WordFilter<M>) -> bool {
+    pub fn recheck(&mut self, filter: &WordFilter<M>) -> bool {
         let tokens = &mut self.1;
         let mut changed = false;
 
@@ -308,37 +333,27 @@ impl TokenizedString {
             };
         }
 
-        fn get_token(tokens: &Vec<Token<Tag>>, mut i: usize) -> Option<&Token<Tag>> {
-            loop {
-                let t = tokens.get(i)?;
-                if t.tag != Tag::Whitespace {
-                    return Some(t);
-                }
-                i += 1;
-            }
-        }
-
         for i in 0..tokens.len() {
             let token = &mut tokens[i];
-            if token.tag == Tag::Whitespace {
+            if token.tag.is_whitespace() {
                 continue;
             }
             let norm = token.norm(&self.0);
             if norm.str().trim().len() == 0 {
-                set!(token.tag, Tag::Good);
+                set!(token.tag, T::good());
                 continue;
             }
             let Some(entry) = filter.get_entry(norm) else {
                 if norm.is_number() {
-                    set!(token.tag, Tag::Good);
+                    set!(token.tag, T::good());
                 } else {
-                    set!(token.tag, Tag::Unknown);
+                    set!(token.tag, T::unknown());
                 }
                 continue;
             };
 
             let mut tag = None;
-            if let Some(next_token) = get_token(tokens, i + 1) {
+            if let Some(next_token) = Self::get_token(tokens, i + 1) {
                 if entry
                     .forward_ctx
                     .iter()
@@ -348,35 +363,33 @@ impl TokenizedString {
                     })
                     .is_some()
                 {
-                    tag = Some(if entry.good { Tag::Bad } else { Tag::Good }); // inverted tag
+                    // when a word is marked good matching the forward context will make it bad.
+                    // and vice versa. that's why we invert the tag here.
+                    tag = Some(T::from_entry(!entry.good, &entry.meta)); // inverted tag
                 }
             }
             set!(
                 tokens[i].tag,
-                tag.unwrap_or(if entry.good { Tag::Good } else { Tag::Bad })
+                tag.unwrap_or(T::from_entry(entry.good, &entry.meta))
             );
         }
         changed
     }
 
     pub fn good(&self) -> bool {
-        self.words().find(|(_, tag)| !tag.good()).is_none()
+        self.words().find(|(_, tag)| !tag.is_good_or_ws()).is_none()
     }
 
-    pub fn words(&self) -> impl Iterator<Item = (&str, Tag)> {
+    pub fn words(&self) -> impl Iterator<Item = (&str, T)> {
         self.1
             .iter()
             .map(|token| (&self.0[token.span.clone()], token.tag))
     }
 
-    pub fn norm_words(&self) -> impl Iterator<Item = (&str, Tag, &NormalizedWord)> {
+    pub fn norm_words(&self) -> impl Iterator<Item = (&str, T, &NormalizedWord)> {
         self.1
             .iter()
             .map(|token| (&self.0[token.span.clone()], token.tag, token.norm(&self.0)))
-    }
-
-    pub fn colored<'a>(&'a self) -> ColoredFmt<'a> {
-        ColoredFmt(&self)
     }
 
     pub fn to_string(&self) -> String {
@@ -387,23 +400,17 @@ impl TokenizedString {
         str
     }
 }
+impl<M, T: TokenTag<M> + ColoredTokenTag> TokenizedString<T> {
+    pub fn colored<'a>(&'a self) -> ColoredFmt<'a, M, T> {
+        ColoredFmt(&self)
+    }
+}
 
-pub struct ColoredFmt<'a>(&'a TokenizedString);
-impl<'a> Display for ColoredFmt<'a> {
+pub struct ColoredFmt<'a, M, T: TokenTag<M>>(&'a TokenizedString<T>);
+impl<'a, M, T: TokenTag<M> + ColoredTokenTag> Display for ColoredFmt<'a, M, T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for (word, tag) in self.0.words() {
-            match tag {
-                Tag::Good => {
-                    f.write_str(COLOR_GREEN)?;
-                }
-                Tag::Bad => {
-                    f.write_str(COLOR_RED)?;
-                }
-                Tag::Unknown => {
-                    f.write_str(COLOR_GRAY)?;
-                }
-                Tag::Whitespace => {}
-            }
+            f.write_str(tag.ansii_color())?;
             f.write_str(word)?;
             f.write_str(RESET)?;
         }

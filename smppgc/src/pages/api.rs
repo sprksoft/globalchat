@@ -5,7 +5,7 @@ use sqlx::query;
 use uuid::Uuid;
 
 use crate::{
-    chat::{self, Chat},
+    chat::Chat,
     csrf::CSRFProtect,
     db::{Db, DbResult},
     users::{role::Role, AdminUser, ModUser, User},
@@ -93,7 +93,7 @@ async fn wf_markgood(
     _csrf: CSRFProtect,
 ) {
     filter.mark_word(word, true).await;
-    filter.save_rerun(&chat).await;
+    filter.rerun(&chat).await;
 }
 #[post("/wf/<word>/markbad")]
 async fn wf_markbad(
@@ -104,14 +104,43 @@ async fn wf_markbad(
     _csrf: CSRFProtect,
 ) {
     filter.mark_word(word, false).await;
-    filter.save_rerun(&chat).await;
+    filter.rerun(&chat).await;
+}
+
+#[post("/wf/<word>/lock?<reason>")]
+async fn wf_lockword(
+    word: &str,
+    reason: &str,
+    _mod: AdminUser,
+    filter: &State<Arc<Filter>>,
+    _csrf: CSRFProtect,
+) {
+    filter.lock_word(word, reason.into()).await;
+}
+
+#[post("/wf/<word>/unlock")]
+async fn wf_unlockword(
+    word: &str,
+    _mod: AdminUser,
+    filter: &State<Arc<Filter>>,
+    _csrf: CSRFProtect,
+) {
+    filter.unlock_word(word).await;
 }
 
 pub fn stage() -> AdHoc {
     AdHoc::on_ignite("api", |r| async {
         r.mount(
             "/api",
-            routes![new_key, role, demote, wf_markbad, wf_markgood],
+            routes![
+                new_key,
+                role,
+                demote,
+                wf_markbad,
+                wf_markgood,
+                wf_lockword,
+                wf_unlockword
+            ],
         )
     })
 }

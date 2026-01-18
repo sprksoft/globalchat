@@ -1,14 +1,16 @@
 use log::*;
-use rocket::{fairing::AdHoc, form::validate::Len};
+use rocket::fairing::AdHoc;
 use serde::Deserialize;
 use std::{path::PathBuf, sync::Arc, time::Duration};
 use tokio::sync::{RwLock, RwLockReadGuard};
 use wordfilter::{
     stats::{Stat, WordFilterStats},
-    FilterMeta, Tag, TokenizedString, TrainResult, WordFilter,
+    FilterMeta, Tag, TokenizedString, TrainResult,
 };
 
 use crate::chat::Chat;
+
+pub type WordFilter = wordfilter::WordFilter<WFMeta>;
 
 #[derive(Deserialize)]
 struct WFConfig {
@@ -58,13 +60,16 @@ escaping!(
     'n':'\n'
 );
 
-#[derive(Clone)]
-struct Meta {
+#[derive(Clone, Default)]
+pub struct WFMeta {
     locked: bool,
     lock_reason: Arc<str>,
 }
-impl FilterMeta for Meta {
+impl FilterMeta for WFMeta {
     fn read(str: &str) -> Self {
+        if str.len() == 0 {
+            return Self::default();
+        }
         let locked = str.starts_with('L');
         let str = unescape(&str[1..]).into();
         Self {
@@ -126,9 +131,44 @@ impl Filter {
     }
 
     #[inline]
-    pub async fn save_rerun(&self, chat: &Chat) {
+    pub async fn lock_word(&self, word: &str, reason: Arc<str>) {
+        let mut lock = self.wf.write().await;
+        let mut edited = false;
+        if let Err(()) = lock.wf.edit_meta(&word, |m| {
+            if m.lock_reason != reason || !m.locked {
+                edited = true;
+            }
+            m.locked = true;
+            m.lock_reason = reason;
+        }) {
+            return;
+        }
+        if edited {
+            lock.dirty = true;
+        }
+    }
+
+    #[inline]
+    pub async fn unlock_word(&self, word: &str) {
+        let mut lock = self.wf.write().await;
+        let mut edited = false;
+        if let Err(()) = lock.wf.edit_meta(&word, |m| {
+            if m.locked {
+                edited = true;
+            }
+            m.locked = false;
+        }) {
+            return;
+        }
+        if edited {
+            lock.dirty = true;
+        }
+    }
+
+    #[inline]
+    pub async fn rerun(&self, chat: &Chat) {
         let lock = self.read().await;
-        debug!("rerunning filter on chat...");
+        debug!("Rerunning filter on chat...");
         chat.run_filter(&lock.wf).await;
     }
 
@@ -188,7 +228,7 @@ pub fn stage() -> AdHoc {
         tokio::spawn(async move {
             loop {
                 tokio::time::sleep(Duration::from_secs(60 * 60 * 24)).await;
-                debug!("starting filter save..");
+                debug!("Starting filter save..");
                 bgsave_fil.save_all().await;
             }
         });
