@@ -34,7 +34,7 @@ Word stats - Global Chat
       {% for word in words %}
         {% if word[1] != "w" %}
         <li class="stat">
-          <span class="locked editable-word tag-{{word[1]}}">{{ word[0] }}</span>
+        <span data-tag="{{ word[1] }}" class="editable-word">{{ word[0] }}</span>
         </li>
         {% endif %}
       {% endfor %}

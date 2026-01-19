@@ -5,6 +5,7 @@ import './wf_page/index.css'
 
 import { WFEditor } from './common/wfedit.js'
 import { getCSRFToken } from './common/utils.js'
+import { WFTag } from './gcapi/wf.js'
 
 
 export let wfEditor = new WFEditor({
@@ -14,25 +15,45 @@ export let wfEditor = new WFEditor({
       mark = "markbad"
     }
 
-    fetch("/api/wf/" + encodeURIComponent(word) + "/" + mark, {
+    await fetch("/api/wf/" + encodeURIComponent(word) + "/" + mark, {
       method: "POST",
       headers: {
         "X-CSRF-Protect": getCSRFToken(),
       }
-    }).catch((reason) => alert("Failed to call api:\n" + reason))
+    });
   },
 
   lock: {
-    lockWord: (word: string, locked: boolean, reason: string) => {
-      console.log("lock " + locked, reason);
+    lockWord: async (word: string, locked: boolean, reason: string) => {
+      let lock = "lock"
+      if (!locked) {
+        lock = "unlock"
+      }
+
+      await fetch("/api/wf/" + encodeURIComponent(word) + "/" + lock + "?reason=" + encodeURIComponent(reason), {
+        method: "POST",
+        headers: {
+          "X-CSRF-Protect": getCSRFToken(),
+        }
+      });
     },
-    getLockInfo: (word: string) => {
-      return { reason: "hello" };
+    getLockInfo: async (word: string) => {
+      const resp = await fetch("/api/wf/" + encodeURIComponent(word));
+      const info = resp.json();
+
+      return info;
     }
   }
 
 });
 
-$("span.editable-word").on("click", function() {
-  wfEditor.toggle(this)
+$("span.editable-word").on("click", async function() {
+  await wfEditor.toggle(this)
 })
+
+const words = document.querySelectorAll("span.editable-word");
+for (let i = 0; i < words.length; i++) {
+  const span = words[i] as HTMLElement;
+  WFTag.assignToElement(WFTag.fromString(span.getAttribute("data-tag")!), span);
+  span.setAttribute("data-tag", "");
+}

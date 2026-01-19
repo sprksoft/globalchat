@@ -1,46 +1,47 @@
 import './wf.css'
 import './wfedit.css'
 
-export type MarkWordFn = (word: string, good: boolean) => void;
-export type LockWordFn = ((word: string, locked: boolean, reason: string) => void);
-export type GetLockInfoFn = ((word: string) => LockInfo);
+export type MarkWordFn = (word: string, good: boolean) => Promise<void>;
+export type LockWordFn = (word: string, locked: boolean, reason: string) => Promise<void>;
+export type GetWordInfoFn = (word: string) => Promise<WordInfo>;
 
-export type LockInfo = {
-  reason: string,
+export type WordInfo = {
+  lock_reason: string,
 }
 
 export type WFEditorConfig = {
   markWord: MarkWordFn,
-  lock: { lockWord: LockWordFn, getLockInfo: GetLockInfoFn } | undefined
+  getWordInfo: GetWordInfoFn,
+  lockWord: LockWordFn | undefined
 }
 
 export class WFEditor {
   #mark: MarkWordFn;
-  #getLockInfo: GetLockInfoFn | undefined;
+  #getWordInfo: GetWordInfoFn | undefined;
   #lockEditWord: HTMLElement | undefined;
 
   lockMode: boolean = false;
 
   constructor(conf: WFEditorConfig) {
     this.#mark = conf.markWord;
+    this.#getWordInfo = conf.getWordInfo;
 
-    if (conf.lock) {
+    if (conf.lockWord) {
       const lockEditDialog = document.getElementById("wf-lockedit") as HTMLDialogElement | undefined;
       if (!lockEditDialog) {
         console.error("BUG: The file: wfedit.html.tera needs to be included in the html code for the wf-lockedit dialog to work");
         return;
       }
 
-      this.#getLockInfo = conf.lock.getLockInfo;
       const lockWord = conf.lock.lockWord;
 
-      const confirm = (locked: boolean) => {
+      const confirm = async (locked: boolean) => {
         if (!this.#lockEditWord) { return; }
         this.#lockEditWord.classList.remove("locked");
         if (locked) {
           this.#lockEditWord.classList.add("locked");
         }
-        lockWord!(this.#lockEditWord.innerText, locked, $("#wf-lockedit #wf-lockedit-reason").val()!.toString());
+        await lockWord!(this.#lockEditWord.innerText, locked, $("#wf-lockedit #wf-lockedit-reason").val()!.toString());
       }
 
       document.addEventListener("keydown", (e) => {
@@ -65,13 +66,13 @@ export class WFEditor {
         lockEditDialog.close();
       });
 
-      $("#wf-lockedit-dialog-lock").on("click", () => {
-        confirm(true);
+      $("#wf-lockedit-dialog-lock").on("click", async () => {
+        await confirm(true);
         lockEditDialog.close();
       });
 
-      $("#wf-lockedit-dialog-unlock").on("click", () => {
-        confirm(false);
+      $("#wf-lockedit-dialog-unlock").on("click", async () => {
+        await confirm(false);
         lockEditDialog.close();
       });
 
@@ -79,7 +80,7 @@ export class WFEditor {
     }
   }
 
-  markWord(word: string | HTMLElement, good: boolean) {
+  async markWord(word: string | HTMLElement, good: boolean) {
     if (word instanceof HTMLElement) {
       word.classList.remove("tag-g", "tag-u", "tag-b");
       if (good) {
@@ -87,27 +88,27 @@ export class WFEditor {
       } else {
         word.classList.add("tag-b");
       }
-      this.markWord(word.innerText, good);
+      await this.markWord(word.innerText, good);
     } else {
-      this.#mark(word, false);
+      await this.#mark(word, false);
     }
   }
 
-  lockeditWord(word: HTMLElement) {
-    if (!this.#getLockInfo) { return; }
+  async lockeditWord(word: HTMLElement) {
+    if (!this.#getWordInfo) { return; }
 
     const wordStr = word.innerText;
-    const info = this.#getLockInfo(wordStr);
+    const info = await this.#getWordInfo(wordStr);
     this.#lockEditWord = word;
     $("#wf-lockedit #wf-lockedit-word").text(wordStr);
-    $("#wf-lockedit #wf-lockedit-reason").val(info.reason);
+    $("#wf-lockedit #wf-lockedit-reason").val(info.lock_reason);
     ($("#wf-lockedit").get(0) as HTMLDialogElement).showModal();
   }
 
-  toggle(word: HTMLSpanElement) {
+  async toggle(word: HTMLSpanElement) {
     let w = $(word)
     if (this.lockMode) {
-      this.lockeditWord(word)
+      await this.lockeditWord(word)
       return;
     }
     if (w.hasClass("locked")) {

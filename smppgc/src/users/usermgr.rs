@@ -8,9 +8,12 @@ use rocket_db_pools::Connection;
 use sqlx::query;
 use std::{ops::Deref, sync::Arc};
 use thiserror::Error;
-use wordfilter::TokenizedString;
 
-use crate::{db::Db, wf::Filter, wsprotocol::ProtoError};
+use crate::{
+    db::Db,
+    wf::{Filter, TokenizedString},
+    wsprotocol::ProtoError,
+};
 
 use super::{role::Role, User, UserConfig, UserId};
 

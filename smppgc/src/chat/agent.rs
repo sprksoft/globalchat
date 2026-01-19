@@ -7,6 +7,7 @@ use rocket::{get, request::Outcome, response, Responder, Shutdown, State};
 use log::*;
 use rocket_ws::{Channel, WebSocket};
 use tokio::sync::broadcast::error::RecvError;
+use wordfilter::TokenTag;
 
 use crate::{
     chat::{message_limits::LimitType, Chat, ChatEvent, MessageChangeType, NewClientError},
@@ -160,10 +161,13 @@ async fn on_packet(
                     Ok(content) => {
                         let content = filter.check(&content).await;
 
-                        if let Some((_, tag)) = content.words().find(|(_, tag)| !tag.good()) {
-                            messages_blocked::inc(if tag.unknown() {
+                        if let Some((_, tag)) = content
+                            .words()
+                            .find(|(_, tag)| !(tag.is_good() || tag.is_whitespace()))
+                        {
+                            messages_blocked::inc(if tag.is_unknown() {
                                 "profanity (unknown)"
-                            } else if tag.bad() {
+                            } else if tag.is_bad() {
                                 "profanity (bad)"
                             } else {
                                 "profanity (unreachable (this is a bug))"

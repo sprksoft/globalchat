@@ -3,8 +3,25 @@ export enum WFTag {
   Good = 1,
   Bad = 2,
   Whitespace = 3,
+  GoodLocked = 4,
+  BadLocked = 5,
 }
 export namespace WFTag {
+  export function assignToElement(tag: WFTag, el: HTMLElement) {
+    for (let i = 0; i < el.classList.length; i++) {
+      const clas = el.classList.item(i)!;
+      if (clas.startsWith("tag-") || clas == "locked") {
+        el.classList.remove(clas);
+      }
+
+    }
+
+    el.classList.add("tag-" + WFTag.toString(tag).toLowerCase());
+    if (WFTag.isLocked(tag)) {
+      el.classList.add("locked");
+    }
+  }
+
   export function toString(tag: WFTag): string {
     switch (tag) {
       case WFTag.Unknown:
@@ -15,14 +32,32 @@ export namespace WFTag {
         return "b";
       case WFTag.Whitespace:
         return "w";
+      case WFTag.GoodLocked:
+        return "G";
+      case WFTag.BadLocked:
+        return "B";
     }
   }
-  export function fromNum(num: number): WFTag {
-    if (num < 0 || num > WFTag.Whitespace) {
-      console.error("tried to create a WFTag from an out of range number");
-      return WFTag.Unknown;
+  export function isLocked(tag: WFTag): boolean {
+    return tag == WFTag.GoodLocked || tag == WFTag.BadLocked;
+  }
+  export function fromString(string: string): WFTag {
+    switch (string) {
+      case "u":
+        return WFTag.Unknown;
+      case "g":
+        return WFTag.Good;
+      case "b":
+        return WFTag.Bad;
+      case "G":
+        return WFTag.GoodLocked;
+      case "B":
+        return WFTag.BadLocked;
+      case "w":
+        return WFTag.Whitespace;
+      default:
+        return WFTag.Unknown;
     }
-    return num as WFTag;
   }
 }
 

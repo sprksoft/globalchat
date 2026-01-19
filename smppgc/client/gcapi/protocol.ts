@@ -36,7 +36,7 @@ export class GCClient {
 
         let content = [];
         while (!reader.end()) {
-          const tag = WFTag.fromNum(reader.getUint8(0));
+          const tag = WFTag.fromString(String.fromCharCode(reader.getUint8(0)));
           const len = reader.getUint16(0);
           content.push({ tag: tag, word: reader.getString(len) })
         }

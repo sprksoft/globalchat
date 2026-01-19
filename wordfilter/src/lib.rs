@@ -135,7 +135,7 @@ impl<M: FilterMeta> WordFilter<M> {
         }
     }
 
-    pub fn check<T: TokenTag<M>>(&self, message: &str) -> TokenizedString<T> {
+    pub fn check<T: TokenTag + FromEntry<M>>(&self, message: &str) -> TokenizedString<T> {
         let mut ts = TokenizedString::<T>::tokenize(message);
         ts.recheck(self);
         ts
@@ -170,7 +170,7 @@ impl<M: FilterMeta> WordFilter<M> {
     }
 }
 impl<M: FilterMeta + Default> WordFilter<M> {
-    pub fn train_good<T: TokenTag<M>>(&mut self, data: &str) {
+    pub fn train_good<T: TokenTag>(&mut self, data: &str) {
         let ts = TokenizedString::<T>::tokenize(data);
         for (_, _, norm_word) in ts.norm_words() {
             self.hashmap.insert(

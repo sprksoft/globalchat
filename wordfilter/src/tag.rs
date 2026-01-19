@@ -75,36 +75,52 @@ impl From<u8> for Tag {
         unsafe { std::mem::transmute(value) }
     }
 }
-pub trait TokenTag<M>: Clone + Copy + PartialEq + Eq {
-    fn from_entry(good: bool, meta: &M) -> Self;
+pub trait TokenTag: Clone + Copy + PartialEq + Eq {
     fn whitespace() -> Self;
     fn unknown() -> Self;
     fn good() -> Self;
+    fn bad() -> Self;
     fn is_whitespace(self) -> bool;
-    fn is_good_or_ws(self) -> bool;
+    fn is_good(self) -> bool;
+    fn is_bad(self) -> bool;
+    fn is_unknown(self) -> bool;
 }
-impl<M> TokenTag<M> for Tag {
+pub trait FromEntry<M> {
+    fn from_matched(good: bool, meta: &M) -> Self;
+}
+impl TokenTag for Tag {
     fn whitespace() -> Self {
         Self::Whitespace
     }
     fn good() -> Self {
         Self::Good
     }
+    fn bad() -> Self {
+        Self::Bad
+    }
     fn unknown() -> Self {
         Self::Unknown
     }
-    fn from_entry(good: bool, _: &M) -> Self {
+    fn is_whitespace(self) -> bool {
+        self == Self::Whitespace
+    }
+    fn is_good(self) -> bool {
+        self == Self::Good
+    }
+    fn is_bad(self) -> bool {
+        self == Self::Bad
+    }
+    fn is_unknown(self) -> bool {
+        self == Self::Unknown
+    }
+}
+impl<M> FromEntry<M> for Tag {
+    fn from_matched(good: bool, _: &M) -> Self {
         if good {
             Self::Good
         } else {
             Self::Bad
         }
-    }
-    fn is_whitespace(self) -> bool {
-        self == Self::Whitespace
-    }
-    fn is_good_or_ws(self) -> bool {
-        self == Self::Good || self == Self::Whitespace
     }
 }
 

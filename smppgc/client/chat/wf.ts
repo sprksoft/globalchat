@@ -19,10 +19,13 @@ function scheduleCommit() {
   }, 1000);
 }
 
-export let wfEditor = new WFEditor((word, good) => {
-  gcclient.wfMarkWord(word, good);
-  scheduleCommit();
-})
+export let wfEditor = new WFEditor({
+  markWord: async (word, good) => {
+    gcclient.wfMarkWord(word, good);
+    scheduleCommit();
+  },
+  lock: undefined
+});
 
 let countdown = 0;
 let interval: number;

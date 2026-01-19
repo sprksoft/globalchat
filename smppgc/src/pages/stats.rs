@@ -2,9 +2,12 @@ use std::{str::FromStr, sync::Arc};
 
 use rocket::{fairing::AdHoc, get, routes, State};
 use rocket_dyn_templates::{context, Template};
-use wordfilter::Tag;
 
-use crate::{themes::Theme, users::AdminUser, wf::Filter};
+use crate::{
+    themes::Theme,
+    users::AdminUser,
+    wf::{Filter, WFTag},
+};
 
 #[get("/words?<min_count>&<max_len>&<tags>")]
 fn word_stats(
@@ -17,12 +20,12 @@ fn word_stats(
 ) -> Template {
     let max_len = max_len.unwrap_or(30);
 
-    let tags: &[Tag] = match tags {
-        None => &[Tag::Unknown, Tag::Bad],
+    let tags: &[WFTag] = match tags {
+        None => &[WFTag::Unknown, WFTag::Bad],
         Some(t) => &t
             .split(',')
-            .flat_map(|t| Tag::from_str(t).ok())
-            .collect::<Vec<Tag>>(),
+            .flat_map(|t| WFTag::from_str(t).ok())
+            .collect::<Vec<WFTag>>(),
     };
 
     let mut stats = filter.calc_stats(min_count.unwrap_or(2), tags);

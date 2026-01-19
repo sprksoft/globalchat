@@ -133,7 +133,7 @@ pub fn new_message(mesg: &Message) -> tokio_tungstenite::tungstenite::Message {
     .into_data();
 
     for (word, tag) in mesg.content.words() {
-        data.push(tag.into());
+        data.push(tag.char() as u8);
         data.extend_from_slice(&(word.len() as u16).to_be_bytes());
         data.extend_from_slice(word.as_bytes());
     }

@@ -1,64 +1,27 @@
 use log::*;
 use rocket::fairing::AdHoc;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::{path::PathBuf, sync::Arc, time::Duration};
 use tokio::sync::{RwLock, RwLockReadGuard};
 use wordfilter::{
     stats::{Stat, WordFilterStats},
-    FilterMeta, Tag, TokenizedString, TrainResult,
+    FilterMeta, TrainResult,
 };
 
 use crate::chat::Chat;
 
 pub type WordFilter = wordfilter::WordFilter<WFMeta>;
+pub type TokenizedString = wordfilter::TokenizedString<WFTag>;
+
+mod esc;
+mod tag;
+pub use tag::WFTag;
 
 #[derive(Deserialize)]
 struct WFConfig {
     wordfilter: PathBuf,
     wordfilter_stats: PathBuf,
 }
-
-macro_rules! escaping {
-    ($($esc:literal:$char:literal),*) => {
-        fn escape(str: &str, buffer: &mut String) {
-            for char in str.chars() {
-                match char {
-                    $(
-                        $char=>{buffer.push('\\'); buffer.push($esc)}
-                    ),*
-                    _=> { buffer.push(char)},
-                }
-            }
-        }
-
-        fn unescape(str: &str) -> String {
-            let mut string = String::with_capacity(str.len());
-            let mut esc = false;
-            for char in str.chars() {
-                if char == '\\' {
-                    esc = true;
-                    continue;
-                }
-                if esc {
-                    match char {
-                        $(
-                            $esc=>{ string.push($char); }
-                        ),*
-                        _=>{},
-                    }
-                } else {
-                    string.push(char);
-                }
-            }
-            string
-        }
-    };
-}
-
-escaping!(
-    '\\':'\\',
-    'n':'\n'
-);
 
 #[derive(Clone, Default)]
 pub struct WFMeta {
@@ -71,7 +34,7 @@ impl FilterMeta for WFMeta {
             return Self::default();
         }
         let locked = str.starts_with('L');
-        let str = unescape(&str[1..]).into();
+        let str = esc::unescape(&str[1..]).into();
         Self {
             locked,
             lock_reason: str,
@@ -83,8 +46,13 @@ impl FilterMeta for WFMeta {
         } else {
             string.push('l');
         }
-        escape(&self.lock_reason, string);
+        esc::escape(&self.lock_reason, string);
     }
+}
+
+#[derive(Serialize)]
+pub struct WordInfo {
+    lock_reason: Arc<str>,
 }
 
 //Interior mutable part of the filter
@@ -96,7 +64,7 @@ pub struct FilterIMut {
 pub struct Filter {
     filter_path: PathBuf,
     stats_path: PathBuf,
-    stats: WordFilterStats,
+    stats: WordFilterStats<WFTag>,
     wf: RwLock<FilterIMut>,
 }
 impl Filter {
@@ -110,12 +78,12 @@ impl Filter {
         let lock = self.wf.read().await;
         let ts = lock.wf.check(message);
         drop(lock);
-        self.stats.record(&ts, [Tag::Unknown, Tag::Bad]);
+        self.stats.record(&ts, [WFTag::Unknown, WFTag::Bad]);
         ts
     }
 
     #[inline]
-    pub fn calc_stats(&self, min_count: usize, filter: &[Tag]) -> Vec<Stat> {
+    pub fn calc_stats(&self, min_count: usize, filter: &[WFTag]) -> Vec<Stat<WFTag>> {
         self.stats.calc_top(min_count, filter)
     }
 
@@ -133,17 +101,17 @@ impl Filter {
     #[inline]
     pub async fn lock_word(&self, word: &str, reason: Arc<str>) {
         let mut lock = self.wf.write().await;
-        let mut edited = false;
+        let mut dirty = false;
         if let Err(()) = lock.wf.edit_meta(&word, |m| {
             if m.lock_reason != reason || !m.locked {
-                edited = true;
+                dirty = true;
             }
             m.locked = true;
             m.lock_reason = reason;
         }) {
             return;
         }
-        if edited {
+        if dirty {
             lock.dirty = true;
         }
     }
@@ -163,6 +131,13 @@ impl Filter {
         if edited {
             lock.dirty = true;
         }
+    }
+    #[inline]
+    pub async fn word_info(&self, word: &str) -> Option<WordInfo> {
+        let lock = self.wf.read().await;
+        lock.wf.meta(&word).map(|m| WordInfo {
+            lock_reason: m.lock_reason.clone(),
+        })
     }
 
     #[inline]
@@ -212,7 +187,7 @@ pub fn stage() -> AdHoc {
             Err(e) => panic!("Failed to load wordfilter file: {}", e),
         };
         let stats = match std::fs::read_to_string(&config.wordfilter_stats) {
-            Ok(data) => WordFilterStats::from_string(&data),
+            Ok(data) => WordFilterStats::<WFTag>::from_string(&data),
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => WordFilterStats::empty(),
             Err(e) => panic!("Failed to load wordfilter file: {}", e),
         };

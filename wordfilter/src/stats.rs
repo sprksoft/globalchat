@@ -1,34 +1,36 @@
+use std::str::FromStr;
+
 use dashmap::DashMap;
 use nanotime::NanoTime;
 
-use crate::{IntoWordTagPair, Tag, TokenizedString};
+use crate::{IntoWordTagPair, TokenTag, TokenizedString};
 
 #[derive(PartialEq, Eq, Debug)]
-struct WordStatEntry {
+struct WordStatEntry<T> {
     last_modified: NanoTime,
     count: usize,
-    tag: Tag,
+    tag: T,
 }
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 #[derive(Debug)]
-pub struct Stat {
+pub struct Stat<T> {
     pub word: Box<str>,
-    pub tag: Tag,
+    pub tag: T,
     pub count: usize,
     pub last_modified: NanoTime,
 }
-impl<'a> IntoWordTagPair<'a, Tag> for &'a Stat {
-    fn into_word_tag_pair(self) -> (&'a str, Tag) {
-        (self.word.as_ref(), self.tag)
+impl<'a, T: Clone> IntoWordTagPair<'a, T> for &'a Stat<T> {
+    fn into_word_tag_pair(self) -> (&'a str, T) {
+        (self.word.as_ref(), self.tag.clone())
     }
 }
 
 #[derive(Debug)]
-pub struct WordFilterStats {
-    words: DashMap<Box<str>, WordStatEntry>,
+pub struct WordFilterStats<T> {
+    words: DashMap<Box<str>, WordStatEntry<T>>,
 }
-impl WordFilterStats {
+impl<T: Eq + Clone + TokenTag> WordFilterStats<T> {
     // const MIN_AGE_MINUTES: u32 = 10080; // 7 days
 
     pub fn empty() -> Self {
@@ -45,7 +47,7 @@ impl WordFilterStats {
     //     });
     // }
 
-    pub fn calc_top(&self, min_count: usize, filter: &[Tag]) -> Vec<Stat> {
+    pub fn calc_top(&self, min_count: usize, filter: &[T]) -> Vec<Stat<T>> {
         let mut top = Vec::new();
         for kv in self.words.iter() {
             if !filter.contains(&kv.tag) {
@@ -54,7 +56,7 @@ impl WordFilterStats {
             if kv.count >= min_count {
                 top.push(Stat {
                     word: kv.key().clone(),
-                    tag: kv.tag,
+                    tag: kv.tag.clone(),
                     count: kv.count,
                     last_modified: kv.last_modified,
                 });
@@ -66,7 +68,7 @@ impl WordFilterStats {
 
     // Record all the words that have a tag that appears in the recorded_tags array
     // Returns true when stats have been recorded
-    pub fn record<const N: usize>(&self, ts: &TokenizedString, recorded_tags: [Tag; N]) -> bool {
+    pub fn record<const N: usize>(&self, ts: &TokenizedString<T>, recorded_tags: [T; N]) -> bool {
         let mut recorded = false;
         for (word, tag) in ts.words() {
             if recorded_tags.contains(&tag) {
@@ -77,7 +79,7 @@ impl WordFilterStats {
         recorded
     }
 
-    pub fn record_word<'a>(&self, word: impl IntoWordTagPair<'a, Tag>, count: usize) {
+    pub fn record_word<'a>(&self, word: impl IntoWordTagPair<'a, T>, count: usize) {
         if count == 0 {
             return;
         }
@@ -98,7 +100,9 @@ impl WordFilterStats {
             }
         }
     }
+}
 
+impl<T: FromStr + Into<char> + Clone> WordFilterStats<T> {
     pub fn from_string(str: &str) -> Self {
         fn get<'a, T: std::str::FromStr>(mut iter: impl Iterator<Item = &'a str>) -> Option<T> {
             iter.next().map(|i| i.parse::<T>().ok()).flatten()
@@ -110,7 +114,7 @@ impl WordFilterStats {
             let Some(word) = split.next() else {
                 continue;
             };
-            let Some(tag) = get::<Tag>(&mut split) else {
+            let Some(tag) = get::<T>(&mut split) else {
                 continue;
             };
 
@@ -139,7 +143,7 @@ impl WordFilterStats {
         for kv in self.words.iter() {
             string.push_str(kv.key());
             string.push(' ');
-            string.push(kv.tag.char());
+            string.push(kv.tag.clone().into());
             string.push(' ');
             string.push_str(&kv.count.to_string());
             string.push(' ');

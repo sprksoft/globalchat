@@ -10,7 +10,6 @@ use tokio::sync::{
     broadcast::{self, error::RecvError},
     Mutex, MutexGuard,
 };
-use wordfilter::TokenizedString;
 
 pub mod agent;
 mod chatuser;
@@ -24,7 +23,7 @@ pub use message_limits::*;
 use crate::{
     users::{ClaimedName, User, UserId},
     utils::IdCounter,
-    wf::WordFilter,
+    wf::{TokenizedString, WordFilter},
     ChatConfig,
 };
 use lmetrics::metrics;
@@ -378,7 +377,7 @@ impl ChatClient {
     pub fn new_message(&self, content: TokenizedString) -> Message {
         Message {
             id: self.message_id_gen.new_snowflake(),
-            content: content.into(),
+            content,
             sender: self.user.clone(),
         }
     }

@@ -1,5 +1,6 @@
 use crate::{
-    ansii::*, is_void, normalize_char, CharType, ColoredTokenTag, FilterMeta, Tag, TokenTag,
+    ansii::*, is_void, normalize_char, CharType, ColoredTokenTag, FilterMeta, FromEntry, Tag,
+    TokenTag,
 };
 use std::{
     borrow::Cow,
@@ -247,7 +248,7 @@ impl<'a, T> IntoWordTagPair<'a, T> for (&'a str, T) {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TokenizedString<T: Eq = Tag>(Box<str>, Vec<Token<T>>);
-impl<M: FilterMeta, T: TokenTag<M>> TokenizedString<T> {
+impl<T: TokenTag> TokenizedString<T> {
     pub fn from_words<'a>(words: impl IntoIterator<Item = impl IntoWordTagPair<'a, T>>) -> Self {
         let iter = words.into_iter();
 
@@ -319,7 +320,10 @@ impl<M: FilterMeta, T: TokenTag<M>> TokenizedString<T> {
     }
 
     /// Returns true if a tag is changed
-    pub fn recheck(&mut self, filter: &WordFilter<M>) -> bool {
+    pub fn recheck<M: FilterMeta>(&mut self, filter: &WordFilter<M>) -> bool
+    where
+        T: FromEntry<M>,
+    {
         let tokens = &mut self.1;
         let mut changed = false;
 
@@ -365,19 +369,21 @@ impl<M: FilterMeta, T: TokenTag<M>> TokenizedString<T> {
                 {
                     // when a word is marked good matching the forward context will make it bad.
                     // and vice versa. that's why we invert the tag here.
-                    tag = Some(T::from_entry(!entry.good, &entry.meta)); // inverted tag
+                    tag = Some(T::from_matched(!entry.good, &entry.meta)); // inverted tag
                 }
             }
             set!(
                 tokens[i].tag,
-                tag.unwrap_or(T::from_entry(entry.good, &entry.meta))
+                tag.unwrap_or(T::from_matched(entry.good, &entry.meta))
             );
         }
         changed
     }
 
     pub fn good(&self) -> bool {
-        self.words().find(|(_, tag)| !tag.is_good_or_ws()).is_none()
+        self.words()
+            .find(|(_, tag)| !(tag.is_good() || tag.is_whitespace()))
+            .is_none()
     }
 
     pub fn words(&self) -> impl Iterator<Item = (&str, T)> {
@@ -400,14 +406,14 @@ impl<M: FilterMeta, T: TokenTag<M>> TokenizedString<T> {
         str
     }
 }
-impl<M, T: TokenTag<M> + ColoredTokenTag> TokenizedString<T> {
-    pub fn colored<'a>(&'a self) -> ColoredFmt<'a, M, T> {
+impl<T: TokenTag + ColoredTokenTag> TokenizedString<T> {
+    pub fn colored<'a>(&'a self) -> ColoredFmt<'a, T> {
         ColoredFmt(&self)
     }
 }
 
-pub struct ColoredFmt<'a, M, T: TokenTag<M>>(&'a TokenizedString<T>);
-impl<'a, M, T: TokenTag<M> + ColoredTokenTag> Display for ColoredFmt<'a, M, T> {
+pub struct ColoredFmt<'a, T: TokenTag>(&'a TokenizedString<T>);
+impl<'a, T: TokenTag + ColoredTokenTag> Display for ColoredFmt<'a, T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for (word, tag) in self.0.words() {
             f.write_str(tag.ansii_color())?;

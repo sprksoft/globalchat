@@ -1,18 +1,14 @@
-use std::sync::Arc;
-
 use rocket_db_pools::Connection;
 use sqlx::query;
 use uuid::Uuid;
 
 use crate::{
-    chat::Chat,
     csrf::CSRFProtect,
     db::{Db, DbResult},
-    users::{role::Role, AdminUser, ModUser, User},
+    users::{role::Role, AdminUser, User},
     utils::CatchForward,
-    wf::Filter,
 };
-use rocket::{fairing::AdHoc, get, post, routes, Responder, State};
+use rocket::{fairing::AdHoc, get, post, routes, Responder};
 
 #[get("/role")]
 fn role(user: CatchForward<User>) -> &'static str {
@@ -84,63 +80,8 @@ async fn demote(
     }
 }
 
-#[post("/wf/<word>/markgood")]
-async fn wf_markgood(
-    _mod: ModUser,
-    word: &str,
-    chat: &State<Chat>,
-    filter: &State<Arc<Filter>>,
-    _csrf: CSRFProtect,
-) {
-    filter.mark_word(word, true).await;
-    filter.rerun(&chat).await;
-}
-#[post("/wf/<word>/markbad")]
-async fn wf_markbad(
-    _mod: ModUser,
-    word: &str,
-    chat: &State<Chat>,
-    filter: &State<Arc<Filter>>,
-    _csrf: CSRFProtect,
-) {
-    filter.mark_word(word, false).await;
-    filter.rerun(&chat).await;
-}
-
-#[post("/wf/<word>/lock?<reason>")]
-async fn wf_lockword(
-    word: &str,
-    reason: &str,
-    _mod: AdminUser,
-    filter: &State<Arc<Filter>>,
-    _csrf: CSRFProtect,
-) {
-    filter.lock_word(word, reason.into()).await;
-}
-
-#[post("/wf/<word>/unlock")]
-async fn wf_unlockword(
-    word: &str,
-    _mod: AdminUser,
-    filter: &State<Arc<Filter>>,
-    _csrf: CSRFProtect,
-) {
-    filter.unlock_word(word).await;
-}
-
 pub fn stage() -> AdHoc {
     AdHoc::on_ignite("api", |r| async {
-        r.mount(
-            "/api",
-            routes![
-                new_key,
-                role,
-                demote,
-                wf_markbad,
-                wf_markgood,
-                wf_lockword,
-                wf_unlockword
-            ],
-        )
+        r.mount("/api", routes![new_key, role, demote,])
     })
 }
