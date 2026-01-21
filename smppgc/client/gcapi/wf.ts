@@ -22,6 +22,13 @@ export namespace WFTag {
     }
   }
 
+  export function isBad(tag: WFTag): boolean {
+    return tag == WFTag.Bad || tag == WFTag.BadLocked;
+  }
+  export function isUnknown(tag: WFTag): boolean {
+    return tag == WFTag.Unknown;
+  }
+
   export function toString(tag: WFTag): string {
     switch (tag) {
       case WFTag.Unknown:
@@ -30,12 +37,12 @@ export namespace WFTag {
         return "g";
       case WFTag.Bad:
         return "b";
-      case WFTag.Whitespace:
-        return "w";
       case WFTag.GoodLocked:
         return "G";
       case WFTag.BadLocked:
         return "B";
+      case WFTag.Whitespace:
+        return "w";
     }
   }
   export function isLocked(tag: WFTag): boolean {

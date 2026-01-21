@@ -12,6 +12,7 @@
 
 {% block content %}
 
+
 <dialog id="login">
   {% if not readonly or true %} 
   <a class="logout" href="/login?redirect=/v1"><span>uitloggen</span>{% include "svg/arrow_r" %}</a>
@@ -53,6 +54,7 @@
   <button class="pillbtn" id="profwarn-ok">Ok</button>
 </dialog>
 
+{% include "wfedit" %}
 {% include "ban-dialog" %}
 
 <template id="message-template">
@@ -82,6 +84,7 @@
 <h1 class="header-title chat-name">Global Chat</h1>
 </header>
 <main>
+<span id="user-count">0 Users Online</span>
 <div id="mesgs"></div>
   {% if not readonly or true %}
   <div id="botbar">
@@ -109,7 +112,6 @@
   const MAX_MESSAGE_LEN="{{max_message_len}}";
   const MIN_MESSAGE_LEN="{{min_message_len}}";
   const ROLE="{{ role }}";
-  const IS_MOD={% if is_mod %}true{% else %}false{% endif %};
 </script>
 <script defer type="text/javascript" src="{{ url(path="/static/chat.js") }}"></script>
 {% endblock scripts %}

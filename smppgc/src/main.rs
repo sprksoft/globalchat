@@ -7,7 +7,6 @@ use rocket::get;
 use rocket::http::Status;
 use rocket::launch;
 use rocket::routes;
-use rocket::serde::Deserialize;
 use rocket_dyn_templates::context;
 use rocket_dyn_templates::Template;
 use utils::static_routing;

@@ -1,7 +1,9 @@
 import { gcclient } from "../chat";
 import { createMessage, type Message } from "./message";
 import { WFTag } from '../gcapi/wf.ts';
-import { WFEditor } from "../common/wfedit.ts";
+import { WFEditor, type WFEditorConfig } from "../common/wfedit.ts";
+import { getCSRFToken } from "../common/utils.ts";
+import { Role } from "../gcapi/user.ts";
 export { WFTag };
 
 
@@ -19,13 +21,35 @@ function scheduleCommit() {
   }, 1000);
 }
 
-export let wfEditor = new WFEditor({
-  markWord: async (word, good) => {
-    gcclient.wfMarkWord(word, good);
-    scheduleCommit();
-  },
-  lock: undefined
-});
+
+export function setupWFEditor(role: Role): WFEditor {
+  const wfEditorConfig: WFEditorConfig = {
+    markWord: async (word, good) => {
+      gcclient.wfMarkWord(word, good);
+      scheduleCommit();
+    },
+    getWordInfo: async (word) => {
+      const resp = await fetch("/api/wf/" + encodeURIComponent(word));
+      const info = resp.json();
+
+      return info;
+    },
+    lockWord: undefined
+  }
+
+  if (role >= Role.Admin) {
+    wfEditorConfig.lockWord = async (word, locked, reason) => {
+      await fetch("/api/wf/" + encodeURIComponent(word) + "/" + (locked ? "lock" : "unlock") + "?reason=" + encodeURIComponent(reason), {
+        method: "POST",
+        headers: {
+          "X-CSRF-Protect": getCSRFToken(),
+        }
+      });
+    }
+  }
+  return new WFEditor(wfEditorConfig);
+}
+
 
 let countdown = 0;
 let interval: number;

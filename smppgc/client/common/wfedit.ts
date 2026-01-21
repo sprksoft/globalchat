@@ -11,14 +11,14 @@ export type WordInfo = {
 
 export type WFEditorConfig = {
   markWord: MarkWordFn,
-  getWordInfo: GetWordInfoFn,
+  getWordInfo: GetWordInfoFn | undefined,
   lockWord: LockWordFn | undefined
 }
 
 export class WFEditor {
   #mark: MarkWordFn;
   #getWordInfo: GetWordInfoFn | undefined;
-  #lockEditWord: HTMLElement | undefined;
+  #currentlyEditingWord: HTMLElement | undefined;
 
   lockMode: boolean = false;
 
@@ -26,23 +26,13 @@ export class WFEditor {
     this.#mark = conf.markWord;
     this.#getWordInfo = conf.getWordInfo;
 
-    if (conf.lockWord) {
+    if (conf.lockWord || conf.getWordInfo) {
       const lockEditDialog = document.getElementById("wf-lockedit") as HTMLDialogElement | undefined;
       if (!lockEditDialog) {
         console.error("BUG: The file: wfedit.html.tera needs to be included in the html code for the wf-lockedit dialog to work");
         return;
       }
 
-      const lockWord = conf.lock.lockWord;
-
-      const confirm = async (locked: boolean) => {
-        if (!this.#lockEditWord) { return; }
-        this.#lockEditWord.classList.remove("locked");
-        if (locked) {
-          this.#lockEditWord.classList.add("locked");
-        }
-        await lockWord!(this.#lockEditWord.innerText, locked, $("#wf-lockedit #wf-lockedit-reason").val()!.toString());
-      }
 
       document.addEventListener("keydown", (e) => {
         if (e.key === "Control") {
@@ -58,24 +48,37 @@ export class WFEditor {
       });
 
       lockEditDialog.addEventListener("close", () => {
-        this.#lockEditWord = undefined;
+        this.#currentlyEditingWord = undefined;
       });
 
 
       $("#wf-lockedit-dialog-cancel").on("click", function() {
         lockEditDialog.close();
       });
+      $("#wf-lockedit-reason").prop("disabled", conf.lockWord == undefined);
+      $("#wf-lockedit-dialog-lock").prop("disabled", conf.lockWord == undefined);
+      $("#wf-lockedit-dialog-unlock").prop("disabled", conf.lockWord == undefined);
 
-      $("#wf-lockedit-dialog-lock").on("click", async () => {
-        await confirm(true);
-        lockEditDialog.close();
-      });
+      if (conf.lockWord) {
+        const confirm = async (locked: boolean) => {
+          if (!this.#currentlyEditingWord) { return; }
+          this.#currentlyEditingWord.classList.remove("locked");
+          if (locked) {
+            this.#currentlyEditingWord.classList.add("locked");
+          }
+          await conf.lockWord!(this.#currentlyEditingWord.innerText, locked, $("#wf-lockedit #wf-lockedit-reason").val()!.toString());
+        }
 
-      $("#wf-lockedit-dialog-unlock").on("click", async () => {
-        await confirm(false);
-        lockEditDialog.close();
-      });
+        $("#wf-lockedit-dialog-lock").on("click", async () => {
+          await confirm(true);
+          lockEditDialog.close();
+        });
 
+        $("#wf-lockedit-dialog-unlock").on("click", async () => {
+          await confirm(false);
+          lockEditDialog.close();
+        });
+      }
 
     }
   }
@@ -94,12 +97,18 @@ export class WFEditor {
     }
   }
 
+  /*
+   * Edit/view lockdata of a word
+  */
   async lockeditWord(word: HTMLElement) {
-    if (!this.#getWordInfo) { return; }
+    if (!this.#getWordInfo) {
+      console.error("Tried to lockedit a word but no getWordInfo handler was provided.");
+      return;
+    }
 
     const wordStr = word.innerText;
     const info = await this.#getWordInfo(wordStr);
-    this.#lockEditWord = word;
+    this.#currentlyEditingWord = word;
     $("#wf-lockedit #wf-lockedit-word").text(wordStr);
     $("#wf-lockedit #wf-lockedit-reason").val(info.lock_reason);
     ($("#wf-lockedit").get(0) as HTMLDialogElement).showModal();
@@ -107,11 +116,8 @@ export class WFEditor {
 
   async toggle(word: HTMLSpanElement) {
     let w = $(word)
-    if (this.lockMode) {
+    if (this.lockMode || w.hasClass("locked")) {
       await this.lockeditWord(word)
-      return;
-    }
-    if (w.hasClass("locked")) {
       return;
     }
 

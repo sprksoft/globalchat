@@ -7,11 +7,8 @@ import { PacketC2SId, PacketId } from "./packets";
 import { type LocalId, Role } from "./user";
 import { Reader, Writer } from "./rw";
 import { WFTag } from './wf';
+import type { WordInfo } from "../common/wfedit";
 export { ProtoError };
-
-export declare const WEBSOCKET_URL: string;
-export declare const ROLE: Role;
-
 
 export type ApiVersion = number;
 
@@ -20,6 +17,9 @@ export class GCClient {
   on_message_del: ((snowflake: Snowflake) => void) | null = null;
   on_leave: ((data: string | Ban, protoerr: ProtoError) => void) | null = null;
   on_join: ((apiVersion: ApiVersion) => void) | null = null;
+  on_user_count_update: ((userCount: number) => void) | null = null;
+
+  websocketUrl: string;
 
   #ws: WebSocket | null = null;
   #localId: LocalId = -1;
@@ -27,64 +27,86 @@ export class GCClient {
   #user_wants_leave: boolean = false;
   #modBadge: boolean = false;
   #username: string = "";
+  #userCount: number = 0;
+
+  constructor(websocketUrl: string = "https://gc.smartschoolplusplus.com/socket/chat") {
+    this.websocketUrl = websocketUrl;
+  }
 
   #on_packet(packetId: PacketId, reader: Reader) {
     switch (packetId) {
       case PacketId.MESSAGE:
-        const sender_id = reader.getUint16(0);
-        const snowflake = reader.getSnowflake(0);
+        {
+          const sender_id = reader.getUint16(0);
+          const snowflake = reader.getSnowflake(0);
 
-        let content = [];
-        while (!reader.end()) {
-          const tag = WFTag.fromString(String.fromCharCode(reader.getUint8(0)));
-          const len = reader.getUint16(0);
-          content.push({ tag: tag, word: reader.getString(len) })
-        }
+          let content = [];
+          while (!reader.end()) {
+            const tag = WFTag.fromString(String.fromCharCode(reader.getUint8(0)));
+            const len = reader.getUint16(0);
+            content.push({ tag: tag, word: reader.getString(len) })
+          }
 
-        let sender = this.#users[sender_id];
-        if (!sender) {
-          console.error("sender id not found");
-          sender = User.nonExisting();
+          let sender = this.#users[sender_id];
+          if (!sender) {
+            console.error("sender id not found");
+            sender = User.nonExisting();
+          }
+          let message = new Message(content, sender, snowflake);
+          message.mod_badge = sender.modBadge;
+          this.on_message?.(sender_id, message);
+          break;
         }
-        let message = new Message(content, sender, snowflake);
-        message.mod_badge = sender.modBadge;
-        this.on_message?.(sender_id, message);
-        break;
-      case PacketId.MESSAGE_SYSTEM: {
-        let content = reader.getString();
-        let message = Message.system(content);
-        this.on_message?.(-1, message);
-        break;
-      }
+      case PacketId.MESSAGE_SYSTEM:
+        {
+          let content = reader.getString();
+          let message = Message.system(content);
+          this.on_message?.(-1, message);
+          break;
+        }
 
       case PacketId.SETUP:
-        const apiVersion = reader.getUint16(0) as ApiVersion;
+        {
+          const apiVersion = reader.getUint16(0) as ApiVersion;
+          this.#localId = reader.getUint16();
+          const role = reader.getUint8(0) as Role;
 
-        this.#localId = reader.getUint16();
-        this.#users[this.#localId] = new User(
-          this.#username,
-          this.#modBadge,
-          ROLE,
-        );
+          this.#users[this.#localId] = new User(
+            this.#username,
+            this.#modBadge,
+            role,
+          );
 
-        this.on_join?.(apiVersion);
-        break;
+          this.on_join?.(apiVersion);
+          break;
+        }
 
       case PacketId.MODJOIN:
       case PacketId.USERJOIN:
-        let id = reader.getUint16(0);
-        let role = reader.getUint8(0);
-        let username = reader.getString();
-        this.#users[id] = new User(
-          username,
-          packetId === PacketId.MODJOIN,
-          role,
-        );
-        break;
+        {
+          let id = reader.getUint16(0);
+          let role = reader.getUint8(0);
+          let username = reader.getString();
+          this.#users[id] = new User(
+            username,
+            packetId === PacketId.MODJOIN,
+            role,
+          );
+          break;
+        }
       case PacketId.MESSAGE_DEL:
-        const msgId = reader.getSnowflake(0);
-        this.on_message_del?.(msgId);
-        break;
+        {
+          const msgId = reader.getSnowflake(0);
+          this.on_message_del?.(msgId);
+          break;
+        }
+
+      case PacketId.USER_COUNT:
+        {
+          this.#userCount = reader.getUint16(0);
+          this.on_user_count_update?.(this.#userCount)
+          break;
+        }
 
       default:
         console.error(
@@ -92,6 +114,10 @@ export class GCClient {
         );
         break;
     }
+  }
+
+  userCount(): number {
+    return this.#userCount;
   }
 
   localUser(): User {
@@ -124,7 +150,7 @@ export class GCClient {
     if (show_badge) {
       query += "&mod_badge=true";
     }
-    let fullurl = WEBSOCKET_URL + "?" + query.substring(1);
+    let fullurl = this.websocketUrl + "?" + query.substring(1);
     this.#ws = new WebSocket(fullurl);
     this.#ws.binaryType = "arraybuffer";
 

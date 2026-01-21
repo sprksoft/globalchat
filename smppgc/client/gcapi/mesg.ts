@@ -50,16 +50,15 @@ export namespace Message {
     if (mesg instanceof Message) {
       return containsUnknown(mesg.content);
     } else {
-      let unknown = false;
       for (const word of mesg) {
-        if (word.tag == WFTag.Bad) {
+        if (WFTag.isBad(word.tag)) {
           return false;
         }
-        if (word.tag == WFTag.Unknown) {
-          unknown = true;
+        if (WFTag.isUnknown(word.tag)) {
+          return true;
         }
       }
-      return unknown;
+      return false;
     }
   }
 
@@ -68,7 +67,7 @@ export namespace Message {
       return containsProf(mesg.content);
     } else {
       for (let word of mesg) {
-        if (word.tag == WFTag.Bad || word.tag == WFTag.Unknown) {
+        if (WFTag.isBad(word.tag) || WFTag.isUnknown(word.tag)) {
           return true;
         }
       }

@@ -15,6 +15,13 @@ main {
   margin: 0px;
 }
 
+#user-count {
+  position: absolute;
+  right: 1rem;
+  font-weight: bold;
+  color: var(--color-accent);
+}
+
 #botbar {
   background: var(--color-base01);
   display: flex;

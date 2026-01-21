@@ -22,27 +22,24 @@ export let wfEditor = new WFEditor({
       }
     });
   },
+  getWordInfo: async (word: string) => {
+    const resp = await fetch("/api/wf/" + encodeURIComponent(word));
+    const info = resp.json();
 
-  lock: {
-    lockWord: async (word: string, locked: boolean, reason: string) => {
-      let lock = "lock"
-      if (!locked) {
-        lock = "unlock"
-      }
-
-      await fetch("/api/wf/" + encodeURIComponent(word) + "/" + lock + "?reason=" + encodeURIComponent(reason), {
-        method: "POST",
-        headers: {
-          "X-CSRF-Protect": getCSRFToken(),
-        }
-      });
-    },
-    getLockInfo: async (word: string) => {
-      const resp = await fetch("/api/wf/" + encodeURIComponent(word));
-      const info = resp.json();
-
-      return info;
+    return info;
+  },
+  lockWord: async (word: string, locked: boolean, reason: string) => {
+    let lock = "lock"
+    if (!locked) {
+      lock = "unlock"
     }
+
+    await fetch("/api/wf/" + encodeURIComponent(word) + "/" + lock + "?reason=" + encodeURIComponent(reason), {
+      method: "POST",
+      headers: {
+        "X-CSRF-Protect": getCSRFToken(),
+      }
+    });
   }
 
 });

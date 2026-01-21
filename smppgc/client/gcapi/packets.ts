@@ -8,7 +8,7 @@ export enum PacketId {
   //UNUSED = 6,
   MESSAGE_DEL = 7,
   //UNUSED = 8,
-
+  USER_COUNT = 9,
 }
 export enum PacketC2SId {
   MESSAGE = 0,

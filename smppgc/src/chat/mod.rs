@@ -232,7 +232,15 @@ impl Chat {
             role: user.role(),
             username,
         });
+
+        let user_count = user_lock.iter().filter(|(_, u)| !u.ghost).count();
+        let user_count = if user_count > u16::MAX as usize {
+            u16::MAX
+        } else {
+            user_count as u16
+        };
         let client = ChatClient {
+            user_count,
             user,
             message_id_gen: self.message_ids.clone(),
             event_receiver: self.event_sender.subscribe(),
@@ -369,6 +377,7 @@ pub struct ChatClient {
     message_id_gen: Arc<SnowflakeGenerator>,
     event_sender: broadcast::Sender<ChatEvent>,
     event_receiver: broadcast::Receiver<ChatEvent>,
+    user_count: u16,
 }
 impl ChatClient {
     #[inline]
@@ -391,7 +400,14 @@ impl ChatClient {
 
     #[inline]
     pub async fn recv(&mut self) -> Result<ChatEvent, RecvError> {
-        self.event_receiver.recv().await
+        let event = self.event_receiver.recv().await?;
+        if matches!(event, ChatEvent::Join(_)) {
+            self.user_count += 1;
+        } else if matches!(event, ChatEvent::Leave(_)) {
+            self.user_count -= 1;
+        }
+
+        Ok(event)
     }
 
     #[inline]

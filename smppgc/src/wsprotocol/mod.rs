@@ -79,7 +79,7 @@ impl WsClient {
         local_id: u16,
         role: Role,
     ) -> Result<DuplexStream> {
-        ws.feed(packets::new_setup(local_id)).await?;
+        ws.feed(packets::new_setup(local_id, role)).await?;
 
         for client in clients {
             let mask_role = !role.is_mod() && !client.mod_badge();
@@ -150,6 +150,13 @@ impl WsClient {
     ) -> Result<()> {
         self.ws
             .send(packets::new_profanity_warn(message, bad_word, span))
+            .await?;
+        Ok(())
+    }
+
+    pub async fn update_user_count(&mut self, user_count: u16) -> Result<()> {
+        self.ws
+            .send(packets::new_update_user_count(user_count))
             .await?;
         Ok(())
     }

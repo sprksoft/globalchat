@@ -19,6 +19,7 @@ pub const PACKET_MODJOIN: u8 = 5;
 pub const PACKET_PROFANITY_WARN: u8 = 6;
 pub const PACKET_MESSAGE_DEL: u8 = 7;
 pub const PACKET_MESSAGE_CENSOR: u8 = 8;
+pub const PACKET_USER_COUNT: u8 = 9;
 
 //C2S
 pub const PACKET_C2S_MESSAGE: u8 = 0;
@@ -62,11 +63,12 @@ impl PacketDecodeError {
 }
 type Error = PacketDecodeError;
 
-pub fn new_setup(id: u16) -> Packet {
+pub fn new_setup(id: u16, role: Role) -> Packet {
     packet! {
         &[PACKET_SETUP],
         &crate::VERSION_INT.to_be_bytes(),
-        &id.to_be_bytes()
+        &id.to_be_bytes(),
+        &[role.to_u8()]
     }
 }
 pub fn new_client_joined(client: &ChatUser, mask_role: bool) -> Packet {
@@ -145,6 +147,10 @@ pub fn new_system_message(content: &str) -> Packet {
         &[PACKET_MESSAGE_SYSTEM],
         &content.as_bytes()
     }
+}
+
+pub fn new_update_user_count(user_count: u16) -> Packet {
+    packet!(&[PACKET_USER_COUNT], &user_count.to_be_bytes())
 }
 
 pub enum C2SPacket {

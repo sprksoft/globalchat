@@ -328,11 +328,18 @@ async fn on_event(
 ) -> tokio_tungstenite::tungstenite::Result<()> {
     match event {
         ChatEvent::Join(new_user) => {
+            if let Some(cc) = chat_client {
+                wsclient.update_user_count(cc.user_count).await?;
+            }
             if !is_me(new_user.local_id(), chat_client) {
                 wsclient.forward_user(&new_user).await?;
             }
         }
-        ChatEvent::Leave(_) => {}
+        ChatEvent::Leave(_) => {
+            if let Some(cc) = chat_client {
+                wsclient.update_user_count(cc.user_count).await?;
+            }
+        }
         ChatEvent::NewMessage(mesg) => {
             if !is_me(mesg.sender.local_id(), chat_client) {
                 if wsclient.role().is_mod() || !mesg.prof() {

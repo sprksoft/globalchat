@@ -2,7 +2,8 @@ import { Message } from "../gcapi/mesg";
 import { Snowflake } from "../gcapi/gctime";
 import { Role } from "../gcapi/user";
 import { mksticker } from "./mkels";
-import { wfEditor, WFTag } from "./wf";
+import { WFTag } from "./wf";
+import { wfEditor } from "../chat";
 
 export { Message };
 

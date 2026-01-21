@@ -20,10 +20,6 @@
   background-color: var(--color-good-bg);
 }
 
-.editable-word.locked {
-  cursor: default;
-}
-
 .wf-lockmode .editable-word:hover,
 .editable-word.locked:hover {
   border-color: transparent;
@@ -59,10 +55,6 @@
 .wf-lockmode .editable-word:hover::after,
 .editable-word.locked:hover::after {
   opacity: 1;
-}
-
-.wf-lockmode .editable-word {
-  cursor: pointer;
 }
 
 #wf-lockedit {

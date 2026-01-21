@@ -12,11 +12,10 @@ import { hasVirtKb, log } from "./common/utils.js";
 
 import { GCClient, type ApiVersion } from "./gcapi/protocol";
 import { ProtoError } from "./gcapi/protoerr";
-import { clearProfWarn, setupProfWarn, showProfWarn } from "./chat/wf";
+import { clearProfWarn, setupProfWarn, setupWFEditor, showProfWarn } from "./chat/wf";
 
 export declare const WEBSOCKET_URL: string;
 export declare const ROLE: Role;
-export declare const IS_MOD: boolean;
 export declare const READONLY: boolean;
 export declare const MIN_MESSAGE_LEN: number;
 export declare const MAX_MESSAGE_LEN: number;
@@ -39,7 +38,7 @@ const constatus = document.getElementById(
 ) as HTMLDialogElement;
 const login_popup = document.getElementById("login") as HTMLDialogElement;
 
-export let gcclient = new GCClient();
+export let gcclient = new GCClient(WEBSOCKET_URL);
 
 export interface HtmlMessage {
   html: HTMLElement;
@@ -49,20 +48,22 @@ export let messages: HtmlMessage[] = [];
 
 let scrollLock: boolean = true;
 
-function add_message(
+function addMessage(
   message: Message,
   scroll: boolean,
-  adminControls: boolean,
+  showControls: boolean,
 ) {
   const controls = [];
-  if (adminControls) {
-    controls.push({ name: "delete", click: onMessageDelete });
-    controls.push({
-      name: "ban",
-      click: message.sender.role >= ROLE ? null : onMessageBan,
-    });
+  if (showControls) {
+    if (ROLE >= Role.Mod) {
+      controls.push({ name: "delete", click: onMessageDelete });
+      controls.push({
+        name: "ban",
+        click: message.sender.role >= ROLE ? null : onMessageBan,
+      });
+    }
   }
-  let msgEl = createMessage(message, controls, adminControls);
+  let msgEl = createMessage(message, controls, showControls);
 
   const belowIndex = getMessageIndexBelow(message.snowflake);
   if (belowIndex !== null) {
@@ -100,8 +101,8 @@ function onMessageBan(_: any, message: Message) {
   ban.showDialog(message.snowflake, message.sender);
 }
 
-function add_system_message(message: string) {
-  add_message(Message.system(message), true, false);
+function addSystemMessage(message: string) {
+  addMessage(Message.system(message), true, false);
 }
 
 /**
@@ -133,7 +134,7 @@ function delMessage(index: number) {
 
 localCmd("/clearkey", function() {
   localStorage.removeItem("key");
-  add_system_message("Key cleared.");
+  addSystemMessage("Key cleared.");
 });
 localCmd("/leave", function() {
   gcclient.leave();
@@ -189,14 +190,14 @@ function mesgEasterEgg(messageContent: Word[]) {
     content.includes("<script>") ||
     (content.includes("alert(1)") && content.includes("<"))
   ) {
-    add_system_message("I see the xss-er has joined. Vewie pwo hweker :3");
+    addSystemMessage("I see the xss-er has joined. Vewie pwo hweker :3");
   }
   if (
     content.includes("SELECT") &&
     content.includes("FROM") &&
     content.includes("WHERE")
   ) {
-    add_system_message("Sql injection? Why? Messages aren't even stored?");
+    addSystemMessage("Sql injection? Why? Messages aren't even stored?");
   }
 }
 
@@ -209,8 +210,8 @@ gcclient.on_message = (sender_id: number, message: Message) => {
     last_message_snowflake = message.snowflake;
   }
   log(
-    `Got message from ${sender_id} (${message.snowflake}) mod: ${message.mod_badge
-    }: ${Message.stringContent(message.content)}`,
+    `Got message from ${sender_id} (${message.snowflake})${me ? " (me)" : ""}${lastMessage ? " (last)" : ""} mod: ${message.mod_badge
+    }: ${Message.stringContent(message.content)} ${Message.containsProf(message) ? " (prof)" : ""}`,
   );
 
   if (lastMessage && me && Message.containsProf(message)) {
@@ -222,14 +223,15 @@ gcclient.on_message = (sender_id: number, message: Message) => {
     } else {
       showProfWarn(message, 10);
     }
-    if (!IS_MOD) {
+
+    // If we are not a mod don't display the message.
+    if (ROLE < Role.Mod) {
       return;
     }
   }
 
   const scroll = me || sender_id === -1; // scroll if the message comes from me or system
-  const adminControls = IS_MOD && sender_id !== -1;
-  add_message(message, scroll, adminControls);
+  addMessage(message, scroll, sender_id !== -1); // don't show controls when the message is from system
 
   if (me) {
     mesgEasterEgg(message.content);
@@ -286,6 +288,10 @@ gcclient.on_leave = (data: string | Ban, protoerr: ProtoError) => {
     location.href = "/login?redirect=/v1";
   }
 };
+
+gcclient.on_user_count_update = (userCount: number) => {
+  $("#user-count").text(`${userCount} User${userCount != 1 ? "s" : ""} online`);
+}
 
 function send_message(): boolean {
   let message = sendinput?.innerText.trim();
@@ -360,6 +366,7 @@ function connect(
 
 fixTextFields();
 setupProfWarn();
+export const wfEditor = setupWFEditor(ROLE);
 
 sendinput?.addEventListener("keypress", async (e) => {
   if (e.key == "Enter" && !e.shiftKey && !hasVirtKb()) {
