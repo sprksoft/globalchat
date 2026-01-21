@@ -30,14 +30,6 @@ mod wsprotocol;
 
 pub use version_int::*;
 
-#[derive(Deserialize, Debug)]
-#[serde(crate = "rocket::serde")]
-pub struct ChatConfig {
-    pub max_stored_messages: usize,
-    pub max_users: u16,
-    pub max_ro_users: usize,
-}
-
 #[catch(500)]
 fn internal_server_error() -> AllowSmFrame<Template> {
     let theme = themes::DEFAULT_THEME.clone();

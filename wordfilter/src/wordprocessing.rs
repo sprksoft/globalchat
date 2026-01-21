@@ -145,8 +145,6 @@ impl NormalizedWord {
             ],
         );
 
-        println!("{}", word);
-
         for char in word.chars() {
             if !(char.is_digit(10) || char == ',' || char == '.') {
                 return false;

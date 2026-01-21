@@ -2,6 +2,7 @@ use circular_queue::CircularQueue;
 use log::*;
 use nanotime::snowflake::{Snowflake, SnowflakeGenerator};
 use rocket::{fairing::AdHoc, routes};
+use serde::Deserialize;
 use std::{
     collections::HashMap,
     sync::{atomic::AtomicUsize, Arc},
@@ -24,7 +25,6 @@ use crate::{
     users::{ClaimedName, User, UserId},
     utils::IdCounter,
     wf::{TokenizedString, WordFilter},
-    ChatConfig,
 };
 use lmetrics::metrics;
 use thiserror::Error;
@@ -66,6 +66,13 @@ pub enum MessageChangeType {
 }
 
 type Users = HashMap<u16, StoredUser>;
+
+#[derive(Deserialize, Debug)]
+pub struct ChatConfig {
+    pub max_stored_messages: usize,
+    pub max_users: u16,
+    pub max_ro_users: usize,
+}
 
 pub struct Chat {
     event_sender: broadcast::Sender<ChatEvent>,
