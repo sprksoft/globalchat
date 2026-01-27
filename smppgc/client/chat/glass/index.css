@@ -1,0 +1,34 @@
+:root {
+  --border-size: 2px;
+}
+
+body {
+  background: var(--darken-background);
+}
+
+radial-gradient(var(--color-base00), var(--darken-background), var(--color-base00)),
+linear-gradient(0.25turn, var(--darken-background), transparent) .message,
+#botbar,
+#login,
+dialog {
+  background: var(--darken-background);
+  backdrop-filter: blur(10px);
+}
+
+#login > .container,
+#sendbtn,
+#connectbtn {
+  background: var(--darken-background);
+  transition: filter 0.5s;
+}
+
+#sendbtn:hover,
+#connectbtn:hover {
+  background: var(--darken-background);
+  filter: brightness(1.2);
+}
+
+.msg_arrow {
+  fill: var(--color-base01);
+  stroke: var(--color-base01);
+}

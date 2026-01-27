@@ -32,17 +32,19 @@ fn home(theme: Theme, user: CatchForward<User>) -> AllowSmFrame<Template> {
     ))
 }
 
-#[get("/v1")]
+#[get("/v1?<glass>")]
 fn chat(
     theme: Theme,
     user: User,
     message_limiter: &State<MessageLimiter>,
     user_config: &State<UserConfig>,
+    glass: bool,
 ) -> AllowSmFrame<Template> {
     let (min_message_len, max_message_len) = message_limiter.message_size_range();
     AllowSmFrame(Template::render(
         "pages/chat",
         context! (theme_css:theme.css(),
+            glass: glass,
             readonly: false,
             irl_name: user.irl_name(),
             role: user.role().to_i32(),
@@ -53,11 +55,12 @@ fn chat(
     ))
 }
 
-#[get("/rochat")]
-fn ro_chat(theme: Theme) -> AllowSmFrame<Template> {
+#[get("/rochat?<glass>")]
+fn ro_chat(glass: bool, theme: Theme) -> AllowSmFrame<Template> {
     AllowSmFrame(Template::render(
         "pages/chat",
         context! {
+            glass:glass,
             theme_css:theme.css(),
             readonly: true,
             irl_name: "",

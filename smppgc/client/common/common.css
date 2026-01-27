@@ -1,4 +1,4 @@
-html {
+:root {
   --color-accent-shadow: color-mix(in oklab, #000 6%, var(--color-accent));
   --color-shadow: var(--color-base00);
   --color-error: #c03010;
@@ -7,8 +7,10 @@ html {
   --border-radius: 20px;
   --border-size: 3px;
   --dialog-border-radius: 30px;
-  height: 100%;
   font-size: 15px;
+}
+html {
+  height: 100%;
 }
 body {
   color: var(--color-text);
@@ -177,16 +179,12 @@ kbd {
   outline: 2px ridge var(--color-accent) !important;
 }
 
-dialog[open]::backdrop {
-  opacity: 0.6;
-}
 dialog::backdrop {
-  opacity: 0;
-  background: #000000;
-  transition: opacity 0.4s ease-in-out;
+  backdrop-filter: blur(0px) brightness(100%);
+  transition: backdrop-filter 0.4s ease-in-out;
 }
-dialog[open]::backgrop {
-  opacity: 1;
+dialog[open]::backdrop {
+  backdrop-filter: blur(1px) brightness(70%);
 }
 dialog[open] {
   transform: scale(1);

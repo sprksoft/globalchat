@@ -18,7 +18,14 @@ lazy_static! {
     };
 }
 
-fn validate_hex_color(str: &str) -> bool {
+fn validate_hex_color(mut str: &str) -> bool {
+    if str.starts_with("#") {
+        str = &str[1..];
+    }
+
+    if str.len() != 6 && str.len() != 8 {
+        return false;
+    }
     for char in str.chars() {
         if !char.is_ascii_hexdigit() {
             return false;
@@ -27,15 +34,18 @@ fn validate_hex_color(str: &str) -> bool {
     true
 }
 fn validate_oklch_color(str: &str) -> bool {
-    if !str.starts_with("oklch") {
+    let Some(str) = str
+        .strip_prefix("oklch")
+        .or(str.strip_prefix("lch"))
+        .or(str.strip_prefix("rgb"))
+    else {
         return false;
     };
-    let str = &str[5..];
     for char in str.chars() {
         if char.is_whitespace() {
             continue;
         }
-        if !char.is_digit(10) && !['%', '(', ')', '.'].contains(&char) {
+        if !char.is_digit(10) && !['%', '/', '(', ')', '.', ','].contains(&char) {
             return false;
         }
     }
@@ -57,23 +67,21 @@ impl<'n, 'v> CssColorVar<'n, 'v> {
 
         Ok(me)
     }
-    pub fn set_value(&mut self, mut value: &'v str) -> Result<(), ()> {
-        if value.len() == 6 || value.len() == 8 {
-            if value.starts_with('#') {
-                value = &value[1..];
-            }
-            if !validate_hex_color(value) {
-                return Err(());
-            }
-        } else if value.starts_with("oklch") {
-            if !validate_oklch_color(value) {
-                return Err(());
-            }
-        } else {
-            return Err(());
+    pub fn set_value(&mut self, value: &'v str) -> Result<(), ()> {
+        if value.starts_with('#') && validate_hex_color(&value[1..]) {
+            self.value = &value[1..];
+            return Ok(());
         }
-        self.value = value;
-        Ok(())
+        if validate_hex_color(value) {
+            self.value = value;
+            return Ok(());
+        }
+        if validate_oklch_color(value) {
+            self.value = value;
+            return Ok(());
+        }
+
+        return Err(());
     }
     pub fn name(&self) -> &str {
         self.name
@@ -85,7 +93,7 @@ impl<'n, 'v> CssColorVar<'n, 'v> {
         let mut out = String::with_capacity(self.name().len() + self.value().len() + 3);
         out.push_str(self.name());
         out.push(':');
-        if !self.value().starts_with("oklch") {
+        if validate_hex_color(self.value()) {
             out.push('#');
         }
         out.push_str(self.value());
@@ -113,18 +121,19 @@ pub struct Theme<'v> {
 }
 
 impl<'a> Theme<'a> {
-    const DEFAULTS: [(&'static str, &'static str); 6] = css_color_vars! {
+    const DEFAULTS: [(&'static str, &'static str); 7] = css_color_vars! {
         "--color-accent": "oklch(90% 0.069 70)",
         "--color-text": "oklch(80% 0.004 90)",
         "--color-base00": "oklch(15% 0.005 70)",
         "--color-base01": "oklch(20% 0.005 70)",
         "--color-base02": "oklch(24% 0.005 70)",
-        "--color-base03": "oklch(30% 0.005 70)"
+        "--color-base03": "oklch(30% 0.005 70)",
+        "--darken-background": "0907074d"
     };
 
     pub fn css(&self) -> String {
         let mut out = String::new();
-        out.push_str("html {");
+        out.push_str(":root {");
         for col in &self.colors {
             out.push_str(&col.css());
         }

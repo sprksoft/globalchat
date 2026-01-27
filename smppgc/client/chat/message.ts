@@ -61,9 +61,11 @@ export function createMessage(
     const span = $("<span></span>").text(word.word);
     WFTag.assignToElement(word.tag, span.get(0)!)
     if (wfEdit && word.tag !== WFTag.Whitespace) {
-      span.addClass("editable-word");
+      if (wfEditor) {
+        span.addClass("editable-word");
+      }
       span.on("click", async function() {
-        await wfEditor.toggle(this);
+        await wfEditor?.toggle(this);
       });
     }
 

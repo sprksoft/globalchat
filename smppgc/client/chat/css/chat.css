@@ -15,11 +15,19 @@ main {
   margin: 0px;
 }
 
-#user-count {
-  position: absolute;
-  right: 1rem;
-  font-weight: bold;
+.user-count {
   color: var(--color-accent);
+  display: flex;
+  flex-direction: row;
+  margin: 0px 1rem;
+}
+.user-count span {
+  font-weight: bold;
+  margin: 0.2em;
+  font-size: 1.6rem;
+}
+.user-count svg {
+  width: 1.1em;
 }
 
 #botbar {
@@ -78,6 +86,7 @@ a.goto-chat-link {
 
 .chat-name {
   margin: 0px;
+  flex-grow: 0;
 }
 
 .text-accent {
@@ -86,6 +95,9 @@ a.goto-chat-link {
 
 #connectbtn {
   border-radius: 1000px;
+}
+#connectbtn:hover {
+  background: var(--color-base03);
 }
 
 #err-mesg {

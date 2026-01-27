@@ -60,10 +60,26 @@ impl<const MULTIPLY: u64> tera::Filter for NanoTimeToUnix<MULTIPLY> {
     }
 }
 
+struct RandomBool;
+impl tera::Function for RandomBool {
+    fn call(&self, args: &std::collections::HashMap<String, Value>) -> tera::Result<Value> {
+        match args.get("p") {
+            Some(tera::Value::Number(range)) => Ok(Value::Bool(rand::random_bool(
+                range.as_f64().unwrap_or(0.0),
+            ))),
+            _ => Err("random_chance function requires a parameter 'p' of type number.".into()),
+        }
+    }
+    fn is_safe(&self) -> bool {
+        true
+    }
+}
+
 pub fn setup(tera: &mut Tera, profile_name: String) {
     tera.register_function("version_int", VersionIntFunction);
     tera.register_function("url", UrlFunction);
     tera.register_function("rocket_profile", ProfileFunction(profile_name));
+    tera.register_function("random_bool", RandomBool);
     tera.register_filter("nanotime_to_unix_sec", NanoTimeToUnix::<1>);
     tera.register_filter("nanotime_to_unix_millis", NanoTimeToUnix::<1000>);
 }

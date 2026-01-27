@@ -1,1 +1,1 @@
---bundle --minify --sourcemap chat.ts prof.js login.js mods.js basic.js stats.js wf_page.ts
+--bundle --minify --sourcemap chat.ts chat_glass.ts prof.js login.js mods.js basic.js stats.js wf_page.ts

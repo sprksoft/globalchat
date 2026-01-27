@@ -290,7 +290,7 @@ gcclient.on_leave = (data: string | Ban, protoerr: ProtoError) => {
 };
 
 gcclient.on_user_count_update = (userCount: number) => {
-  $("#user-count").text(`${userCount} User${userCount != 1 ? "s" : ""} online`);
+  $("#user-count-text").text(`${userCount}`);
 }
 
 function send_message(): boolean {

@@ -22,7 +22,11 @@ function scheduleCommit() {
 }
 
 
-export function setupWFEditor(role: Role): WFEditor {
+export function setupWFEditor(role: Role): WFEditor | null {
+  if (role <= Role.User) {
+    return null;
+  }
+
   const wfEditorConfig: WFEditorConfig = {
     markWord: async (word, good) => {
       gcclient.wfMarkWord(word, good);

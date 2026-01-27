@@ -1,4 +1,8 @@
 <div class="logo">
+{% if random_bool(p=0.01) %}
+{% include "svg/gclogo_pap" %}
+{% else %}
 {% include "svg/gclogo" %}
+{% endif %}
 <p>Chat met iedere Smartschool++ gebruiker</p>
 </div>

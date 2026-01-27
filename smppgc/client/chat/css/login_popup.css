@@ -1,6 +1,4 @@
 #login {
-  color: var(--text_color);
-
   align-self: center;
   width: 45em;
   padding: 2em;
@@ -98,7 +96,7 @@
   font-family: inherit;
   font-size: inherit;
   border: none;
-  background: var(--color-base01);
+  background: transparent;
   color: var(--color-text);
   display: block;
   padding: 0.7rem 1.5rem;
