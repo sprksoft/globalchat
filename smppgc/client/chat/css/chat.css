@@ -145,9 +145,8 @@ a.goto-chat-link {
   border: solid 2px var(--color-base02);
   border-radius: 10px;
   border-top-left-radius: 0px;
-  margin: 10px;
-  margin-left: 10px;
-  margin-right: 20px;
+
+  margin: 0px 20px 20px 10px;
   align-self: start;
   max-width: calc(100% - 20px);
   display: flex;
