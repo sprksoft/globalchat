@@ -10,12 +10,7 @@ import { WFTag } from './gcapi/wf.js'
 
 export let wfEditor = new WFEditor({
   markWord: async (word: string, good: boolean) => {
-    let mark = "markgood"
-    if (!good) {
-      mark = "markbad"
-    }
-
-    await fetch("/api/wf/" + encodeURIComponent(word) + "/" + mark, {
+    await fetch("/api/wf/" + encodeURIComponent(word) + "/" + (good ? "markgood" : "markbad"), {
       method: "POST",
       headers: {
         "X-CSRF-Protect": getCSRFToken(),
@@ -29,12 +24,7 @@ export let wfEditor = new WFEditor({
     return info;
   },
   lockWord: async (word: string, locked: boolean, reason: string) => {
-    let lock = "lock"
-    if (!locked) {
-      lock = "unlock"
-    }
-
-    await fetch("/api/wf/" + encodeURIComponent(word) + "/" + lock + "?reason=" + encodeURIComponent(reason), {
+    await fetch("/api/wf/" + encodeURIComponent(word) + "/" + (locked ? "lock" : "unlock") + "?reason=" + encodeURIComponent(reason), {
       method: "POST",
       headers: {
         "X-CSRF-Protect": getCSRFToken(),

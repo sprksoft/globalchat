@@ -93,7 +93,7 @@ export class WFEditor {
       }
       await this.markWord(word.innerText, good);
     } else {
-      await this.#mark(word, false);
+      await this.#mark(word, good);
     }
   }
 

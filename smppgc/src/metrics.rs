@@ -1,6 +1,14 @@
+use std::{convert::Infallible, time::Instant};
+
 use lmetrics::LMetrics;
 use log::*;
-use rocket::{fairing::AdHoc, get, routes, State};
+use rocket::{
+    async_trait,
+    fairing::AdHoc,
+    get,
+    request::{FromRequest, Outcome},
+    routes, Request, State,
+};
 use rocket_db_pools::Connection;
 use sqlx::query;
 
@@ -45,6 +53,8 @@ pub fn stage() -> AdHoc {
             &crate::chat::history_events_lost_total::METRIC,
             &crate::chat::agent::messages_total::METRIC,
             &crate::chat::agent::messages_blocked::METRIC,
+            &crate::chat::agent::total_connections_by_seconds::METRIC,
+            &crate::chat::agent::total_connections_waiting_millis::METRIC,
             &lmetrics::http_errors_total::METRIC,
             &lmetrics::http_req_total::METRIC,
         ]);
@@ -53,4 +63,13 @@ pub fn stage() -> AdHoc {
             .mount("/", routes![metrics])
             .attach(lmetrics::http_errors_metrics())
     })
+}
+
+pub struct RequestTime(pub Instant);
+#[async_trait]
+impl<'r> FromRequest<'r> for RequestTime {
+    type Error = Infallible;
+    async fn from_request(_: &'r Request<'_>) -> Outcome<Self, Self::Error> {
+        Outcome::Success(Self(Instant::now()))
+    }
 }

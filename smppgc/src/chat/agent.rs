@@ -12,12 +12,21 @@ use wordfilter::TokenTag;
 use crate::{
     chat::{message_limits::LimitType, Chat, ChatEvent, MessageChangeType, NewClientError},
     disclaimer::DisclaimerVer,
+    metrics::RequestTime,
     users::{Ban, BanError, NameClaimError, User, UserGuardError, UserManager},
     wf::Filter,
     wsprotocol::{AdminCmd, C2SPacket, ProtoError, WsClient},
 };
 
 use super::{message_limits::MessageLimiter, ChatClient};
+
+metrics!(
+    pub counter total_connections_waiting_millis("Total amount milliseconds users spend waiting for the connection to the agent to succeed");
+    pub counter total_connections_by_seconds("Total amount of connections split by the time in seconds they took time", [time]);
+
+    pub counter messages_total("Total count of sent messages");
+    pub counter messages_blocked("Total count of blocked messages", [reason]);
+);
 
 #[derive(Responder)]
 pub enum ChatSocketResponder<'a> {
@@ -37,13 +46,9 @@ impl<'a> ChatSocketResponder<'a> {
     }
 }
 
-metrics! {
-    pub counter messages_total("Total count of sent messages");
-    pub counter messages_blocked("Total count of blocked messages", [reason]);
-}
-
 #[get("/socket/chat?<username>&<start_time>&<mod_badge>")]
 pub async fn chat_socket<'a>(
+    req_time: RequestTime,
     username: &str,
     start_time: Option<Snowflake>,
     mod_badge: Option<bool>,
@@ -116,6 +121,14 @@ pub async fn chat_socket<'a>(
                 chat_client.user()
             )
             .await?;
+
+            let dur = req_time.0.elapsed();
+            let dur_millis = dur.as_millis();
+            if dur_millis > 4000 {
+                warn!("Connection to the agent took more than 4 seconds: {}ms", dur_millis);
+            }
+            total_connections_waiting_millis::inc_by(dur_millis as u64);
+            total_connections_by_seconds::inc(&dur.as_secs().to_string());
 
             loop {
                 tokio::select! {

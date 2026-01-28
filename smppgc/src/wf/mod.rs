@@ -99,25 +99,26 @@ impl Filter {
     }
 
     #[inline]
-    pub async fn lock_word(&self, word: &str, reason: Arc<str>) {
+    pub async fn lock_word(&self, word: &str, reason: Arc<str>) -> bool {
         let mut lock = self.wf.write().await;
-        let mut dirty = false;
+        let mut edited = false;
         if let Err(()) = lock.wf.edit_meta(&word, |m| {
             if m.lock_reason != reason || !m.locked {
-                dirty = true;
+                edited = true;
             }
             m.locked = true;
             m.lock_reason = reason;
         }) {
-            return;
+            return false;
         }
-        if dirty {
+        if edited {
             lock.dirty = true;
         }
+        edited
     }
 
     #[inline]
-    pub async fn unlock_word(&self, word: &str) {
+    pub async fn unlock_word(&self, word: &str) -> bool {
         let mut lock = self.wf.write().await;
         let mut edited = false;
         if let Err(()) = lock.wf.edit_meta(&word, |m| {
@@ -126,11 +127,12 @@ impl Filter {
             }
             m.locked = false;
         }) {
-            return;
+            return false;
         }
         if edited {
             lock.dirty = true;
         }
+        edited
     }
     #[inline]
     pub async fn word_info(&self, word: &str) -> Option<WordInfo> {

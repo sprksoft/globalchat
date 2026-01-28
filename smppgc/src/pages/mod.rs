@@ -26,6 +26,7 @@ fn home(theme: Theme, user: CatchForward<User>) -> AllowSmFrame<Template> {
         context! {
             role,
             is_admin: role >= Role::Admin,
+            is_mod: role >= Role::Mod,
             logged_in,
             theme_css:theme.css()
         },

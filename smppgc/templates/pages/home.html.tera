@@ -32,10 +32,12 @@ Home - Global Chat
 
   <a class="button" href="/rochat"><img style="filter: saturate(0%)" class="btnicon" src="{{ url(path="/static/logo.webp")}}"><span>Alleen lezen chat</span></a>
 
-  {% if is_admin %}
-  <h2> Admin </h2>
-  <a class="button" href="/mods">Moderators</a>
+  {% if is_mod %}
+  <h2>Mod</h2>
   <a class="button" href="/wf">Word Filter</a>
+  {% endif %}
+  {% if is_admin %}
+  <a class="button" href="/mods">Moderators</a>
   <h2> Stats </h2>
   <a class="button" href="/stats/words">Word stats</a>
   {% endif %}

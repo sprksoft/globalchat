@@ -7,7 +7,6 @@ import { PacketC2SId, PacketId } from "./packets";
 import { type LocalId, Role } from "./user";
 import { Reader, Writer } from "./rw";
 import { WFTag } from './wf';
-import type { WordInfo } from "../common/wfedit";
 export { ProtoError };
 
 export type ApiVersion = number;

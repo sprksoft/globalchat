@@ -23,7 +23,7 @@ struct WFSearchForm {
 
 #[post("/wf", data = "<form>")]
 async fn wf_search(
-    _admin: AdminUser,
+    _mod: ModUser,
     form: Form<WFSearchForm>,
     theme: Theme<'_>,
     filter: &State<Arc<Filter>>,
@@ -62,9 +62,12 @@ async fn wf_lockword(
     reason: &str,
     _admin: AdminUser,
     filter: &State<Arc<Filter>>,
+    chat: &State<Chat>,
     _csrf: CSRFProtect,
 ) {
-    filter.lock_word(word, reason.into()).await;
+    if filter.lock_word(word, reason.into()).await {
+        filter.rerun(&chat).await;
+    }
 }
 
 #[post("/wf/<word>/unlock")]
@@ -72,9 +75,12 @@ async fn wf_unlockword(
     word: &str,
     _admin: AdminUser,
     filter: &State<Arc<Filter>>,
+    chat: &State<Chat>,
     _csrf: CSRFProtect,
 ) {
-    filter.unlock_word(word).await;
+    if filter.unlock_word(word).await {
+        filter.rerun(&chat).await;
+    }
 }
 
 #[get("/wf/<word>")]
