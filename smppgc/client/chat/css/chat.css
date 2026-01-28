@@ -149,7 +149,7 @@ a.goto-chat-link {
   margin-left: 10px;
   margin-right: 20px;
   align-self: start;
-  max-width: -moz-available;
+  max-width: calc(100% - 20px);
   display: flex;
   flex-direction: column;
 }
@@ -205,9 +205,14 @@ a.goto-chat-link {
 .user_content {
   margin-top: calc(0px - var(--msg-arrow-size));
   max-width: 100%;
-  word-wrap: break-word;
   display: flex;
   flex-direction: column;
+}
+.content {
+  white-space: pre-line;
+  word-wrap: break-word;
+  display: inline-block; /* Add this */
+  max-width: 100%; /* Ensure it respects parent width */
 }
 .message-actions {
   display: flex;
