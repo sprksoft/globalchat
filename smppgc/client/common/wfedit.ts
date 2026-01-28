@@ -1,3 +1,4 @@
+import { Role } from '../gcapi/user';
 import './wf.css'
 import './wfedit.css'
 
@@ -129,4 +130,3 @@ export class WFEditor {
 
   }
 }
-

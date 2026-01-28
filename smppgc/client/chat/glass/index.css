@@ -6,8 +6,7 @@ body {
   background: var(--darken-background);
 }
 
-radial-gradient(var(--color-base00), var(--darken-background), var(--color-base00)),
-linear-gradient(0.25turn, var(--darken-background), transparent) .message,
+.message,
 #botbar,
 #login,
 dialog {

@@ -12,8 +12,11 @@ use crate::{
 };
 
 #[get("/wf")]
-fn wf(_admin: AdminUser, theme: Theme<'_>) -> Template {
-    Template::render("pages/wf", context! { theme_css: theme.css()})
+fn wf(mod_user: ModUser, theme: Theme<'_>) -> Template {
+    Template::render(
+        "pages/wf",
+        context! { theme_css: theme.css(), role: mod_user.0.role().to_i32()},
+    )
 }
 
 #[derive(FromForm)]
@@ -23,14 +26,17 @@ struct WFSearchForm {
 
 #[post("/wf", data = "<form>")]
 async fn wf_search(
-    _mod: ModUser,
+    mod_user: ModUser,
     form: Form<WFSearchForm>,
     theme: Theme<'_>,
     filter: &State<Arc<Filter>>,
 ) -> Template {
     let ts = filter.check(&form.message).await;
     let words: Vec<(&str, WFTag)> = ts.words().collect();
-    Template::render("pages/wf", context! { theme_css:theme.css(), words: words })
+    Template::render(
+        "pages/wf",
+        context! { theme_css:theme.css(), words: words, role: mod_user.0.role().to_i32() },
+    )
 }
 
 #[post("/wf/<word>/markgood")]

@@ -47,4 +47,7 @@ Word stats - Global Chat
 
 {% block scripts %}
 <script defer type="text/javascript" src="{{ url(path="/static/wf_page.js") }}"></script>
+<script>
+const ROLE = {{ role }};
+</script>
 {% endblock scripts %}

@@ -3,12 +3,14 @@ import './common/buttons.css'
 import './common/stat.css'
 import './wf_page/index.css'
 
-import { WFEditor } from './common/wfedit.js'
+import { WFEditor, type WFEditorConfig } from './common/wfedit.js'
 import { getCSRFToken } from './common/utils.js'
 import { WFTag } from './gcapi/wf.js'
+import { Role } from './gcapi/user.js'
 
+declare const ROLE: Role;
 
-export let wfEditor = new WFEditor({
+const wfEditorConfig: WFEditorConfig = {
   markWord: async (word: string, good: boolean) => {
     await fetch("/api/wf/" + encodeURIComponent(word) + "/" + (good ? "markgood" : "markbad"), {
       method: "POST",
@@ -23,7 +25,12 @@ export let wfEditor = new WFEditor({
 
     return info;
   },
-  lockWord: async (word: string, locked: boolean, reason: string) => {
+
+  lockWord: undefined
+}
+
+if (ROLE >= Role.Admin) {
+  wfEditorConfig.lockWord = async (word, locked, reason) => {
     await fetch("/api/wf/" + encodeURIComponent(word) + "/" + (locked ? "lock" : "unlock") + "?reason=" + encodeURIComponent(reason), {
       method: "POST",
       headers: {
@@ -31,8 +38,9 @@ export let wfEditor = new WFEditor({
       }
     });
   }
+}
 
-});
+export let wfEditor = new WFEditor(wfEditorConfig);
 
 $("span.editable-word").on("click", async function() {
   await wfEditor.toggle(this)
