@@ -226,14 +226,14 @@ impl<M: Default + FilterMeta> Default for WordFilter<M> {
 
 #[cfg(test)]
 mod test {
-    use crate::{IntoWordTagPair, TokenizedString, WFTag, WordFilter};
+    use crate::{IntoWordTagPair, Tag, TokenizedString, WordFilter};
 
     fn filter() -> WordFilter {
         WordFilter::from_string(
             "f good haar\nk bad ben\nsibe good\nben good\nwacht good\nfuck bad\njij good\nldev good\nsmppgc good\n❤️ good\nu good\ni good\n69 bad",
         )
     }
-    fn ts<'a>(words: impl IntoIterator<Item = impl IntoWordTagPair<'a, WFTag>>) -> TokenizedString {
+    fn ts<'a>(words: impl IntoIterator<Item = impl IntoWordTagPair<'a, Tag>>) -> TokenizedString {
         TokenizedString::from_words(words)
     }
 
@@ -241,18 +241,18 @@ mod test {
     fn check() {
         let filter = filter();
 
-        assert_eq!(filter.check("ldev234"), ts([("ldev234", WFTag::Unknown)]));
-        assert_eq!(filter.check("fucking"), ts([("fucking", WFTag::Bad)]));
+        assert_eq!(filter.check("ldev234"), ts([("ldev234", Tag::Unknown)]));
+        assert_eq!(filter.check("fucking"), ts([("fucking", Tag::Bad)]));
         assert_eq!(
             filter.check("fucking\n"),
-            ts([("fucking", WFTag::Bad), ("\n", WFTag::Whitespace)])
+            ts([("fucking", Tag::Bad), ("\n", Tag::Whitespace)])
         );
         assert_eq!(
             filter.check("ben jij"),
             ts([
-                ("ben", WFTag::Good),
-                (" ", WFTag::Whitespace),
-                ("jij", WFTag::Good)
+                ("ben", Tag::Good),
+                (" ", Tag::Whitespace),
+                ("jij", Tag::Good)
             ])
         );
     }
@@ -261,9 +261,40 @@ mod test {
     fn number_check() {
         let filter = filter();
 
-        assert_eq!(filter.check("123.5%"), ts([("123.5%", WFTag::Good)]));
-        assert_eq!(filter.check("5€"), ts([("5€", WFTag::Good)]));
-        assert_eq!(filter.check("69"), ts([("69", WFTag::Bad)]));
+        assert_eq!(filter.check("123.5%"), ts([("123.5%", Tag::Good)]));
+        assert_eq!(filter.check("5€"), ts([("5€", Tag::Good)]));
+        assert_eq!(filter.check("69"), ts([("69", Tag::Bad)]));
+    }
+
+    #[test]
+    fn punct() {
+        let filter = filter();
+
+        assert_eq!(
+            filter.check("wacht f."),
+            ts([
+                ("wacht", Tag::Good),
+                (" ", Tag::Whitespace),
+                ("f.", Tag::Good)
+            ])
+        );
+
+        assert_eq!(
+            filter.check("ben jij sibe?"),
+            ts([
+                ("ben", Tag::Good),
+                (" ", Tag::Whitespace),
+                ("jij", Tag::Good),
+                (" ", Tag::Whitespace),
+                ("sibe?", Tag::Good)
+            ])
+        );
+
+        assert_eq!(
+            filter.check("f u."),
+            ts([("f", Tag::Good), (" ", Tag::Whitespace), ("u.", Tag::Good)])
+        );
+        assert_eq!(filter.check("f.u"), ts([("f.u", Tag::Unknown),]));
     }
 
     #[test]
@@ -273,50 +304,42 @@ mod test {
         assert_eq!(
             filter.check("la     la\n"),
             ts([
-                ("la", WFTag::Unknown),
-                ("     ", WFTag::Whitespace),
-                ("la", WFTag::Unknown),
-                ("\n", WFTag::Whitespace),
+                ("la", Tag::Unknown),
+                ("     ", Tag::Whitespace),
+                ("la", Tag::Unknown),
+                ("\n", Tag::Whitespace),
             ])
         );
-        assert_eq!(filter.check("0x1d3f"), ts([("0x1d3f", WFTag::Unknown)]));
+        assert_eq!(filter.check("0x1d3f"), ts([("0x1d3f", Tag::Unknown)]));
 
         assert_eq!(
             filter.check("f wacht"),
             ts([
-                ("f", WFTag::Good),
-                (" ", WFTag::Whitespace),
-                ("wacht", WFTag::Good)
+                ("f", Tag::Good),
+                (" ", Tag::Whitespace),
+                ("wacht", Tag::Good)
             ])
         );
         assert_eq!(
             filter.check("k ben sibe"),
             ts([
-                ("k", WFTag::Good),
-                (" ", WFTag::Whitespace),
-                ("ben", WFTag::Good),
-                (" ", WFTag::Whitespace),
-                ("sibe", WFTag::Good)
+                ("k", Tag::Good),
+                (" ", Tag::Whitespace),
+                ("ben", Tag::Good),
+                (" ", Tag::Whitespace),
+                ("sibe", Tag::Good)
             ])
         );
         assert_eq!(
             filter.check("k ben"),
-            ts([
-                ("k", WFTag::Good),
-                (" ", WFTag::Whitespace),
-                ("ben", WFTag::Good)
-            ])
+            ts([("k", Tag::Good), (" ", Tag::Whitespace), ("ben", Tag::Good)])
         );
         assert_eq!(
             filter.check("K BEN"),
-            ts([
-                ("K", WFTag::Good),
-                (" ", WFTag::Whitespace),
-                ("BEN", WFTag::Good)
-            ])
+            ts([("K", Tag::Good), (" ", Tag::Whitespace), ("BEN", Tag::Good)])
         );
-        assert_eq!(filter.check("SIBE"), ts([("SIBE", WFTag::Good)]));
-        assert_eq!(filter.check("k"), ts([("k", WFTag::Bad)]));
+        assert_eq!(filter.check("SIBE"), ts([("SIBE", Tag::Good)]));
+        assert_eq!(filter.check("k"), ts([("k", Tag::Bad)]));
     }
 
     // #[test]
@@ -333,13 +356,13 @@ mod test {
         //❤️ is multiple characters
         assert_eq!(
             filter.check("i❤️u"),
-            ts([("i", WFTag::Good), ("❤️", WFTag::Good), ("u", WFTag::Good)])
+            ts([("i", Tag::Good), ("❤️", Tag::Good), ("u", Tag::Good)])
         );
     }
 
     #[test]
     fn emoji_query() {
-        let filter = WordFilter::from_string("❤️ g");
+        let filter = WordFilter::<()>::from_string("❤️ g");
         let norm = crate::NormalizedWord::normalize("❤️");
         dbg!(&filter, &norm);
         assert!(filter.get_entry(&norm).is_some(),);

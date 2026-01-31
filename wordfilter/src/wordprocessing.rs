@@ -53,6 +53,7 @@ pub struct NormalizedWord {
 }
 impl NormalizedWord {
     pub fn normalize(str: &str) -> NormalizedWord {
+        let str = Self::strip_punct(str);
         let mut word = String::with_capacity(str.len());
         let mut prev_char = None;
         let mut rep_count = 0;
@@ -86,6 +87,15 @@ impl NormalizedWord {
         }
 
         word
+    }
+
+    fn strip_punct(str: &str) -> &str {
+        for punct in ["?", "!", ".", ",", "...", "..", "!?", "?!"] {
+            if str.ends_with(punct) {
+                return &str[0..str.len() - punct.len()];
+            }
+        }
+        str
     }
 
     #[inline]
@@ -454,7 +464,7 @@ mod test {
         );
 
         assert_eq!(
-            TokenizedString::tokenize("ik ben sibe")
+            TokenizedString::<Tag>::tokenize("ik ben sibe")
                 .words()
                 .map(|(w, _)| w)
                 .collect::<Vec<&str>>(),
@@ -522,6 +532,13 @@ mod test {
         );
 
         assert_eq!(NormalizedWord::normalize("123").root(), "123");
+    }
+    #[test]
+    fn punct_test() {
+        assert_eq!(NormalizedWord::normalize("hello?").root(), "hello");
+        assert_eq!(NormalizedWord::normalize("yow!").root(), "yow");
+        assert_eq!(NormalizedWord::normalize("zin.").root(), "zin");
+        assert_eq!(NormalizedWord::normalize("z.i.n").root(), "z.i.n");
     }
 
     #[test]
