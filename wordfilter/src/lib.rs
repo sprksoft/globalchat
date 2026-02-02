@@ -291,6 +291,17 @@ mod test {
         );
 
         assert_eq!(
+            filter.check("ben jij sibe??????"),
+            ts([
+                ("ben", Tag::Good),
+                (" ", Tag::Whitespace),
+                ("jij", Tag::Good),
+                (" ", Tag::Whitespace),
+                ("sibe??????", Tag::Good)
+            ])
+        );
+
+        assert_eq!(
             filter.check("f u."),
             ts([("f", Tag::Good), (" ", Tag::Whitespace), ("u.", Tag::Good)])
         );

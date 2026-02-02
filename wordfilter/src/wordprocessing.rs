@@ -89,12 +89,18 @@ impl NormalizedWord {
         word
     }
 
-    fn strip_punct(str: &str) -> &str {
-        for punct in ["?", "!", ".", ",", "...", "..", "!?", "?!"] {
-            if str.ends_with(punct) {
-                return &str[0..str.len() - punct.len()];
+    fn strip_punct(mut str: &str) -> &str {
+        // 2 passes to allow for: ???!!!
+        for _ in 0..2 {
+            for punct in ['?', '!', '.', ','] {
+                let ends_with = str.ends_with(punct);
+                str = str.trim_end_matches(punct);
+                if ends_with {
+                    break;
+                }
             }
         }
+
         str
     }
 
@@ -536,8 +542,14 @@ mod test {
     #[test]
     fn punct_test() {
         assert_eq!(NormalizedWord::normalize("hello?").root(), "hello");
+        assert_eq!(NormalizedWord::normalize("hello,").root(), "hello");
         assert_eq!(NormalizedWord::normalize("yow!").root(), "yow");
+        assert_eq!(NormalizedWord::normalize("yow!!!!!!").root(), "yow");
         assert_eq!(NormalizedWord::normalize("zin.").root(), "zin");
+        assert_eq!(NormalizedWord::normalize("zin...").root(), "zin");
+        assert_eq!(NormalizedWord::normalize("zin?!!!!").root(), "zin");
+        assert_eq!(NormalizedWord::normalize("zin!????").root(), "zin");
+        assert_eq!(NormalizedWord::normalize("zin!,.!?").root(), "zin!,.");
         assert_eq!(NormalizedWord::normalize("z.i.n").root(), "z.i.n");
     }
 
