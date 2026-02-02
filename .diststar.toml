@@ -3,4 +3,4 @@
 pusher="remote"
 remote="ldev@192.168.1.69"
 artifacts=[ "dockerbake(smppgc)" ]
-after_cmd="~/source/repos/ldeveuorg-infra/deploy.sh"
+after_cmd="true"

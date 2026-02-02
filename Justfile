@@ -1,6 +1,8 @@
 set dotenv-load := true
 set export := true
 
+export DEPLOY_SERVER := "ldev@192.168.1.69"
+
 alias b := build
 alias r := run
 alias prep := sqlx-prepare
@@ -32,6 +34,11 @@ sqlx-prepare: _is_docker_working _is_rust_working db-up
 [working-directory('smppgc')]
 sqlx-reset-db: _is_rust_working db-up
     $CARGO sqlx database reset
+
+deploy:
+    diststar
+    cat .diststar-out/smppgc/gnu+linux_arm_v7/smppgc.docker | ssh $DEPLOY_SERVER docker load
+    ssh $DEPLOY_SERVER ~/source/repos/ldeveuorg-infra/deploy.sh
 
 # checks that cargo and sqlx are installed
 _is_rust_working:
