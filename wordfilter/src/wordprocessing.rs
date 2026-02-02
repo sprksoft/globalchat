@@ -89,7 +89,43 @@ impl NormalizedWord {
         word
     }
 
-    fn strip_punct(mut str: &str) -> &str {
+    fn is_only_alphanumeric(str: &str) -> bool {
+        str.chars().find(|c| !c.is_alphanumeric()).is_none()
+    }
+
+    // strip surounding pairs if the string is alphanumeric inbetween them
+    fn strip_surounding_pairs<'a>(str: &'a str, pairs: &[(char, char)]) -> &'a str {
+        // We need at least 2 characters
+        if str.len() < 2 {
+            return str;
+        }
+
+        // start
+        if Self::is_only_alphanumeric(&str[str.ceil_char_boundary(1)..str.len()]) {
+            for (start, _) in pairs {
+                if str.starts_with(*start) {
+                    return &str[1..str.len()];
+                }
+            }
+        }
+
+        // end
+        if Self::is_only_alphanumeric(&str[0..str.floor_char_boundary(str.len() - 1)]) {
+            for (_, end) in pairs {
+                if str.ends_with(*end) {
+                    dbg!("found", &str[1..str.len()]);
+                    return &str[0..str.len() - 1];
+                }
+            }
+        }
+
+        str
+    }
+
+    fn strip_punct(str: &str) -> &str {
+        let mut str =
+            Self::strip_surounding_pairs(str, &[('(', ')'), ('[', ']'), ('"', '"'), ('\'', '\'')]);
+
         // 2 passes to allow for: ???!!!
         for _ in 0..2 {
             for punct in ['?', '!', '.', ','] {
@@ -454,6 +490,15 @@ mod test {
         );
 
         assert_eq!(
+            TokenizedString::tokenize("strawberry :)"),
+            TokenizedString::from_words([
+                ("strawberry", Tag::Unknown),
+                (" ", Tag::Whitespace),
+                (":)", Tag::Unknown),
+            ])
+        );
+
+        assert_eq!(
             TokenizedString::tokenize("\nstuf"),
             TokenizedString::from_words([("\n", Tag::Whitespace), ("stuf", Tag::Unknown)])
         );
@@ -541,6 +586,7 @@ mod test {
     }
     #[test]
     fn punct_test() {
+        assert_eq!(NormalizedWord::normalize("i").root(), "i");
         assert_eq!(NormalizedWord::normalize("hello?").root(), "hello");
         assert_eq!(NormalizedWord::normalize("hello,").root(), "hello");
         assert_eq!(NormalizedWord::normalize("yow!").root(), "yow");
@@ -551,6 +597,12 @@ mod test {
         assert_eq!(NormalizedWord::normalize("zin!????").root(), "zin");
         assert_eq!(NormalizedWord::normalize("zin!,.!?").root(), "zin!,.");
         assert_eq!(NormalizedWord::normalize("z.i.n").root(), "z.i.n");
+
+        assert_eq!(NormalizedWord::normalize("(zin").root(), "zin");
+        assert_eq!(NormalizedWord::normalize("zin)").root(), "zin");
+
+        assert_eq!(NormalizedWord::normalize("(ik").root(), "ik");
+        assert_eq!(NormalizedWord::normalize("sibe)").root(), "sibe");
     }
 
     #[test]

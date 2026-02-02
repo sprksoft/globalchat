@@ -230,7 +230,7 @@ mod test {
 
     fn filter() -> WordFilter {
         WordFilter::from_string(
-            "f good haar\nk bad ben\nsibe good\nben good\nwacht good\nfuck bad\njij good\nldev good\nsmppgc good\n❤️ good\nu good\ni good\n69 bad",
+            "ik good\nf good haar\nk bad ben\nsibe good\nben good\nwacht good\nfuck bad\njij good\nldev good\nsmppgc good\n❤️ good\nu good\ni good\n69 bad",
         )
     }
     fn ts<'a>(words: impl IntoIterator<Item = impl IntoWordTagPair<'a, Tag>>) -> TokenizedString {
@@ -269,6 +269,17 @@ mod test {
     #[test]
     fn punct() {
         let filter = filter();
+
+        assert_eq!(
+            filter.check("(ik ben sibe)"),
+            ts([
+                ("(ik", Tag::Good),
+                (" ", Tag::Whitespace),
+                ("ben", Tag::Good),
+                (" ", Tag::Whitespace),
+                ("sibe)", Tag::Good)
+            ])
+        );
 
         assert_eq!(
             filter.check("wacht f."),
