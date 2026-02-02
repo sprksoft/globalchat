@@ -40,6 +40,9 @@ deploy:
     cat .diststar-out/smppgc/gnu+linux_arm_v7/smppgc.docker | ssh $DEPLOY_SERVER docker load
     ssh $DEPLOY_SERVER ~/source/repos/ldeveuorg-infra/deploy.sh
 
+promote_beta_to_prod:
+    ssh $DEPLOY_SERVER ~/source/repos/ldeveuorg-infra/smpp/beta2prod.sh
+
 # checks that cargo and sqlx are installed
 _is_rust_working:
     #!/usr/bin/env bash

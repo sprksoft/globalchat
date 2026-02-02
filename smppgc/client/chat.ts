@@ -401,7 +401,7 @@ connectbtn.addEventListener("click", () => {
   sendinput?.focus();
 });
 
-$("main").on("scrollend", function() {
+$("#mesgs").on("scrollend", function() {
   const bottom =
     Math.abs(this.scrollTop + this.clientHeight - this.scrollHeight) < 2;
   scrollLock = bottom;
