@@ -281,6 +281,17 @@ mod test {
             ])
         );
 
+        // assert_eq!(
+        //     filter.check("(ik ben sibe?)"),
+        //     ts([
+        //         ("(ik", Tag::Good),
+        //         (" ", Tag::Whitespace),
+        //         ("ben", Tag::Good),
+        //         (" ", Tag::Whitespace),
+        //         ("sibe?)", Tag::Good)
+        //     ])
+        // );
+
         assert_eq!(
             filter.check("wacht f."),
             ts([

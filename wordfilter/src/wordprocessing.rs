@@ -93,7 +93,25 @@ impl NormalizedWord {
         str.chars().find(|c| !c.is_alphanumeric()).is_none()
     }
 
-    // strip surounding pairs if the string is alphanumeric inbetween them
+    fn without_first_char(str: &str) -> &str {
+        for i in 1..str.len() {
+            if str.is_char_boundary(i) {
+                return &str[i..str.len()];
+            }
+        }
+        ""
+    }
+    fn without_last_char(str: &str) -> &str {
+        for i in 1..str.len() {
+            let i = str.len() - i;
+            if str.is_char_boundary(i) {
+                return &str[..i];
+            }
+        }
+        ""
+    }
+
+    // strip surounding pairs if the string is alphanumeric in between them
     fn strip_surounding_pairs<'a>(str: &'a str, pairs: &[(char, char)]) -> &'a str {
         // We need at least 2 characters
         if str.len() < 2 {
@@ -101,7 +119,7 @@ impl NormalizedWord {
         }
 
         // start
-        if Self::is_only_alphanumeric(&str[str.ceil_char_boundary(1)..str.len()]) {
+        if Self::is_only_alphanumeric(Self::without_first_char(str)) {
             for (start, _) in pairs {
                 if str.starts_with(*start) {
                     return &str[1..str.len()];
@@ -110,10 +128,9 @@ impl NormalizedWord {
         }
 
         // end
-        if Self::is_only_alphanumeric(&str[0..str.floor_char_boundary(str.len() - 1)]) {
+        if Self::is_only_alphanumeric(Self::without_last_char(str)) {
             for (_, end) in pairs {
                 if str.ends_with(*end) {
-                    dbg!("found", &str[1..str.len()]);
                     return &str[0..str.len() - 1];
                 }
             }
@@ -603,6 +620,8 @@ mod test {
 
         assert_eq!(NormalizedWord::normalize("(ik").root(), "ik");
         assert_eq!(NormalizedWord::normalize("sibe)").root(), "sibe");
+
+        // assert_eq!(NormalizedWord::normalize("sibe?)").root(), "sibe");
     }
 
     #[test]
@@ -626,5 +645,26 @@ mod test {
         assert!(!NormalizedWord::normalize("123a").is_number());
         assert!(!NormalizedWord::normalize("1$50").is_number());
         assert!(!NormalizedWord::normalize("1%50").is_number());
+    }
+
+    #[test]
+    fn widthout_first_char() {
+        assert_eq!(NormalizedWord::without_first_char("éaaa"), "aaa");
+        assert_eq!(NormalizedWord::without_first_char("raaa"), "aaa");
+
+        //fail tests
+        assert_eq!(NormalizedWord::without_first_char("a"), "");
+        assert_eq!(NormalizedWord::without_first_char("é"), "");
+        assert_eq!(NormalizedWord::without_first_char(""), "");
+    }
+    #[test]
+    fn widthout_last_char() {
+        assert_eq!(NormalizedWord::without_last_char("aaaé"), "aaa");
+        assert_eq!(NormalizedWord::without_last_char("aaar"), "aaa");
+
+        //fail tests
+        assert_eq!(NormalizedWord::without_last_char("a"), "");
+        assert_eq!(NormalizedWord::without_last_char("é"), "");
+        assert_eq!(NormalizedWord::without_last_char(""), "");
     }
 }

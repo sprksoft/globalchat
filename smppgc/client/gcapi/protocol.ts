@@ -243,6 +243,28 @@ export class GCClient {
     this.#ws.send(writer.finish());
   }
 
+  wfLock(word: string, reason: string) {
+    if (!this.#ws || this.#ws.readyState !== WebSocket.OPEN) {
+      return false;
+    }
+    const writer = new Writer(1 + 1 + word.length + reason.length);
+    writer.setUint8(PacketC2SId.WF_LOCK);
+    writer.setUint8(word.length);
+    writer.setString(word);
+    writer.setString(reason);
+    this.#ws.send(writer.finish());
+  }
+  wfUnlock(word: string) {
+    if (!this.#ws || this.#ws.readyState !== WebSocket.OPEN) {
+      return false;
+    }
+    const writer = new Writer(1 + word.length);
+    writer.setUint8(PacketC2SId.WF_UNLOCK);
+    writer.setString(word);
+    this.#ws.send(writer.finish());
+  }
+
+
   sendString(message: string): boolean {
     if (!this.#ws || this.#ws.readyState !== WebSocket.OPEN) {
       return false;

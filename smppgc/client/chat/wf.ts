@@ -43,12 +43,11 @@ export function setupWFEditor(role: Role): WFEditor | null {
 
   if (role >= Role.Admin) {
     wfEditorConfig.lockWord = async (word, locked, reason) => {
-      await fetch("/api/wf/" + encodeURIComponent(word) + "/" + (locked ? "lock" : "unlock") + "?reason=" + encodeURIComponent(reason), {
-        method: "POST",
-        headers: {
-          "X-CSRF-Protect": getCSRFToken(),
-        }
-      });
+      if (locked) {
+        gcclient.wfLock(word, reason);
+      } else {
+        gcclient.wfUnlock(word);
+      }
     }
   }
   return new WFEditor(wfEditorConfig);

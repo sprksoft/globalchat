@@ -272,6 +272,20 @@ async fn on_admin_cmd(
             debug!("WFCommit");
             filter.rerun(chat).await;
         }
+        AdminCmd::WFLock {
+            word,
+            reason,
+            locked,
+        } => {
+            let should_rerun = if locked {
+                filter.lock_word(&word, reason.into()).await
+            } else {
+                filter.unlock_word(&word).await
+            };
+            if should_rerun {
+                filter.rerun(&chat).await;
+            }
+        }
     }
     Ok(())
 }

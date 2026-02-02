@@ -28,6 +28,8 @@ pub const PACKET_C2S_BANMSGAUTHOR: u8 = 2;
 pub const PACKET_C2S_WF_MARKGOOD: u8 = 3;
 pub const PACKET_C2S_WF_MARKBAD: u8 = 4;
 pub const PACKET_C2S_WF_COMMIT: u8 = 5;
+pub const PACKET_C2S_WF_LOCK: u8 = 6;
+pub const PACKET_C2S_WF_UNLOCK: u8 = 7;
 
 macro_rules! packet {
     ($($expr:expr),*) => {
@@ -170,6 +172,12 @@ pub enum AdminCmd {
         good: bool,
     },
     WFCommit,
+
+    WFLock {
+        word: String,
+        reason: String,
+        locked: bool,
+    },
 }
 
 fn parse_u64(bytes: &[u8]) -> Result<u64, Cow<'static, str>> {
@@ -242,6 +250,36 @@ pub fn parse_c2s(data: Vec<u8>) -> Result<C2SPacket, PacketDecodeError> {
             Ok(C2SPacket::AdminCmd(AdminCmd::WFMark { word, good: false }))
         }
         PACKET_C2S_WF_COMMIT => Ok(C2SPacket::AdminCmd(AdminCmd::WFCommit)),
+
+        PACKET_C2S_WF_LOCK => {
+            //|    u8     | const PACKET_C2S_WF_LOCK
+            //| word_len  | u8
+            //|    [u8]   | word
+            //|           | reason
+
+            let word_len = data[0] as usize;
+            let data = &data[1..];
+            let word = parse_str(&data[..word_len]);
+            let data = &data[word_len..];
+            let reason = parse_str(&data);
+
+            Ok(C2SPacket::AdminCmd(AdminCmd::WFLock {
+                word,
+                reason,
+                locked: true,
+            }))
+        }
+        PACKET_C2S_WF_UNLOCK => {
+            //|    u8     | const PACKET_C2S_WF_UNLOCK
+            //|    [u8]   | word
+            let word = parse_str(&data);
+            Ok(C2SPacket::AdminCmd(AdminCmd::WFLock {
+                word,
+                reason: String::new(),
+                locked: false,
+            }))
+        }
+
         _ => {
             return Err(PacketDecodeError::static_str(
                 packet_id,
