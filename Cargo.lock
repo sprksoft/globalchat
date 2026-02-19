@@ -1530,7 +1530,7 @@ checksum = "bc0287524726960e07b119cebd01678f852f147742ae0d925e6a520dca956126"
 
 [[package]]
 name = "nanotime"
-version = "2025.9.3"
+version = "2025.9.4"
 dependencies = [
  "lazy_static",
  "log",
@@ -2581,7 +2581,7 @@ checksum = "67b1b7a3b5fe4f1376887184045fcf45c69e92af734b7aaddc05fb777b6fbd03"
 
 [[package]]
 name = "smppgc"
-version = "2025.9.3"
+version = "2025.9.4"
 dependencies = [
  "base64 0.22.1",
  "circular-queue",
@@ -3304,7 +3304,7 @@ checksum = "e421abadd41a4225275504ea4d6566923418b7f05506fbc9c0fe86ba7396114b"
 
 [[package]]
 name = "ts_import"
-version = "2025.9.3"
+version = "2025.9.4"
 dependencies = [
  "proc-macro2",
  "quote",

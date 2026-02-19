@@ -7,7 +7,6 @@ use crate::{
 };
 
 pub type MessageLen = u16;
-pub type BadWordLen = u8;
 
 #[derive(Deserialize, Debug, Clone)]
 #[serde(crate = "rocket::serde")]

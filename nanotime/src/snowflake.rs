@@ -10,9 +10,14 @@ use crate::{Epoch, GCEpoch};
 /// An smpp snowflake id
 /// Based on discord/twitter snowflakes
 ///
-/// millis since gc_EPOCH  incrementing integer reserved incremented per id
 /// 111111111111111111111111111111111111111111 11111 11111 111111111111
 /// 64                                         22         12         0
+///
+/// | field               | bits          | description                                             |
+/// |---------------------|---------------|---------------------------------------------------------|
+/// | timestamp           | 63 to 22 (42) | Milliseconds since GC Epoch (the first second of 2024). |
+/// | Internal worker ID  | 21 to 17 (5)  | currently unused                                        |
+/// | Internal process ID | 16 to 12 (5)  | currently unused                                        |
 #[derive(Debug, Copy, Hash, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Snowflake(u64);
 impl Snowflake {

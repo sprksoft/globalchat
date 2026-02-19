@@ -1,4 +1,4 @@
-import { Snowflake } from "./gctime";
+import { Snowflake } from "./nanotime";
 import { Message } from "./mesg";
 import { User } from "./user";
 import { ProtoError } from "./protoerr";
@@ -6,7 +6,7 @@ import { Ban } from "./ban";
 import { PacketC2SId, PacketId } from "./packets";
 import { type LocalId, Role } from "./user";
 import { Reader, Writer } from "./rw";
-import { WFTag } from './wf';
+import { WFTag } from "./wf";
 export { ProtoError };
 
 export type ApiVersion = number;
@@ -28,89 +28,83 @@ export class GCClient {
   #username: string = "";
   #userCount: number = 0;
 
-  constructor(websocketUrl: string = "https://gc.smartschoolplusplus.com/socket/chat") {
+  constructor(
+    websocketUrl: string = "https://gc.smartschoolplusplus.com/socket/chat",
+  ) {
     this.websocketUrl = websocketUrl;
   }
 
   #on_packet(packetId: PacketId, reader: Reader) {
     switch (packetId) {
-      case PacketId.MESSAGE:
-        {
-          const sender_id = reader.getUint16(0);
-          const snowflake = reader.getSnowflake(0);
+      case PacketId.MESSAGE: {
+        const sender_id = reader.getUint16(0);
+        const snowflake = reader.getSnowflake(0);
 
-          let content = [];
-          while (!reader.end()) {
-            const tag = WFTag.fromString(String.fromCharCode(reader.getUint8(0)));
-            const len = reader.getUint16(0);
-            content.push({ tag: tag, word: reader.getString(len) })
-          }
-
-          let sender = this.#users[sender_id];
-          if (!sender) {
-            console.error("sender id not found");
-            sender = User.nonExisting();
-          }
-          let message = new Message(content, sender, snowflake);
-          message.mod_badge = sender.modBadge;
-          this.on_message?.(sender_id, message);
-          break;
-        }
-      case PacketId.MESSAGE_SYSTEM:
-        {
-          let content = reader.getString();
-          let message = Message.system(content);
-          this.on_message?.(-1, message);
-          break;
+        let content = [];
+        while (!reader.end()) {
+          const tag = WFTag.fromString(String.fromCharCode(reader.getUint8(0)));
+          const len = reader.getUint16(0);
+          content.push({ tag: tag, word: reader.getString(len) });
         }
 
-      case PacketId.SETUP:
-        {
-          const apiVersion = reader.getUint16(0) as ApiVersion;
-          this.#localId = reader.getUint16();
-          const role = reader.getUint8(0) as Role;
-
-          this.#users[this.#localId] = new User(
-            this.#username,
-            this.#modBadge,
-            role,
-          );
-
-          this.on_join?.(apiVersion);
-          break;
+        let sender = this.#users[sender_id];
+        if (!sender) {
+          console.error("sender id not found");
+          sender = User.nonExisting();
         }
+        let message = new Message(content, sender, snowflake);
+        message.mod_badge = sender.modBadge;
+        this.on_message?.(sender_id, message);
+        break;
+      }
+      case PacketId.MESSAGE_SYSTEM: {
+        let content = reader.getString();
+        let message = Message.system(content);
+        this.on_message?.(-1, message);
+        break;
+      }
+
+      case PacketId.SETUP: {
+        const apiVersion = reader.getUint16(0) as ApiVersion;
+        this.#localId = reader.getUint16();
+        const role = reader.getUint8(0) as Role;
+
+        this.#users[this.#localId] = new User(
+          this.#username,
+          this.#modBadge,
+          role,
+        );
+
+        this.on_join?.(apiVersion);
+        break;
+      }
 
       case PacketId.MODJOIN:
-      case PacketId.USERJOIN:
-        {
-          let id = reader.getUint16(0);
-          let role = reader.getUint8(0);
-          let username = reader.getString();
-          this.#users[id] = new User(
-            username,
-            packetId === PacketId.MODJOIN,
-            role,
-          );
-          break;
-        }
-      case PacketId.MESSAGE_DEL:
-        {
-          const msgId = reader.getSnowflake(0);
-          this.on_message_del?.(msgId);
-          break;
-        }
+      case PacketId.USERJOIN: {
+        let id = reader.getUint16(0);
+        let role = reader.getUint8(0);
+        let username = reader.getString();
+        this.#users[id] = new User(
+          username,
+          packetId === PacketId.MODJOIN,
+          role,
+        );
+        break;
+      }
+      case PacketId.MESSAGE_DEL: {
+        const msgId = reader.getSnowflake(0);
+        this.on_message_del?.(msgId);
+        break;
+      }
 
-      case PacketId.USER_COUNT:
-        {
-          this.#userCount = reader.getUint16(0);
-          this.on_user_count_update?.(this.#userCount)
-          break;
-        }
+      case PacketId.USER_COUNT: {
+        this.#userCount = reader.getUint16(0);
+        this.on_user_count_update?.(this.#userCount);
+        break;
+      }
 
       default:
-        console.error(
-          "PROTOCOL_ERROR: Invalid subid (" + packetId + ") packet recieved",
-        );
+        // ignore unknown packets to be forwards compatible.
         break;
     }
   }
@@ -249,7 +243,7 @@ export class GCClient {
     }
     const writer = new Writer(1 + 1 + word.length + reason.length);
     writer.setUint8(PacketC2SId.WF_LOCK);
-    writer.setUint8(word.length);
+    writer.setUint16(word.length);
     writer.setString(word);
     writer.setString(reason);
     this.#ws.send(writer.finish());
@@ -263,7 +257,6 @@ export class GCClient {
     writer.setString(word);
     this.#ws.send(writer.finish());
   }
-
 
   sendString(message: string): boolean {
     if (!this.#ws || this.#ws.readyState !== WebSocket.OPEN) {

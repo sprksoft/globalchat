@@ -1,4 +1,4 @@
-import type { Snowflake } from "./gctime.ts";
+import type { Snowflake } from "./nanotime.ts";
 
 export class Reader {
   dv: DataView;
@@ -13,9 +13,7 @@ export class Reader {
 
   getString(length: number | null = null): string {
     const len =
-      typeof length == "number"
-        ? length
-        : this.dv.byteLength - this.#index;
+      typeof length == "number" ? length : this.dv.byteLength - this.#index;
     let dv = new DataView(this.dv.buffer, this.#index, len);
     this.#index += len;
     return this.#tdecoder.decode(dv);
@@ -42,10 +40,6 @@ export class Reader {
     return out;
   }
 
-  getDate(offset = 0) {
-    return new Date(this.getUint32(offset) * 1000 * 60);
-  }
-
   end() {
     return this.#index >= this.dv.byteLength;
   }
@@ -67,6 +61,11 @@ export class Writer {
     this.#buf.resize(this.#index + 1);
     this.#dv.setUint8(this.#index, value);
     this.#index += 1;
+  }
+  setUint16(value: number) {
+    this.#buf.resize(this.#index + 2);
+    this.#dv.setUint16(this.#index, value);
+    this.#index += 2;
   }
 
   setUint32(value: number) {
@@ -96,5 +95,4 @@ export class Writer {
   finish(): ArrayBuffer {
     return this.#buf.transferToFixedLength(this.#buf.byteLength);
   }
-
 }

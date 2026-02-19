@@ -1,11 +1,10 @@
-import { Snowflake } from "./gctime.ts";
+import { Snowflake } from "./nanotime.ts";
 import { User } from "./user.ts";
 import { WFTag } from "./wf.ts";
 
-
 export interface Word {
-  tag: WFTag,
-  word: string,
+  tag: WFTag;
+  word: string;
 }
 
 export class Message {
@@ -22,7 +21,7 @@ export class Message {
     this.content = [];
     for (const word of content) {
       if (typeof word === "string") {
-        this.content.push({ tag: WFTag.Good, word: word })
+        this.content.push({ tag: WFTag.Good, word: word });
       } else {
         this.content.push(word);
       }

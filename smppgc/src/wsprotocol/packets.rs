@@ -1,290 +1,73 @@
-use nanotime::snowflake::Snowflake;
-use rocket::time::Duration;
-use std::{borrow::Cow, ops::Range};
 use thiserror::Error;
-use tokio_tungstenite::tungstenite;
+use ts_import::import;
 
-use crate::{
-    chat::{ChatUser, Message, MessageLen},
-    users::role::Role,
-};
-use log::*;
+import!({ pub PacketId, pub PacketC2SId } from "../../client/gcapi/packets.ts");
 
-pub const PACKET_MESSAGE: u8 = 0;
-pub const PACKET_MESSAGE_SYSTEM: u8 = 2;
+pub type Packet = tokio_tungstenite::tungstenite::Message;
+pub type Error = PacketDecodeError;
 
-pub const PACKET_SETUP: u8 = 3;
-pub const PACKET_USERJOIN: u8 = 4;
-pub const PACKET_MODJOIN: u8 = 5;
-pub const PACKET_PROFANITY_WARN: u8 = 6;
-pub const PACKET_MESSAGE_DEL: u8 = 7;
-pub const PACKET_MESSAGE_CENSOR: u8 = 8;
-pub const PACKET_USER_COUNT: u8 = 9;
+#[derive(Debug, Error)]
+pub enum PacketDecodeError {
+    #[error("Couldn't read packet id: {0}")]
+    PacketIdRead(ReadError),
+    #[error("Couldn't read packet {0:?}: {1}")]
+    PacketRead(PacketC2SId, ReadError),
+    #[error("Invalid packet id {0}")]
+    InvalidPacketId(u8),
+}
 
-//C2S
-pub const PACKET_C2S_MESSAGE: u8 = 0;
-pub const PACKET_C2S_DELMSG: u8 = 1;
-pub const PACKET_C2S_BANMSGAUTHOR: u8 = 2;
-pub const PACKET_C2S_WF_MARKGOOD: u8 = 3;
-pub const PACKET_C2S_WF_MARKBAD: u8 = 4;
-pub const PACKET_C2S_WF_COMMIT: u8 = 5;
-pub const PACKET_C2S_WF_LOCK: u8 = 6;
-pub const PACKET_C2S_WF_UNLOCK: u8 = 7;
+pub trait PacketField {
+    fn extend_bytes(self, data: &mut Vec<u8>);
+    fn size(&self) -> usize;
+}
+impl PacketField for u8 {
+    #[inline]
+    fn extend_bytes(self, data: &mut Vec<u8>) {
+        data.push(self);
+    }
+    #[inline]
+    fn size(&self) -> usize {
+        1
+    }
+}
+impl PacketField for &[u8] {
+    #[inline]
+    fn extend_bytes(self, data: &mut Vec<u8>) {
+        data.extend_from_slice(self);
+    }
+    fn size(&self) -> usize {
+        self.len()
+    }
+}
+impl<const N: usize> PacketField for [u8; N] {
+    fn extend_bytes(self, data: &mut Vec<u8>) {
+        data.extend_from_slice(&self);
+    }
+    fn size(&self) -> usize {
+        self.len()
+    }
+}
+impl PacketField for PacketId {
+    fn extend_bytes(self, data: &mut Vec<u8>) {
+        data.push(self.to_backing_type() as u8);
+    }
+    fn size(&self) -> usize {
+        1
+    }
+}
 
-macro_rules! packet {
+macro_rules! packet_impl {
     ($($expr:expr),*) => {
         {
-            let size = 0 $(+size_of_val($expr))*;
+            let size = 0 $(+$expr.size())*;
             let mut data = Vec::with_capacity(size);
             $(
-            data.extend_from_slice($expr);
+            $expr.extend_bytes(&mut data);
             )*
             tokio_tungstenite::tungstenite::Message::Binary(data)
         }
     };
 }
+pub(super) use packet_impl as packet;
 
-type Packet = tokio_tungstenite::tungstenite::Message;
-
-#[derive(Debug, Error)]
-#[error("Can't parse packet {packet_id}: {error}")]
-pub struct PacketDecodeError {
-    packet_id: u8,
-    error: Cow<'static, str>,
-}
-impl PacketDecodeError {
-    pub fn new(packet_id: u8, error: Cow<'static, str>) -> Self {
-        Self { packet_id, error }
-    }
-    pub fn static_str(packet_id: u8, error: &'static str) -> Self {
-        Self {
-            packet_id,
-            error: Cow::Borrowed(error),
-        }
-    }
-}
-type Error = PacketDecodeError;
-
-pub fn new_setup(id: u16, role: Role) -> Packet {
-    packet! {
-        &[PACKET_SETUP],
-        &crate::VERSION_INT.to_be_bytes(),
-        &id.to_be_bytes(),
-        &[role.to_u8()]
-    }
-}
-pub fn new_client_joined(client: &ChatUser, mask_role: bool) -> Packet {
-    let packet_id = if client.mod_badge() {
-        PACKET_MODJOIN
-    } else {
-        PACKET_USERJOIN
-    };
-    let role = if mask_role { Role::User } else { client.role() };
-    packet! {
-        &[packet_id],
-        &client.local_id().to_be_bytes(),
-        &[role.to_u8()],
-        client.username().as_bytes()
-    }
-}
-
-pub fn new_profanity_warn(
-    message: &str,
-    bad_word: &str,
-    span: Range<MessageLen>,
-) -> tokio_tungstenite::tungstenite::Message {
-    //|  u8  | const PACKET_PROFANITY_WARN
-    //| MessageLen | match start
-    //| MessageLen | match end
-    //| MessageLen | len of message
-    //| [u8]  | message
-    //| [u8] | bad word
-
-    let mut data =
-        Vec::with_capacity(1 + size_of::<MessageLen>() * 3 + message.len() + bad_word.len());
-    data.push(PACKET_PROFANITY_WARN);
-    data.extend_from_slice(&span.start.to_be_bytes());
-    data.extend_from_slice(&span.end.to_be_bytes());
-    data.extend_from_slice(&(message.len() as MessageLen).to_be_bytes());
-    data.extend_from_slice(message.as_bytes());
-    data.extend_from_slice(bad_word.as_bytes());
-    tokio_tungstenite::tungstenite::Message::Binary(data)
-}
-
-pub fn new_message_del(snowflake: Snowflake) -> tokio_tungstenite::tungstenite::Message {
-    //|  u8  | const PACKET_MESSAGE_DEL
-    //| Snowflake | message id
-
-    packet!(&[PACKET_MESSAGE_DEL], &snowflake.to_be_bytes())
-}
-
-pub fn new_message(mesg: &Message) -> tokio_tungstenite::tungstenite::Message {
-    //|  u8  | const PACKET_MESSAGE
-    //|  u16 | sender id
-    //| Snowflake | message id
-    //| [Word] | content
-    //
-    // Word:
-    //| u8  | tag
-    //| u16 | len
-    //| [u8]| data
-
-    let mut data = packet!(
-        &[PACKET_MESSAGE],
-        &mesg.sender.local_id().to_be_bytes(),
-        &mesg.id().to_be_bytes()
-    )
-    .into_data();
-
-    for (word, tag) in mesg.content.words() {
-        data.push(tag.char() as u8);
-        data.extend_from_slice(&(word.len() as u16).to_be_bytes());
-        data.extend_from_slice(word.as_bytes());
-    }
-
-    tungstenite::Message::Binary(data)
-}
-pub fn new_system_message(content: &str) -> Packet {
-    packet! {
-        &[PACKET_MESSAGE_SYSTEM],
-        &content.as_bytes()
-    }
-}
-
-pub fn new_update_user_count(user_count: u16) -> Packet {
-    packet!(&[PACKET_USER_COUNT], &user_count.to_be_bytes())
-}
-
-pub enum C2SPacket {
-    Message(String),
-    AdminCmd(AdminCmd),
-}
-
-pub enum AdminCmd {
-    DelMsg(Snowflake),
-    BanMsgAuthor {
-        mesg: Snowflake,
-        duration: Duration,
-        reason: String,
-    },
-    WFMark {
-        word: String,
-        good: bool,
-    },
-    WFCommit,
-
-    WFLock {
-        word: String,
-        reason: String,
-        locked: bool,
-    },
-}
-
-fn parse_u64(bytes: &[u8]) -> Result<u64, Cow<'static, str>> {
-    Ok(u64::from_be_bytes(
-        bytes[..8]
-            .try_into()
-            .map_err(|_| Cow::Borrowed("Can't parse u64"))?,
-    ))
-}
-fn parse_u32(bytes: &[u8]) -> Result<u32, Cow<'static, str>> {
-    Ok(u32::from_be_bytes(
-        bytes[..4]
-            .try_into()
-            .map_err(|_| Cow::Borrowed("Can't parse u32"))?,
-    ))
-}
-fn parse_dur(bytes: &[u8]) -> Result<Duration, Cow<'static, str>> {
-    Ok(Duration::seconds(parse_u32(bytes)? as i64))
-}
-fn parse_snowflake(bytes: &[u8]) -> Result<Snowflake, Cow<'static, str>> {
-    Ok(Snowflake::from_u64(parse_u64(bytes)?))
-}
-fn parse_str(bytes: &[u8]) -> String {
-    String::from_utf8_lossy(bytes).to_string()
-}
-
-pub fn parse_c2s(data: Vec<u8>) -> Result<C2SPacket, PacketDecodeError> {
-    let packet_id = data[0];
-    let data = &data[1..];
-    match packet_id {
-        PACKET_C2S_MESSAGE => Ok(C2SPacket::Message(
-            String::from_utf8_lossy(data).trim().to_string(),
-        )),
-        PACKET_C2S_DELMSG => {
-            let snowflake =
-                parse_snowflake(&data[..8]).map_err(|e| PacketDecodeError::new(packet_id, e))?;
-            Ok(C2SPacket::AdminCmd(AdminCmd::DelMsg(snowflake)))
-        }
-        PACKET_C2S_BANMSGAUTHOR => {
-            //|    u8     | const PACKET_C2S_BANMSGAUTHOR
-            //| Snowflake | message id
-            //|    u32    | duration (seconds)
-            //|           | reason
-
-            let snowflake =
-                parse_snowflake(&data[..8]).map_err(|e| PacketDecodeError::new(packet_id, e))?;
-            let data = &data[8..];
-            let duration =
-                parse_dur(&data[..4]).map_err(|e| PacketDecodeError::new(packet_id, e))?;
-            let data = &data[4..];
-            let reason = parse_str(&data);
-            if reason.len() >= 1000 {
-                return Err(PacketDecodeError::static_str(
-                    packet_id,
-                    "Invalid PACKET_C2S_BANMSGAUTHOR packet: Reason field too large",
-                ));
-            }
-            Ok(C2SPacket::AdminCmd(AdminCmd::BanMsgAuthor {
-                mesg: snowflake,
-                duration,
-                reason,
-            }))
-        }
-        PACKET_C2S_WF_MARKGOOD => {
-            let word = parse_str(&data);
-            Ok(C2SPacket::AdminCmd(AdminCmd::WFMark { word, good: true }))
-        }
-        PACKET_C2S_WF_MARKBAD => {
-            let word = parse_str(&data);
-            Ok(C2SPacket::AdminCmd(AdminCmd::WFMark { word, good: false }))
-        }
-        PACKET_C2S_WF_COMMIT => Ok(C2SPacket::AdminCmd(AdminCmd::WFCommit)),
-
-        PACKET_C2S_WF_LOCK => {
-            //|    u8     | const PACKET_C2S_WF_LOCK
-            //| word_len  | u8
-            //|    [u8]   | word
-            //|           | reason
-
-            let word_len = data[0] as usize;
-            let data = &data[1..];
-            let word = parse_str(&data[..word_len]);
-            let data = &data[word_len..];
-            let reason = parse_str(&data);
-
-            Ok(C2SPacket::AdminCmd(AdminCmd::WFLock {
-                word,
-                reason,
-                locked: true,
-            }))
-        }
-        PACKET_C2S_WF_UNLOCK => {
-            //|    u8     | const PACKET_C2S_WF_UNLOCK
-            //|    [u8]   | word
-            let word = parse_str(&data);
-            Ok(C2SPacket::AdminCmd(AdminCmd::WFLock {
-                word,
-                reason: String::new(),
-                locked: false,
-            }))
-        }
-
-        _ => {
-            return Err(PacketDecodeError::static_str(
-                packet_id,
-                "Invalid packet_id",
-            ));
-        }
-    }
-}
+use crate::wsprotocol::reader::ReadError;

@@ -6,13 +6,18 @@ import { createMessage, Message } from "./chat/message";
 import type { Word } from "./gcapi/mesg";
 import { Role } from "./gcapi/user";
 
-import { Snowflake } from "./gcapi/gctime";
+import { Snowflake } from "./gcapi/nanotime.js";
 import { fixTextFields } from "./common/text.js";
 import { hasVirtKb, log } from "./common/utils.js";
 
 import { GCClient, type ApiVersion } from "./gcapi/protocol";
 import { ProtoError } from "./gcapi/protoerr";
-import { clearProfWarn, setupProfWarn, setupWFEditor, showProfWarn } from "./chat/wf";
+import {
+  clearProfWarn,
+  setupProfWarn,
+  setupWFEditor,
+  showProfWarn,
+} from "./chat/wf";
 
 export declare const WEBSOCKET_URL: string;
 export declare const ROLE: Role;
@@ -48,11 +53,7 @@ export let messages: HtmlMessage[] = [];
 
 let scrollLock: boolean = true;
 
-function addMessage(
-  message: Message,
-  scroll: boolean,
-  showControls: boolean,
-) {
+function addMessage(message: Message, scroll: boolean, showControls: boolean) {
   const controls = [];
   if (showControls) {
     if (ROLE >= Role.Mod) {
@@ -132,14 +133,14 @@ function delMessage(index: number) {
   messages.splice(index, 1);
 }
 
-localCmd("/clearkey", function() {
+localCmd("/clearkey", function () {
   localStorage.removeItem("key");
   addSystemMessage("Key cleared.");
 });
-localCmd("/leave", function() {
+localCmd("/leave", function () {
   gcclient.leave();
 });
-localCmd("/mesgs", function() {
+localCmd("/mesgs", function () {
   console.log("messages");
   for (const mesg of messages) {
     console.log(mesg.html);
@@ -210,7 +211,8 @@ gcclient.on_message = (sender_id: number, message: Message) => {
     last_message_snowflake = message.snowflake;
   }
   log(
-    `Got message from ${sender_id} (${message.snowflake})${me ? " (me)" : ""}${lastMessage ? " (last)" : ""} mod: ${message.mod_badge
+    `Got message from ${sender_id} (${message.snowflake})${me ? " (me)" : ""}${lastMessage ? " (last)" : ""} mod: ${
+      message.mod_badge
     }: ${Message.stringContent(message.content)} ${Message.containsProf(message) ? " (prof)" : ""}`,
   );
 
@@ -253,7 +255,10 @@ gcclient.on_leave = (data: string | Ban, protoerr: ProtoError) => {
   let time = 1000;
   if (protoerr == ProtoError.RateLimit) {
     time = 5000;
-  } else if (protoerr == ProtoError.Retry || protoerr == ProtoError.AlreadyInChat) {
+  } else if (
+    protoerr == ProtoError.Retry ||
+    protoerr == ProtoError.AlreadyInChat
+  ) {
     let now = Date.now();
     if (last_retry == 0 || now - last_retry > 10_000) {
       // join again if we should retry
@@ -267,7 +272,9 @@ gcclient.on_leave = (data: string | Ban, protoerr: ProtoError) => {
   }
 
   if (protoerr == ProtoError.Disclaimer) {
-    $("#err-mesg").html("De disclaimer is nog niet geaccepteerd. <a href='/login?redirect=/v1'>Accepteer hem hier</a>");
+    $("#err-mesg").html(
+      "De disclaimer is nog niet geaccepteerd. <a href='/login?redirect=/v1'>Accepteer hem hier</a>",
+    );
   } else if (typeof data === "string") {
     $("#err-mesg").text(data);
   }
@@ -291,7 +298,7 @@ gcclient.on_leave = (data: string | Ban, protoerr: ProtoError) => {
 
 gcclient.on_user_count_update = (userCount: number) => {
   $("#user-count-text").text(`${userCount}`);
-}
+};
 
 function send_message(): boolean {
   let message = sendinput?.innerText.trim();
@@ -331,9 +338,7 @@ function handle_version_check(apiVersion: ApiVersion) {
       console.log("NEW PROTOCOL VERSION. RELOADING PAGE TO UPDATE CLIENT");
       location.reload();
     } else {
-      console.log(
-        "protocol_ver: " + apiVersion + " page_ver: " + VERSION_INT,
-      );
+      console.log("protocol_ver: " + apiVersion + " page_ver: " + VERSION_INT);
       console.error("Infinite reload loop detected");
       alert("Alles is kapot aaaaaaaaaaaaa.");
     }
@@ -348,9 +353,9 @@ function connect(
 
   log(
     "connecting... in_background=" +
-    background +
-    ", mod_badge:" +
-    show_mod_badge,
+      background +
+      ", mod_badge:" +
+      show_mod_badge,
   );
   let local_name: string | null = null;
   if (!READONLY) {
@@ -401,7 +406,7 @@ connectbtn.addEventListener("click", () => {
   sendinput?.focus();
 });
 
-$("#mesgs").on("scrollend", function() {
+$("#mesgs").on("scrollend", function () {
   const bottom =
     Math.abs(this.scrollTop + this.clientHeight - this.scrollHeight) < 2;
   scrollLock = bottom;

@@ -1,5 +1,5 @@
 import { Message } from "../gcapi/mesg";
-import { Snowflake } from "../gcapi/gctime";
+import { Snowflake } from "../gcapi/nanotime";
 import { Role } from "../gcapi/user";
 import { mksticker } from "./mkels";
 import { WFTag } from "./wf";
@@ -59,12 +59,12 @@ export function createMessage(
       }
     }
     const span = $("<span></span>").text(word.word);
-    WFTag.assignToElement(word.tag, span.get(0)!)
+    WFTag.assignToElement(word.tag, span.get(0)!);
     if (wfEdit && word.tag !== WFTag.Whitespace) {
       if (wfEditor) {
         span.addClass("editable-word");
       }
-      span.on("click", async function() {
+      span.on("click", async function () {
         await wfEditor?.toggle(this);
       });
     }
