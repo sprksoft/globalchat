@@ -1,0 +1,34 @@
+services:
+
+  smppgc-beta:
+    image: "smppserver_smppgc:${DEPLOY_VERSION}"
+    restart: always
+    environment:
+      ROCKET_PROFILE: "beta"
+    networks:
+      - db
+      - proxy
+      - metrics
+    volumes:
+      - gcproffilter-beta:/var/proffilter
+    secrets:
+      - oauth_google
+    deploy:
+      placement:
+        constraints:
+          - node.labels.db == true # This constraint can be lifted once we load proffilter data from db
+
+volumes:
+  gcproffilter-beta:
+
+secrets:
+  oauth_google:
+    external: true
+
+networks:
+  db:
+    external: true
+  proxy:
+    external: true
+  metrics:
+    external: true

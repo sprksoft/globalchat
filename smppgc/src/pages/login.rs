@@ -1,36 +1,36 @@
 use crate::{
     disclaimer::DisclaimerVer,
-    oauth::{self, LoginType, OAuth, PendingSessionStore},
+    oauth::{self, OAuth, PendingSessionStore, PendingSessionType},
     themes::Theme,
     utils::{AllowSmFrame, InIframe},
 };
 use rocket::{get, State};
 use rocket_dyn_templates::{context, Template};
 
-#[get("/login?<redirect>&<external>")]
+#[get("/login?<redirect>&<delayed>")]
 pub fn login(
     theme: Theme,
     redirect: String,
-    external: Option<bool>,
+    delayed: Option<bool>,
     oauth: &State<OAuth>,
     ses_store: &State<PendingSessionStore>,
     accepted_disclaimer: DisclaimerVer,
     in_iframe: InIframe,
 ) -> AllowSmFrame<Template> {
-    let login_type = match external {
-        Some(true) => LoginType::External,
-        Some(false) => LoginType::Internal,
+    let pses_type = match delayed {
+        Some(true) => PendingSessionType::Delayed,
+        Some(false) => PendingSessionType::Immediate,
         None => match in_iframe {
-            InIframe::Yes => LoginType::External,
-            InIframe::No => LoginType::Internal,
-            InIframe::Unknown => LoginType::External,
+            InIframe::Yes => PendingSessionType::Delayed,
+            InIframe::No => PendingSessionType::Immediate,
+            InIframe::Unknown => PendingSessionType::Delayed,
         },
     };
-    let id = ses_store.new_pending(redirect.into(), login_type).simple();
+    let id = ses_store.new_pending(redirect.into(), pses_type).simple();
     AllowSmFrame(Template::render(
         "pages/login",
         context! {
-            internal_login: login_type.is_internal(),
+            pses_type: pses_type.str(),
             pending_id: id,
             oauth_smartschool: oauth.has_provider(oauth::Provider::Smartschool),
             oauth_google: oauth.has_provider(oauth::Provider::Google),

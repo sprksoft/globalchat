@@ -6,25 +6,46 @@ import "./common/buttons.css";
 import "./common/logo.css";
 import "./login/login.css";
 
-$(".oauth-btn").on("click", function() {
+let showRetryBtnTimeout = null;
+
+$(".oauth-btn").on("click", function () {
   const provider = $(this).attr("data-oauth-provider");
 
-  const url = "/oauth/start?provider=" + provider + "&pses_id=" + PENDING_ID;
+  const url = "/oauth/start?provider=" + provider + "&pending_id=" + PENDING_ID;
 
-  if (INTERNAL_LOGIN) {
+  if (PSES_TYPE === "immediate") {
     location = url;
   } else {
     window.open(url, "_blank", "popup");
+    $("#waiting-prompt-retry-btn").hide();
     $("#waiting-prompt").get(0).showModal();
+    clearTimeout(showRetryBtnTimeout);
+    showRetryBtnTimeout = setTimeout(() => {
+      $("#waiting-prompt-retry-btn").show();
+    }, 2000);
   }
 });
 
-$("#waiting-prompt").on("close", function() {
-  this.showModal();
+$("#waiting-prompt-retry-btn").on("click", function () {
+  $("#waiting-prompt").get(0).close();
+});
+$("#error-prompt-ok-btn").on("click", function () {
+  $("#error-prompt").get(0).close();
 });
 
 window.addEventListener("message", (e) => {
-  if (e.origin == location.origin && e.data.type == "login-complete") {
-    location = "/setup_ses/" + PENDING_ID;
+  if (e.origin != location.origin) {
+    return;
+  }
+
+  switch (e.data.type) {
+    case "login-complete":
+      location = "/setup_ses/" + PENDING_ID;
+      break;
+    case "login-failed":
+      $("#waiting-prompt").get(0).close();
+      $("#error-prompt-error").text(e.data.error.toString()); // make sure it's a string to mitigate attacks if login_complete page is compromised.
+      $("#error-prompt").get(0).showModal();
+      break;
   }
 });

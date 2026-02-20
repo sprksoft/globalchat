@@ -16,9 +16,12 @@ use rocket_dyn_templates::{context, Template};
 use sqlx;
 use uuid::Uuid;
 
-use crate::themes::{self};
-use crate::users::SesId;
 use crate::{db::Db, users::UserConfig};
+use crate::{
+    oauth::client::StateCheckError,
+    themes::{self},
+};
+use crate::{oauth::pses_store::CompletionResult, users::SesId};
 
 use self::client::{OAuthError, OAuthProviderConfig};
 
@@ -27,7 +30,7 @@ mod jwt;
 mod pses_store;
 
 pub use client::{OAuth, Provider};
-pub use pses_store::{LoginType, PendingSessionStore};
+pub use pses_store::{PendingSessionStore, PendingSessionType};
 
 metrics!(
     pub counter total_started_oauth_flows("Total count of started oauth flows");
@@ -55,44 +58,48 @@ enum OAuthResponse {
 
     #[response(status = 404)]
     NotFound(Template),
+
+    #[response(status = 500)]
+    InternalServerError(Template),
 }
 impl OAuthResponse {
-    pub fn fail_flow_404(internal: &str) -> Self {
-        let dtheme = themes::DEFAULT_THEME.clone();
+    fn template(error: &str, internal: &str) -> Template {
         total_failed_oauth_flows::inc(internal);
-        Self::NotFound(Template::render(
-            "pages/error_page",
-            context! {title: "404 Not Found", theme_css: dtheme.css(), error: "Oei! Er ging iets mis tijdens het inloggen.", internal: internal},
-        ))
+        let dtheme = themes::DEFAULT_THEME.clone();
+        Template::render(
+            "pages/login_complete",
+            context! {error: error, theme_css: dtheme.css(), internal: internal},
+        )
+    }
+
+    pub fn fail_flow_404(internal: &str) -> Self {
+        Self::NotFound(Self::template("404 Not Found", internal))
     }
     pub fn fail_flow_403(internal: &str) -> Self {
-        let dtheme = themes::DEFAULT_THEME.clone();
-        total_failed_oauth_flows::inc(internal);
-        Self::Forbidden(Template::render(
-            "pages/error_page",
-            context! {title: "403 Forbidden", theme_css: dtheme.css(), error: "Oei! Er ging iets mis tijdens het inloggen.", internal: internal},
-        ))
+        Self::Forbidden(Self::template("403 Forbidden", internal))
     }
     pub fn fail_flow_422(internal: &str) -> Self {
-        let dtheme = themes::DEFAULT_THEME.clone();
-        total_failed_oauth_flows::inc(internal);
-        Self::UnprocessableEntity(Template::render(
-            "pages/error_page",
-            context! {title: "422 Unprocessable Entity", theme_css: dtheme.css(), error: "Oei! Er ging iets mis tijdens het inloggen.", internal: internal},
-        ))
+        Self::UnprocessableEntity(Self::template("422 Unprocessable Entity", internal))
+    }
+    pub fn fail_flow_500(internal: &str) -> Self {
+        error!(
+            "InternalServerError inside oauth_return_error: {}",
+            internal
+        );
+        Self::InternalServerError(Self::template("500 Internal Server Error", internal))
     }
 }
 
-#[get("/oauth/start?<provider>&<pses_id>")]
+#[get("/oauth/start?<provider>&<pending_id>")]
 fn oauth_start(
-    pses_id: &str,
+    pending_id: &str,
     oauth: &State<OAuth>,
     cookiejar: &CookieJar<'_>,
     provider: &str,
 ) -> Result<OAuthResponse, response::Debug<OAuthError>> {
     total_started_oauth_flows::inc();
 
-    match oauth.begin_flow(pses_id.to_string(), provider, cookiejar) {
+    match oauth.begin_flow(pending_id.to_string(), provider, cookiejar) {
         Ok(r) => Ok(OAuthResponse::Redirect(r)),
         Err(OAuthError::ProviderNotFound(p)) => {
             error!("oauth provider '{}' not found", p);
@@ -103,6 +110,38 @@ fn oauth_start(
             Err(e.into())
         }
     }
+}
+
+#[get("/oauth/return/<provider>?<error>&<state>")]
+async fn oauth_return_error(
+    error: &str,
+    state: &str,
+    provider: Option<&str>,
+    ses_store: &State<PendingSessionStore>,
+) -> OAuthResponse {
+    // We don't check the state cookie because this endpoint will never result in a successful
+    // login
+    let provider = provider.unwrap_or("smartschool");
+
+    let mut error_message = match error {
+        "access_denied" => "Flow canceled".to_string(),
+        e => format!("{} error code returned by oauth provider {}", e, provider),
+    };
+
+    let Ok(pending_id) = Uuid::parse_str(state) else {
+        error_message.push_str(", Invalid 'state'");
+        return OAuthResponse::fail_flow_422(&error_message);
+    };
+    let session = match ses_store.session(pending_id) {
+        Some(s) => s,
+        None => {
+            error_message.push_str(", No pending session found");
+            return OAuthResponse::fail_flow_422(&error_message);
+        }
+    };
+    session.abort();
+
+    OAuthResponse::fail_flow_422(&error_message)
 }
 
 #[get("/oauth/return/<provider>?<code>&<state>")]
@@ -116,14 +155,32 @@ async fn oauth_return(
     user_config: &State<UserConfig>,
     mut db: Connection<Db>,
 ) -> Result<OAuthResponse, response::Debug<OAuthError>> {
-    if !OAuth::check_state(cookiejar, state) {
-        return Ok(OAuthResponse::fail_flow_422(
-            "'state' is niet dezelfde als de cookie.",
-        ));
-    }
     let Ok(pending_id) = Uuid::parse_str(state) else {
         return Ok(OAuthResponse::fail_flow_422("Invalid 'state'"));
     };
+    let session = match ses_store.session(pending_id) {
+        Some(s) => s,
+        None => {
+            //TODO: maybe we should return an error for security?
+            error!(
+                "oauth_return: No pending session found. Falling back to creating a generic pending session for immediate login to /v1."
+            );
+            ses_store.new_pending_and_get("/v1".to_string(), PendingSessionType::Immediate)
+        }
+    };
+    match OAuth::check_state(cookiejar, state) {
+        Err(StateCheckError::CookieNotFound) => {
+            return Ok(OAuthResponse::fail_flow_422(
+                "'state' cookie werd niet gevonden.",
+            ));
+        }
+        Err(StateCheckError::CookieDoesntMatch) => {
+            return Ok(OAuthResponse::fail_flow_422(
+                "'state' is niet dezelfde als de cookie.",
+            ));
+        }
+        Ok(()) => {}
+    }
 
     let user_info = oauth
         .fetch_userinfo(provider.unwrap_or("smartschool"), code)
@@ -174,17 +231,9 @@ async fn oauth_return(
     set_ses_id(cookiejar, ses_id.clone(), &user_config);
     total_logins::inc();
 
-    let Some(login_type) = ses_store.complete(pending_id, ses_id) else {
-        error!("oauth_return: No pending session found. Redirecting silently to chat...");
-        return Ok(OAuthResponse::Redirect(Redirect::to("/v1")));
-    };
-
-    Ok(OAuthResponse::Redirect(match login_type {
-        LoginType::External => Redirect::to("/login_complete"),
-        LoginType::Internal => ses_store
-            .get_completed(pending_id)
-            .map(|completed| Redirect::to(completed.redirect))
-            .unwrap_or(Redirect::to("/v1")),
+    Ok(OAuthResponse::Redirect(match session.complete(ses_id) {
+        CompletionResult::Delayed => Redirect::to("/login_complete"),
+        CompletionResult::Immediate(c) => Redirect::to(c.redirect),
     }))
 }
 
@@ -208,12 +257,17 @@ fn setup_session(
     cookiejar: &CookieJar<'_>,
     user_config: &State<UserConfig>,
     ses_store: &State<PendingSessionStore>,
-) -> Option<Redirect> {
-    let id = Uuid::parse_str(id).ok()?;
-    ses_store.get_completed(id).map(|c| {
-        set_ses_id(cookiejar, c.ses_id, &user_config);
-        Redirect::to(c.redirect)
-    })
+) -> OAuthResponse {
+    let Ok(id) = Uuid::parse_str(id) else {
+        return OAuthResponse::fail_flow_422("setup_session: invalid pses_id");
+    };
+    match ses_store.consume_delayed_session(id) {
+        Some(c) => {
+            set_ses_id(cookiejar, c.ses_id, &user_config);
+            OAuthResponse::Redirect(Redirect::to(c.redirect))
+        }
+        None => OAuthResponse::Redirect(Redirect::to("/login?redirect=/v1")),
+    }
 }
 
 pub fn stage() -> AdHoc {

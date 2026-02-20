@@ -84,10 +84,12 @@
     {% include "svg/arrow_l" %}
   </button>
 <h1 class="header-title chat-name">Global Chat</h1>
+  {% if not readonly %}
   <div class="user-count">
     <span id="user-count-text">0</span>
     {% include "svg/user_icon" %}
   </div>
+  {% endif %}
 </header>
 <main>
 <div id="mesgs"></div>

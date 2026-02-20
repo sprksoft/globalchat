@@ -56,6 +56,15 @@ fn service_unavailible() -> AllowSmFrame<Template> {
     ))
 }
 
+#[catch(422)]
+fn unprocessable_entity() -> AllowSmFrame<Template> {
+    let theme = themes::DEFAULT_THEME.clone();
+    AllowSmFrame(Template::render(
+        "pages/error_page",
+        context! { title: "422 Unprocessable Entity", error:"Oei! Er ging iets mis", theme_css: theme.css(), internal:"422"},
+    ))
+}
+
 #[catch(404)]
 fn not_found() -> AllowSmFrame<Template> {
     let theme = themes::DEFAULT_THEME.clone();
@@ -96,7 +105,8 @@ fn rocket() -> _ {
                 internal_server_error,
                 forbidden,
                 service_unavailible,
-                not_found
+                not_found,
+                unprocessable_entity
             ],
         )
         .mount("/", routes![server_version, err_test, csrf_test])

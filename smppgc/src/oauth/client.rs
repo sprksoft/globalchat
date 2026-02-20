@@ -172,6 +172,11 @@ impl OAuthClient {
     }
 }
 
+pub enum StateCheckError {
+    CookieNotFound,
+    CookieDoesntMatch,
+}
+
 pub struct OAuth {
     clients: Vec<OAuthClient>,
 }
@@ -236,12 +241,18 @@ impl OAuth {
         Ok(Redirect::to(url.to_string()))
     }
 
-    pub(super) fn check_state(cookiejar: &CookieJar, state: &str) -> bool {
+    pub(super) fn check_state(cookiejar: &CookieJar, state: &str) -> Result<(), StateCheckError> {
         cookiejar.remove(Self::STATE_COOKIE_NAME);
-        cookiejar
+        let value = cookiejar
             .get(Self::STATE_COOKIE_NAME)
-            .map(|c| c.value_trimmed() == state.trim())
-            .unwrap_or(false)
+            .ok_or(StateCheckError::CookieNotFound)?
+            .value_trimmed();
+
+        if value == state {
+            return Ok(());
+        } else {
+            Err(StateCheckError::CookieDoesntMatch)
+        }
     }
 
     pub(super) async fn fetch_userinfo(

@@ -21,7 +21,6 @@ main {
   flex-direction: column;
 }
 
-
 .oauth-btns {
   margin: 2rem 0rem 1rem 0rem;
   display: flex;
@@ -73,13 +72,13 @@ main {
 #google-login-btn {
   color: #1f1f1f;
   cursor: pointer;
-  font-family: 'Roboto', arial, sans-serif;
+  font-family: "Roboto", arial, sans-serif;
   background: #fff;
   border-radius: var(--oauth-btn-border-radius);
   box-sizing: border-box;
   color: #1f1f1f;
   cursor: pointer;
-  font-family: 'Roboto', arial, sans-serif;
+  font-family: "Roboto", arial, sans-serif;
   font-size: 1rem;
   letter-spacing: 0.25px;
   outline: none;
@@ -87,7 +86,9 @@ main {
   padding: 0px;
   position: relative;
   text-align: center;
-  transition: filter 0.5s, background-color 0.5s;
+  transition:
+    filter 0.5s,
+    background-color 0.5s;
   vertical-align: middle;
   white-space: nowrap;
   width: auto;
@@ -96,7 +97,7 @@ main {
 #google-login-btn span {
   flex-grow: 1;
   text-align: left;
-  font-family: 'Roboto', arial, sans-serif;
+  font-family: "Roboto", arial, sans-serif;
   font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -123,4 +124,18 @@ main {
 
 #google-login-btn:not(:disabled):hover {
   filter: brightness(80%);
+}
+
+#error-prompt,
+#waiting-prompt {
+  display: flex;
+  flex-direction: column;
+}
+#error-prompt > h2,
+#waiting-prompt > h2 {
+  text-align: center;
+}
+
+#waiting-prompt-retry-btn {
+  margin-top: 1rem;
 }

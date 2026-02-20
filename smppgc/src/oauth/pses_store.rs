@@ -1,11 +1,14 @@
 use std::{
+    fmt::Display,
+    str::FromStr,
     sync::Arc,
     time::{Duration, Instant},
 };
 
 use dashmap::DashMap;
 use log::*;
-use rocket::fairing::AdHoc;
+use rocket::{fairing::AdHoc, form::FromFormField};
+use thiserror::Error;
 use uuid::Uuid;
 
 use crate::users::SesId;
@@ -14,79 +17,152 @@ enum Status {
     Pending,
     Completed(SesId),
 }
-#[derive(Clone, Copy)]
-pub enum LoginType {
-    External,
-    Internal,
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum PendingSessionType {
+    Delayed,
+    Immediate,
 }
-impl LoginType {
-    pub fn is_internal(self) -> bool {
+impl PendingSessionType {
+    pub fn str(self) -> &'static str {
         match self {
-            Self::External => false,
-            Self::Internal => true,
+            Self::Delayed => "delayed",
+            Self::Immediate => "immediate",
         }
     }
 }
+impl Display for PendingSessionType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.str())
+    }
+}
+
+#[derive(Debug, Error)]
+pub enum PendingSessionTypeParseError {
+    #[error("Invalid pending session type")]
+    InvalidPSesType,
+}
+impl FromStr for PendingSessionType {
+    type Err = PendingSessionTypeParseError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "immediate" => Ok(Self::Immediate),
+            "delayed" => Ok(Self::Delayed),
+            _ => Err(PendingSessionTypeParseError::InvalidPSesType),
+        }
+    }
+}
+impl<'v> FromFormField<'v> for PendingSessionType {
+    fn from_value(field: rocket::form::ValueField<'v>) -> rocket::form::Result<'v, Self> {
+        let date = Self::from_str(field.value)
+            .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send>)?;
+
+        Ok(date)
+    }
+}
+
 pub struct Completed {
     pub ses_id: SesId,
     pub redirect: String,
-    pub login_type: LoginType,
+    pub ses_type: PendingSessionType,
 }
 
 struct PendingSession {
     created_at: Instant,
     redirect: String,
-    login_type: LoginType,
+    ses_type: PendingSessionType,
     status: Status,
 }
 
 pub struct PendingSessionStore(Arc<DashMap<uuid::Uuid, PendingSession>>);
 impl PendingSessionStore {
-    pub fn new_pending(&self, mut redirect: String, login_type: LoginType) -> Uuid {
+    pub fn new_pending(&self, redirect: String, ses_type: PendingSessionType) -> Uuid {
+        let ses = self.new_pending_and_get(redirect, ses_type);
+        let id = ses.id.clone();
+        self.0.insert(id, ses.session);
+        ses.id
+    }
+
+    /// Creates a new pending session and returns.
+    pub fn new_pending_and_get<'a>(
+        &'a self,
+        mut redirect: String,
+        login_type: PendingSessionType,
+    ) -> PendingSessionGuard<'a> {
         if !validate_redirect_url(&redirect) {
             error!("Setting redirect url to /v1 because it was invalid");
             redirect = "/v1".to_string();
         }
         let id = Uuid::new_v4();
-        self.0.insert(
-            id.clone(),
-            PendingSession {
+        PendingSessionGuard {
+            session: PendingSession {
                 created_at: Instant::now(),
                 status: Status::Pending,
                 redirect,
-                login_type,
+                ses_type: login_type,
             },
-        );
-        id
-    }
-
-    pub fn complete(&self, id: Uuid, ses_id: SesId) -> Option<LoginType> {
-        match self.0.get_mut(&id) {
-            Some(mut e) => {
-                e.status = Status::Completed(ses_id.clone());
-                Some(e.login_type)
-            }
-            None => None,
+            id,
+            store: self,
         }
     }
 
-    pub fn get_completed(&self, id: Uuid) -> Option<Completed> {
+    pub fn session<'a>(&'a self, id: Uuid) -> Option<PendingSessionGuard<'a>> {
+        let (id, session) = self.0.remove(&id)?;
+
+        Some(PendingSessionGuard {
+            session,
+            id,
+            store: self,
+        })
+    }
+
+    pub fn consume_delayed_session(&self, id: Uuid) -> Option<Completed> {
         match self.0.remove(&id) {
             Some((
                 _,
                 PendingSession {
                     redirect,
-                    login_type,
+                    ses_type: login_type,
                     status: Status::Completed(ses_id),
                     ..
                 },
             )) => Some(Completed {
                 ses_id,
                 redirect,
-                login_type,
+                ses_type: login_type,
             }),
             _ => None,
         }
+    }
+}
+
+pub enum CompletionResult {
+    Delayed,
+    Immediate(Completed),
+}
+
+pub struct PendingSessionGuard<'a> {
+    id: Uuid,
+    session: PendingSession,
+    store: &'a PendingSessionStore,
+}
+impl<'a> PendingSessionGuard<'a> {
+    pub fn complete(self, ses_id: SesId) -> CompletionResult {
+        let mut ses = self.session;
+        match ses.ses_type {
+            PendingSessionType::Delayed => {
+                ses.status = Status::Completed(ses_id);
+                self.store.0.insert(self.id, ses);
+                CompletionResult::Delayed
+            }
+            PendingSessionType::Immediate => CompletionResult::Immediate(Completed {
+                ses_id,
+                redirect: ses.redirect,
+                ses_type: ses.ses_type,
+            }),
+        }
+    }
+    pub fn abort(self) {
+        drop(self)
     }
 }
 

@@ -17,6 +17,9 @@ impl Role {
     pub fn is_mod(self) -> bool {
         self >= Self::Mod
     }
+    pub fn is_admin(self) -> bool {
+        self >= Self::Admin
+    }
     pub fn from_i32(num: i32) -> Option<Self> {
         match num {
             0 => Some(Self::User),

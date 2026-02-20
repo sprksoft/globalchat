@@ -80,22 +80,24 @@ pub fn new_update_user_count(user_count: u16) -> Packet {
 
 pub enum C2SPacket {
     Message(String),
+    ModCmd(ModCmd),
     AdminCmd(AdminCmd),
 }
 
-pub enum AdminCmd {
+pub enum ModCmd {
+    WFMark {
+        word: String,
+        good: bool,
+    },
     DelMsg(Snowflake),
     BanMsgAuthor {
         mesg: Snowflake,
         duration: Duration,
         reason: String,
     },
-    WFMark {
-        word: String,
-        good: bool,
-    },
+}
+pub enum AdminCmd {
     WFCommit,
-
     WFLock {
         word: String,
         reason: String,
@@ -123,13 +125,13 @@ fn parse_packet<'a>(packet: PacketC2SId, reader: &mut Reader<'a>) -> reader::Res
         )),
         PacketC2SId::DELMSG => {
             let snowflake = reader.read_snowflake()?;
-            Ok(C2SPacket::AdminCmd(AdminCmd::DelMsg(snowflake)))
+            Ok(C2SPacket::ModCmd(ModCmd::DelMsg(snowflake)))
         }
         PacketC2SId::BANMSGAUTHOR => {
             let snowflake = reader.read_snowflake()?;
             let duration = reader.read_dur()?;
             let reason = reader.read_str(reader.len())?.to_string();
-            Ok(C2SPacket::AdminCmd(AdminCmd::BanMsgAuthor {
+            Ok(C2SPacket::ModCmd(ModCmd::BanMsgAuthor {
                 mesg: snowflake,
                 duration,
                 reason,
@@ -137,11 +139,11 @@ fn parse_packet<'a>(packet: PacketC2SId, reader: &mut Reader<'a>) -> reader::Res
         }
         PacketC2SId::WF_MARKGOOD => {
             let word = reader.read_str(reader.len())?.to_string();
-            Ok(C2SPacket::AdminCmd(AdminCmd::WFMark { word, good: true }))
+            Ok(C2SPacket::ModCmd(ModCmd::WFMark { word, good: true }))
         }
         PacketC2SId::WF_MARKBAD => {
             let word = reader.read_str(reader.len())?.to_string();
-            Ok(C2SPacket::AdminCmd(AdminCmd::WFMark { word, good: false }))
+            Ok(C2SPacket::ModCmd(ModCmd::WFMark { word, good: false }))
         }
         PacketC2SId::WF_COMMIT => Ok(C2SPacket::AdminCmd(AdminCmd::WFCommit)),
 

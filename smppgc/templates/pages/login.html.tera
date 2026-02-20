@@ -19,6 +19,14 @@ Login - Global Chat
   <h2 style="text-align:center">Wachten op login...</h2>
   <p>Ga verder op de pagina die net geopend is</p>
   <span class="loading-spinner">Loading</span>
+  <button id="waiting-prompt-retry-btn" class="pillbtn">Cancel</button>
+</dialog>
+
+<dialog id="error-prompt">
+  <h2 style="text-align:center">Oei!</h2>
+  <p>Er is iets mis gegaan tijdens het inloggen</p>
+  <code id="error-prompt-error"></code>
+  <button id="error-prompt-ok-btn" class="pillbtn">Ok</button>
 </dialog>
 
 <div class="view">
@@ -68,7 +76,7 @@ Login - Global Chat
 {% block scripts %}
 <script>
   const ENABLE_CHECK={{ accepted_disclaimer == disclaimer_ver }};
-  const INTERNAL_LOGIN={{ internal_login }};
+  const PSES_TYPE="{{ pses_type }}";
   const PENDING_ID="{{ pending_id }}";
 </script>
 <script defer type="text/javascript" src="{{ url(path="/static/login.js") }}"></script>

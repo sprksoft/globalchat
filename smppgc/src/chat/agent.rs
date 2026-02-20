@@ -15,7 +15,7 @@ use crate::{
     metrics::RequestTime,
     users::{Ban, BanError, NameClaimError, User, UserGuardError, UserManager},
     wf::Filter,
-    wsprotocol::{AdminCmd, C2SPacket, ProtoError, WsClient},
+    wsprotocol::{AdminCmd, C2SPacket, ModCmd, ProtoError, WsClient},
 };
 
 use super::{message_limits::MessageLimiter, ChatClient};
@@ -207,36 +207,45 @@ async fn on_packet(
             messages_total::inc();
             chat_client.send(mesg);
         }
-        C2SPacket::AdminCmd(cmd) => {
+        C2SPacket::ModCmd(cmd) => {
             if !chat_client.user().role().is_mod() {
+                wsclient
+                    .system_message("Geen toegang tot mod cmd's")
+                    .await?;
+                return Ok(());
+            }
+            on_mod_cmd(cmd, wsclient, chat, filter, user_manager).await?;
+        }
+        C2SPacket::AdminCmd(cmd) => {
+            if chat_client.user().role().is_admin() {
                 wsclient
                     .system_message("Geen toegang tot admin cmd's")
                     .await?;
                 return Ok(());
             }
-            on_admin_cmd(cmd, wsclient, chat, filter, user_manager).await?;
+            on_admin_cmd(cmd, chat, filter).await?;
         }
     }
     Ok(())
 }
 
 #[inline]
-async fn on_admin_cmd(
-    cmd: AdminCmd,
+async fn on_mod_cmd(
+    cmd: ModCmd,
     wsclient: &mut WsClient,
     chat: &Chat,
     filter: &Filter,
     user_manager: &mut UserManager,
 ) -> tokio_tungstenite::tungstenite::Result<()> {
     match cmd {
-        AdminCmd::DelMsg(snowflake) => {
+        ModCmd::DelMsg(snowflake) => {
             if !chat.retain_messages(|m| m.id() != snowflake).await {
                 wsclient
                     .system_message("Bericht bestaat niet meer op de server")
                     .await?;
             }
         }
-        AdminCmd::BanMsgAuthor {
+        ModCmd::BanMsgAuthor {
             mesg,
             reason,
             duration,
@@ -265,9 +274,20 @@ async fn on_admin_cmd(
                     .await?;
             }
         },
-        AdminCmd::WFMark { word, good } => {
+        ModCmd::WFMark { word, good } => {
             filter.mark_word(&word, good).await;
         }
+    }
+    Ok(())
+}
+
+#[inline]
+async fn on_admin_cmd(
+    cmd: AdminCmd,
+    chat: &Chat,
+    filter: &Filter,
+) -> tokio_tungstenite::tungstenite::Result<()> {
+    match cmd {
         AdminCmd::WFCommit => {
             debug!("WFCommit");
             filter.rerun(chat).await;

@@ -3,7 +3,11 @@
 <!-- vim: set ft=html: -->
 
 {% block title %}
+{% if error %}
+Er was een probleem met het inloggen - Global Chat
+{% else %}
 Login Compleet - Global Chat
+{% endif %}
 {% endblock title %}
 
 {% block head %}
@@ -16,8 +20,17 @@ Login Compleet - Global Chat
 {% block content %}
 <div class="view">
   <main>
+  {% if error %}
+    <h1>Oei! er was een probleem tijdens het inloggen</h1>
+    <p>Sluit het tabblad en probeer om opnieuw in te loggen</p>
+    <h2>{{ error }}</h2>
+    <code>
+      {{ internal }}
+    </code>
+  {% else %}
     <h1>Je bent ingelogd!</h1>
     <p>Dit tabblad mag gesloten worden</p>
+  {% endif %}
   </main>
 </div>
 
@@ -25,6 +38,10 @@ Login Compleet - Global Chat
 
 {% block scripts %}
 <script>
+{% if error %}
+  window.opener.postMessage( { type:'login-failed', error: "{{ internal }}" }, location.origin);
+{% else %}
   window.opener.postMessage( { type:'login-complete' }, location.origin);
+{% endif %}
 </script>
 {% endblock scripts %}
