@@ -1,14 +1,13 @@
 services:
-
-  smppgc-beta:
-    image: "smppserver_smppgc:${DEPLOY_VERSION}"
+  smppgc:
+    image: "registry.smpp.be:5000/smpp/globalchat:${DEPLOY_VERSION}"
     restart: always
     environment:
       ROCKET_PROFILE: "beta"
     networks:
-      - db
-      - proxy
-      - metrics
+      - infra_db
+      - infra_proxy
+      - infra_metrics
     volumes:
       - gcproffilter-beta:/var/proffilter
     secrets:
@@ -17,6 +16,10 @@ services:
       placement:
         constraints:
           - node.labels.db == true # This constraint can be lifted once we load proffilter data from db
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.smppgc-beta.rule=Host(`gcbeta.smartschoolplusplus.com`)"
+        - "traefik.http.services.smppgc-beta.loadbalancer.server.port=8080"
 
 volumes:
   gcproffilter-beta:
@@ -26,9 +29,9 @@ secrets:
     external: true
 
 networks:
-  db:
+  infra_db:
     external: true
-  proxy:
+  infra_proxy:
     external: true
-  metrics:
+  infra_metrics:
     external: true

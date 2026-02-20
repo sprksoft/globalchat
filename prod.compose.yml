@@ -1,12 +1,11 @@
 services:
-
   smppgc:
-    image: "smppserver_smppgc:${DEPLOY_VERSION}"
+    image: "registry.smpp.be:5000/smpp/globalchat:${DEPLOY_VERSION}"
     restart: always
     networks:
-      - db
-      - proxy
-      - metrics
+      - infra_db
+      - infra_proxy
+      - infra_metrics
     volumes:
       - gcproffilter:/var/proffilter
     secrets:
@@ -15,6 +14,10 @@ services:
       placement:
         constraints:
           - node.labels.db == true # This constraint can be lifted once we load proffilter data from db
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.smppgc-prod.rule=Host(`gc.smartschoolplusplus.com`)"
+        - "traefik.http.services.smppgc-prod.loadbalancer.server.port=8080"
 
 
 
@@ -26,9 +29,9 @@ secrets:
     external: true
 
 networks:
-  db:
+  infra_db:
     external: true
-  proxy:
+  infra_proxy:
     external: true
-  metrics:
+  infra_metrics:
     external: true

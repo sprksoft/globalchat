@@ -3,7 +3,7 @@ group "default" {
 }
 
 target "smppgc" {
-  platforms = [ "linux/arm/v7" ]
+  platforms = [ "linux/arm/v7", "linux/amd64" ]
   args = {
     RELEASE = "true"
   }
