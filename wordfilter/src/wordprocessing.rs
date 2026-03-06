@@ -466,11 +466,11 @@ impl<T: TokenTag> TokenizedString<T> {
     }
 
     pub fn to_string(&self) -> String {
-        let mut str = String::new();
-        for (word, _) in self.words() {
-            str.push_str(word);
-        }
-        str
+        self.0.clone().into_string()
+    }
+
+    pub fn str(&self) -> &str {
+        &self.0
     }
 }
 impl<T: TokenTag + ColoredTokenTag> TokenizedString<T> {

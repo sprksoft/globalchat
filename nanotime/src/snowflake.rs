@@ -47,6 +47,9 @@ impl Snowflake {
     pub fn from_u64(u: u64) -> Self {
         Self(u)
     }
+    pub fn to_u64(self) -> u64 {
+        self.0
+    }
 
     /// Get the incremented per id part of the snowfalke
     #[inline]
