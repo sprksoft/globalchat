@@ -1,4 +1,5 @@
 use log::*;
+use nanotime::snowflake::Snowflake;
 use rocket::{
     outcome::{try_outcome, Outcome},
     request::FromRequest,
@@ -6,7 +7,10 @@ use rocket::{
 };
 use rocket_db_pools::Connection;
 use sqlx::query;
-use std::{ops::Deref, sync::Arc};
+use std::{
+    ops::{Deref, DerefMut},
+    sync::Arc,
+};
 use thiserror::Error;
 
 use crate::{
@@ -79,7 +83,6 @@ impl Ban {
 }
 
 pub struct UserManager {
-    con: Connection<Db>,
     filter: Arc<Filter>,
     max_name_len: usize,
     max_claimed_names: usize,
@@ -93,7 +96,6 @@ impl<'r> FromRequest<'r> for UserManager {
     async fn from_request(
         req: &'r rocket::Request<'_>,
     ) -> rocket::request::Outcome<Self, Self::Error> {
-        let con = try_outcome!(req.guard::<Connection<Db>>().await);
         let filter = req
             .rocket()
             .state::<Arc<Filter>>()
@@ -104,7 +106,6 @@ impl<'r> FromRequest<'r> for UserManager {
             .expect("Failed to get user config");
 
         Outcome::Success(UserManager {
-            con,
             filter: filter.clone(),
             max_name_len: user_config.max_username_len,
             max_claimed_names: user_config.max_claimed_names,
@@ -133,6 +134,7 @@ impl UserManager {
 
     pub async fn claim_name(
         &mut self,
+        db: &mut Connection<Db>,
         user: &User,
         name: &str,
     ) -> Result<ClaimedName, NameClaimError> {
@@ -157,7 +159,7 @@ impl UserManager {
             max_claimed_names,
             max_retention,
         )
-        .fetch_one(&mut **self.con)
+        .fetch_one(&mut ***db)
         .await?;
 
         if result.claim_name.is_none() {
@@ -168,18 +170,19 @@ impl UserManager {
 
     pub async fn ban_user(
         &mut self,
+        db: &mut Connection<Db>,
         user_id: UserId,
         banner_role: Role,
         reason: &str,
         duration: Duration,
     ) -> Result<(), BanError> {
         query!("DELETE FROM bans WHERE expiration_time-EXTRACT(epoch from now()) < 0")
-            .execute(&mut **self.con)
+            .execute(&mut ***db)
             .await?;
 
         let role = Role::from_i32(
             query!("SELECT role FROM users WHERE id=$1", user_id.to_i32())
-                .fetch_one(&mut **self.con)
+                .fetch_one(&mut ***db)
                 .await?
                 .role,
         )
@@ -193,21 +196,25 @@ impl UserManager {
             user_id.to_i32(),
             reason,
             duration.whole_seconds() as i32
-        ).execute(&mut **self.con).await?;
+        ).execute(&mut ***db).await?;
 
         query!(
             "UPDATE users SET ban_count = ban_count + 1 WHERE id=$1",
             user_id.to_i32()
         )
-        .execute(&mut **self.con)
+        .execute(&mut ***db)
         .await?;
         Ok(())
     }
 
-    pub async fn get_ban(&mut self, user_id: UserId) -> Result<Option<Ban>, sqlx::Error> {
+    pub async fn get_ban(
+        &mut self,
+        db: &mut Connection<Db>,
+        user_id: UserId,
+    ) -> Result<Option<Ban>, sqlx::Error> {
         Ok(query!(
             "SELECT reason,expiration_time FROM bans WHERE user_id=$1 AND expiration_time-EXTRACT(epoch from now()) > 0",
             user_id.to_i32()
-        ).fetch_optional(&mut **self.con).await?.map(|b|Ban { reason: b.reason, expiration_time: b.expiration_time }))
+        ).fetch_optional(&mut ***db).await?.map(|b|Ban { reason: b.reason, expiration_time: b.expiration_time }))
     }
 }

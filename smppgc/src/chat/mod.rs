@@ -2,7 +2,9 @@ use circular_queue::CircularQueue;
 use log::*;
 use nanotime::snowflake::{Snowflake, SnowflakeGenerator};
 use rocket::{fairing::AdHoc, routes};
+use rocket_db_pools::Connection;
 use serde::Deserialize;
+use sqlx::query;
 use std::{
     collections::HashMap,
     sync::{atomic::AtomicUsize, Arc},
@@ -22,6 +24,7 @@ pub use message::*;
 pub use message_limits::*;
 
 use crate::{
+    db::{Db, DbResult},
     users::{ClaimedName, User, UserId},
     utils::IdCounter,
     wf::{TokenizedString, WordFilter},
@@ -118,6 +121,9 @@ impl Chat {
     }
     pub fn shutdown(&self) {
         let _ = self.shutdown.send(());
+    }
+    pub fn config(&self) -> &ChatConfig {
+        &self.config
     }
 
     fn spawn_histrec(
@@ -342,6 +348,10 @@ impl Chat {
             .find(|m| m.id() == snowflake)
             .map(|m| m.sender.user_id())
     }
+    pub async fn get_message_by_id(&self, snowflake: Snowflake) -> Option<Arc<Message>> {
+        let hist = self.history.lock().await;
+        hist.iter().find(|m| m.id() == snowflake).cloned()
+    }
 
     pub async fn users(&self) -> Vec<ChatUser> {
         self.users
@@ -351,6 +361,25 @@ impl Chat {
             .map(|u| &u.1.user)
             .cloned()
             .collect()
+    }
+
+    pub async fn report_message(
+        &self,
+        db: &mut Connection<Db>,
+        message_id: Snowflake,
+        reporter_id: UserId,
+        reason: Box<str>,
+    ) -> Result<(), sqlx::Error> {
+        query!(
+            "INSERT INTO reports(message_snowflake, reporter_id, reason) VALUES($1, $2, $3)",
+            message_id.to_u64().cast_signed(),
+            reporter_id.to_i32(),
+            &reason
+        )
+        .execute(&mut ***db)
+        .await?;
+
+        Ok(())
     }
 }
 

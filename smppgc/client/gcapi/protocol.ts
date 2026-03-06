@@ -11,15 +11,19 @@ export { ProtoError };
 
 export type ApiVersion = number;
 
+export type ChatConfig = {
+  apiVersion: ApiVersion;
+  maxMessages: number;
+};
+
 export class GCClient {
   on_message: ((sender_id: LocalId, message: Message) => void) | null = null;
   on_message_del: ((snowflake: Snowflake) => void) | null = null;
   on_leave: ((data: string | Ban, protoerr: ProtoError) => void) | null = null;
-  on_join: ((apiVersion: ApiVersion) => void) | null = null;
+  on_join: ((config: ChatConfig) => void) | null = null;
   on_user_count_update: ((userCount: number) => void) | null = null;
 
-  websocketUrl: string;
-
+  #websocketUrl: string;
   #ws: WebSocket | null = null;
   #localId: LocalId = -1;
   #users: { [id: LocalId]: User } = {};
@@ -31,7 +35,7 @@ export class GCClient {
   constructor(
     websocketUrl: string = "https://gc.smartschoolplusplus.com/socket/chat",
   ) {
-    this.websocketUrl = websocketUrl;
+    this.#websocketUrl = websocketUrl;
   }
 
   #on_packet(packetId: PacketId, reader: Reader) {
@@ -68,6 +72,7 @@ export class GCClient {
         const apiVersion = reader.getUint16(0) as ApiVersion;
         this.#localId = reader.getUint16();
         const role = reader.getUint8(0) as Role;
+        const maxMessages = reader.getUint8(0);
 
         this.#users[this.#localId] = new User(
           this.#username,
@@ -75,7 +80,7 @@ export class GCClient {
           role,
         );
 
-        this.on_join?.(apiVersion);
+        this.on_join?.({ apiVersion, maxMessages });
         break;
       }
 
@@ -143,7 +148,7 @@ export class GCClient {
     if (show_badge) {
       query += "&mod_badge=true";
     }
-    let fullurl = this.websocketUrl + "?" + query.substring(1);
+    let fullurl = this.#websocketUrl + "?" + query.substring(1);
     this.#ws = new WebSocket(fullurl);
     this.#ws.binaryType = "arraybuffer";
 

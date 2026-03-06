@@ -11,12 +11,13 @@ use crate::{
     },
 };
 
-pub fn new_setup(id: u16, role: Role) -> Packet {
+pub fn new_setup(id: u16, role: Role, max_stored_messages: u8) -> Packet {
     packet! {
         PacketId::SETUP,
         &crate::VERSION_INT.to_be_bytes(),
         &id.to_be_bytes(),
-        role.to_u8()
+        role.to_u8(),
+        max_stored_messages
     }
 }
 pub fn new_client_joined(client: &ChatUser, mask_role: bool) -> Packet {
@@ -80,6 +81,10 @@ pub fn new_update_user_count(user_count: u16) -> Packet {
 
 pub enum C2SPacket {
     Message(String),
+    Report {
+        message_id: Snowflake,
+        reason: Box<str>,
+    },
     ModCmd(ModCmd),
     AdminCmd(AdminCmd),
 }
@@ -173,6 +178,12 @@ fn parse_packet<'a>(packet: PacketC2SId, reader: &mut Reader<'a>) -> reader::Res
                 reason: String::new(),
                 locked: false,
             }))
+        }
+        PacketC2SId::REPORT => {
+            let message_id = reader.read_snowflake()?;
+            let reason = reader.read_str(reader.len())?.into();
+
+            Ok(C2SPacket::Report { message_id, reason })
         }
     }
 }

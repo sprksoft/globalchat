@@ -1,6 +1,6 @@
 use crate::{
-    chat::{ChatUser, Message},
-    users::{role::Role, Ban},
+    chat::{Chat, ChatConfig, ChatUser, Message},
+    users::{role::Role, Ban, User},
     wsprotocol::protocol::{self, C2SPacket},
 };
 use futures_util::SinkExt;
@@ -71,12 +71,21 @@ impl WsClient {
     }
     async fn send_setup_packets(
         mut ws: DuplexStream,
-        clients: Vec<ChatUser>,
-        history: Vec<Arc<Message>>,
+        chat: &Chat,
+        starting_snowflake: Snowflake,
+        profanity: bool,
         local_id: u16,
         role: Role,
     ) -> Result<DuplexStream> {
-        ws.feed(protocol::new_setup(local_id, role)).await?;
+        let history = chat.history(starting_snowflake, profanity).await;
+        let clients = chat.users().await;
+
+        ws.feed(protocol::new_setup(
+            local_id,
+            role,
+            chat.config().max_stored_messages as u8,
+        ))
+        .await?;
 
         for client in clients {
             let mask_role = !role.is_mod() && !client.mod_badge();
@@ -93,30 +102,32 @@ impl WsClient {
     }
     pub async fn new(
         ws: DuplexStream,
-        clients: Vec<ChatUser>,
-        history: Vec<Arc<Message>>,
-        user_info: &ChatUser,
+        chat: &Chat,
+        user: &ChatUser,
+        starting_snowflake: Snowflake,
     ) -> Result<Self> {
         Ok(Self {
             ws: Self::send_setup_packets(
                 ws,
-                clients,
-                history,
-                user_info.local_id(),
-                user_info.role(),
+                chat,
+                starting_snowflake,
+                user.role().is_mod(),
+                user.local_id(),
+                user.role(),
             )
             .await?,
             ro: false,
-            role: user_info.role(),
+            role: user.role(),
         })
     }
     pub async fn new_ro(
         ws: DuplexStream,
-        clients: Vec<ChatUser>,
-        history: Vec<Arc<Message>>,
+        chat: &Chat,
+        starting_snowflake: Snowflake,
     ) -> Result<Self> {
         Ok(Self {
-            ws: Self::send_setup_packets(ws, clients, history, 0, Role::User).await?,
+            ws: Self::send_setup_packets(ws, chat, starting_snowflake, false, 0, Role::User)
+                .await?,
             ro: true,
             role: Role::User,
         })

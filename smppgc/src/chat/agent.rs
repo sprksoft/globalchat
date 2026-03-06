@@ -5,15 +5,19 @@ use nanotime::snowflake::Snowflake;
 use rocket::{get, request::Outcome, response, Responder, Shutdown, State};
 
 use log::*;
+use rocket_db_pools::Connection;
 use rocket_ws::{Channel, WebSocket};
+use sqlx::query;
 use tokio::sync::broadcast::error::RecvError;
 use wordfilter::TokenTag;
 
 use crate::{
     chat::{message_limits::LimitType, Chat, ChatEvent, MessageChangeType, NewClientError},
+    db::Db,
     disclaimer::DisclaimerVer,
     metrics::RequestTime,
     users::{Ban, BanError, NameClaimError, User, UserGuardError, UserManager},
+    utils::static_routing,
     wf::Filter,
     wsprotocol::{AdminCmd, C2SPacket, ModCmd, ProtoError, WsClient},
 };
@@ -52,6 +56,7 @@ pub async fn chat_socket<'a>(
     username: &str,
     start_time: Option<Snowflake>,
     mod_badge: Option<bool>,
+    mut db: Connection<Db>,
     ws: WebSocket,
     mut user_manager: UserManager,
     mesg_limiter: &'a State<MessageLimiter>,
@@ -77,12 +82,12 @@ pub async fn chat_socket<'a>(
     let my_role = user.role();
 
     if !my_role.is_mod() {
-        if let Some(ban) = user_manager.get_ban(user.id()).await? {
+        if let Some(ban) = user_manager.get_ban(&mut db, user.id()).await? {
             return Ok(ChatSocketResponder::ws_ban(ws, ban));
         }
     }
 
-    let claimed_name = match user_manager.claim_name(&user, username).await {
+    let claimed_name = match user_manager.claim_name(&mut db, &user, username).await {
         Ok(name_lease) => name_lease,
         Err(NameClaimError::Sqlx(e)) => return Err(response::Debug(e)),
         Err(NameClaimError::Invalid(invalid)) => {
@@ -112,13 +117,11 @@ pub async fn chat_socket<'a>(
 
     Ok(ChatSocketResponder::Channel(ws.channel(move |stream| {
         Box::pin(async move {
-            let chat_hist = chat.history(start_time, my_role.is_mod()).await;
-
             let mut wsclient = WsClient::new(
                 stream,
-                chat.users().await,
-                chat_hist,
-                chat_client.user()
+                chat,
+                chat_client.user(),
+                start_time
             )
             .await?;
 
@@ -138,7 +141,7 @@ pub async fn chat_socket<'a>(
                     }
                     mesg = wsclient.try_recv() => {
                         let packet = mesg?;
-                        on_packet(packet, &mut wsclient, &chat_client, &chat, &filter, &mesg_limiter, &mut user_manager).await?;
+                        on_packet(packet, &mut wsclient, &chat_client, &chat, &filter, &mesg_limiter, &mut user_manager, &mut db).await?;
                     }
                     event = chat_client.recv() => {
                         match event {
@@ -166,6 +169,7 @@ async fn on_packet(
     filter: &Filter,
     mesg_limiter: &MessageLimiter,
     user_manager: &mut UserManager,
+    db: &mut Connection<Db>,
 ) -> tokio_tungstenite::tungstenite::Result<()> {
     match packet {
         C2SPacket::Message(content) => {
@@ -186,8 +190,14 @@ async fn on_packet(
                                 "profanity (unreachable (this is a bug))"
                             });
                         }
+
                         let mesg = chat_client.new_message(content);
-                        wsclient.forward(&mesg).await?;
+                        let db_call = async {
+                            let content = mesg.content.str();
+                            query!("INSERT INTO messages(snowflake, sender_id, sender_name, content) VALUES($1, $2, $3, $4)", mesg.id().to_u64().cast_signed(), mesg.sender.user_id().to_i32(), mesg.sender.username(), content).execute(&mut ***db).await;
+                        };
+                        let (_, result) = tokio::join!(db_call, wsclient.forward(&mesg));
+                        result?;
                         mesg
                     }
                     Err(LimitType::Rate) => {
@@ -206,6 +216,15 @@ async fn on_packet(
             };
             messages_total::inc();
             chat_client.send(mesg);
+        }
+        C2SPacket::Report { message_id, reason } => {
+            match chat.report_message(db, message_id, chat_client.user().user_id(), reason).await {
+                Ok(()) => {},
+                Err(e) => {
+                    error!("Failed to report message: sql error: {}", e);
+                    wsclient.system_message("Kon bericht niet rapporteren");
+                }
+            }
         }
         C2SPacket::ModCmd(cmd) => {
             if !chat_client.user().role().is_mod() {
@@ -251,7 +270,7 @@ async fn on_mod_cmd(
             duration,
         } => match chat.get_author_uid(mesg).await {
             Some(uid) => match user_manager
-                .ban_user(uid, wsclient.role(), &reason, duration)
+                .ban_user(&mut, uid, wsclient.role(), &reason, duration)
                 .await
             {
                 Ok(()) => {
@@ -330,9 +349,7 @@ pub async fn readonly_chat_socket<'a>(
 
     Ok(ChatSocketResponder::Channel(ws.channel(move |stream| {
         Box::pin(async move {
-            let chat_hist = chat.history(start_time, false).await;
-
-            let mut wsclient = WsClient::new_ro(stream, chat.users().await, chat_hist).await?;
+            let mut wsclient = WsClient::new_ro(stream, chat, start_time).await?;
 
             loop {
                 tokio::select! {

@@ -10,7 +10,7 @@ import { Snowflake } from "./gcapi/nanotime.js";
 import { fixTextFields } from "./common/text.js";
 import { hasVirtKb, log } from "./common/utils.js";
 
-import { GCClient, type ApiVersion } from "./gcapi/protocol";
+import { GCClient, type ApiVersion, type ChatConfig } from "./gcapi/protocol";
 import { ProtoError } from "./gcapi/protoerr";
 import {
   clearProfWarn,
@@ -44,6 +44,8 @@ const constatus = document.getElementById(
 const login_popup = document.getElementById("login") as HTMLDialogElement;
 
 export let gcclient = new GCClient(WEBSOCKET_URL);
+
+export let chatConfig: ChatConfig | null = null;
 
 export interface HtmlMessage {
   html: HTMLElement;
@@ -81,6 +83,10 @@ function addMessage(message: Message, scroll: boolean, showControls: boolean) {
     log("appending message to end");
     messages.push({ html: msgEl, message: message });
     $("#mesgs").get(0)!.appendChild(msgEl);
+
+    while (messages.length > chatConfig!.maxMessages) {
+      delMessage(0);
+    }
   }
 
   requestAnimationFrame(() => {
@@ -158,8 +164,9 @@ function clearSendInput() {
 // Are we currently trying to reconnect in the background
 let background_reconnect = false;
 
-gcclient.on_join = (apiVersion: ApiVersion) => {
-  handle_version_check(apiVersion);
+gcclient.on_join = (config) => {
+  chatConfig = config;
+  handle_version_check(config.apiVersion);
   constatus.close();
   background_reconnect = false;
 };

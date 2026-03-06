@@ -20,4 +20,6 @@ export enum PacketC2SId {
   WF_COMMIT = 5,
   WF_LOCK = 6,
   WF_UNLOCK = 7,
+
+  REPORT = 8,
 }
