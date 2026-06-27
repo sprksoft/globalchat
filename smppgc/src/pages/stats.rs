@@ -4,8 +4,8 @@ use rocket::{fairing::AdHoc, get, routes, State};
 use rocket_dyn_templates::{context, Template};
 
 use crate::{
+    guards::user::AdminUser,
     themes::Theme,
-    users::AdminUser,
     wf::{Filter, WFTag},
 };
 

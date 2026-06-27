@@ -7,25 +7,12 @@ use rocket::{
 use rocket_db_pools::Connection;
 use sqlx::query;
 
-use super::{role::Role, SesId, UserConfig, UserId};
-use crate::db::Db;
+use crate::{
+    config::UserConfig,
+    db::Db,
+    models::{Role, SesId, User, UserId},
+};
 
-pub struct User {
-    role: Role,
-    id: UserId,
-    irl_name: Box<str>,
-}
-impl User {
-    pub fn id(&self) -> UserId {
-        self.id
-    }
-    pub fn role(&self) -> Role {
-        self.role
-    }
-    pub fn irl_name(&self) -> &str {
-        &self.irl_name
-    }
-}
 pub type UserGuardError = Option<rocket_db_pools::Error<sqlx::Error>>;
 
 #[async_trait]
@@ -46,11 +33,7 @@ impl<'r> FromRequest<'r> for User {
             .expect("Expected UserConfig to be available");
 
         match query!("SELECT users.role,users.id,users.irl_name FROM sessions INNER JOIN users ON sessions.user_id = users.id WHERE sessions.id = $1 AND EXTRACT(epoch from now())-sessions.created_at < $2", ses_id.inner(), user_config.max_session_age as f64).fetch_optional(&mut **con).await {
-            Ok(Some(u)) => Outcome::Success(User {
-                role: Role::from_i32(u.role).unwrap_or(Role::User),
-                id: UserId(u.id),
-                irl_name: u.irl_name.into(),
-            }),
+            Ok(Some(u)) => Outcome::Success(User::new(UserId::from_i32(u.id), Role::try_from(u.role).unwrap_or(Role::User),u.irl_name.into())),
             Ok(None) => Outcome::Forward(Status::Unauthorized),
             Err(e) => Outcome::Error((Status::InternalServerError, Some(rocket_db_pools::Error::Get(e)))),
         }
@@ -63,7 +46,7 @@ impl<'r> FromRequest<'r> for ModUser {
     type Error = Option<rocket_db_pools::Error<sqlx::Error>>;
     async fn from_request(req: &'r rocket::Request<'_>) -> request::Outcome<Self, Self::Error> {
         let user = try_outcome!(req.guard::<User>().await);
-        match user.role {
+        match user.role() {
             Role::Owner | Role::Admin | Role::Mod => Outcome::Success(ModUser(user)),
             Role::User => Outcome::Forward(Status::Forbidden),
         }
@@ -76,7 +59,7 @@ impl<'r> FromRequest<'r> for AdminUser {
     type Error = Option<rocket_db_pools::Error<sqlx::Error>>;
     async fn from_request(req: &'r rocket::Request<'_>) -> request::Outcome<Self, Self::Error> {
         let user = try_outcome!(req.guard::<User>().await);
-        match user.role {
+        match user.role() {
             Role::Owner | Role::Admin => Outcome::Success(AdminUser(user)),
             Role::Mod | Role::User => Outcome::Forward(Status::Forbidden),
         }

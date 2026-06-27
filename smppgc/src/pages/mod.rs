@@ -2,9 +2,10 @@ use rocket::{fairing::AdHoc, get, response::Redirect, routes, State};
 use rocket_dyn_templates::{context, Template};
 
 use crate::{
-    chat::MessageLimiter,
+    config::NameConfig,
+    models::{Role, User},
+    services::message_limiter_service::MessageLimiterService,
     themes::Theme,
-    users::{role::Role, User, UserConfig},
     utils::{AllowSmFrame, CatchForward},
 };
 
@@ -37,8 +38,8 @@ fn home(theme: Theme, user: CatchForward<User>) -> AllowSmFrame<Template> {
 fn chat(
     theme: Theme,
     user: User,
-    message_limiter: &State<MessageLimiter>,
-    user_config: &State<UserConfig>,
+    message_limiter: &State<MessageLimiterService>,
+    name_config: &State<NameConfig>,
     glass: bool,
 ) -> AllowSmFrame<Template> {
     let (min_message_len, max_message_len) = message_limiter.message_size_range();
@@ -50,7 +51,7 @@ fn chat(
             irl_name: user.irl_name(),
             role: user.role().to_i32(),
             is_mod: user.role().is_mod(),
-            max_username_len: user_config.max_username_len,
+            max_username_len: name_config.max_username_len,
             max_message_len: max_message_len,
             min_message_len: min_message_len),
     ))

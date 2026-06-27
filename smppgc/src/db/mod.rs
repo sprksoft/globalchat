@@ -3,9 +3,14 @@ use rocket::fairing::AdHoc;
 use rocket::response;
 use rocket_db_pools::Database;
 
-#[derive(Database)]
+#[derive(Clone, Database)]
 #[database("sqlx")]
 pub struct Db(sqlx::PgPool);
+impl Into<sqlx::PgPool> for Db {
+    fn into(self) -> sqlx::PgPool {
+        self.0
+    }
+}
 
 pub type DbResult<T, E = response::Debug<sqlx::Error>> = std::result::Result<T, E>;
 

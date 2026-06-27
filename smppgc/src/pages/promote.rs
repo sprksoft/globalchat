@@ -8,8 +8,9 @@ use sqlx::query;
 
 use crate::{
     db::{Db, DbResult},
+    guards::user::AdminUser,
+    models::{Role, SesId},
     themes::Theme,
-    users::{role::Role, AdminUser, SesId},
     utils::CatchForward,
 };
 

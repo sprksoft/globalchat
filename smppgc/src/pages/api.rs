@@ -5,7 +5,8 @@ use uuid::Uuid;
 use crate::{
     csrf::CSRFProtect,
     db::{Db, DbResult},
-    users::{role::Role, AdminUser, User},
+    guards::user::AdminUser,
+    models::{Role, User},
     utils::CatchForward,
 };
 use rocket::{fairing::AdHoc, get, post, routes, Responder};

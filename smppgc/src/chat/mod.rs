@@ -1,10 +1,7 @@
 use circular_queue::CircularQueue;
 use log::*;
 use nanotime::snowflake::{Snowflake, SnowflakeGenerator};
-use rocket::{fairing::AdHoc, routes};
-use rocket_db_pools::Connection;
-use serde::Deserialize;
-use sqlx::query;
+use rocket::fairing::AdHoc;
 use std::{
     collections::HashMap,
     sync::{atomic::AtomicUsize, Arc},
@@ -14,29 +11,20 @@ use tokio::sync::{
     Mutex, MutexGuard,
 };
 
-pub mod agent;
-mod chatuser;
-mod message;
-mod message_limits;
-pub use chatuser::*;
-pub use message::*;
-
-pub use message_limits::*;
-
 use crate::{
-    db::{Db, DbResult},
-    users::{ClaimedName, User, UserId},
+    config::ChatConfig,
+    models::{ChatUser, ClaimedName, Message, User, UserId},
     utils::IdCounter,
-    wf::{TokenizedString, WordFilter},
+    wf::WordFilter,
 };
 use lmetrics::metrics;
 use thiserror::Error;
 
+mod chat_client;
+mod ro_chat_client;
+pub use {chat_client::*, ro_chat_client::*};
+
 metrics! {
-    pub counter ro_joined_total("Total joined readonly users", []);
-    pub counter ro_left_total("Total joined readonly users", []);
-    pub counter joined_total("Total joined users",[]);
-    pub counter left_total("Total left users", []);
     pub counter history_events_lost_total("Total history events lost.");
 }
 
@@ -69,13 +57,6 @@ pub enum MessageChangeType {
 }
 
 type Users = HashMap<u16, StoredUser>;
-
-#[derive(Deserialize, Debug)]
-pub struct ChatConfig {
-    pub max_stored_messages: usize,
-    pub max_users: u16,
-    pub max_ro_users: usize,
-}
 
 pub struct Chat {
     event_sender: broadcast::Sender<ChatEvent>,
@@ -204,88 +185,18 @@ impl Chat {
         }
     }
 
-    pub async fn new_client(
+    pub(super) async fn new_client(
         &self,
         user: &User,
         leased_name: ClaimedName,
         mod_badge: bool,
         bypass_user_count: bool,
     ) -> Result<ChatClient, NewClientError> {
-        let mut user_lock = self.users.lock().await;
-        if !bypass_user_count
-            && self.config.max_users != 0
-            && self.config.max_users <= user_lock.len() as u16
-        {
-            return Err(NewClientError::MaxConcurrentUserCount);
-        }
-
-        let user_id = user.id();
-        let local_id = self.gen_client_id(&user_lock);
-
-        if user_lock
-            .iter()
-            .find(|(_, u)| !u.ghost && user_id == u.user.user_id())
-            .is_some()
-        {
-            return Err(NewClientError::AlreadyInChat);
-        }
-
-        let username: String = leased_name.into();
-        let user = Arc::from(ChatUser {
-            local_id,
-            user_id,
-            mod_badge,
-            role: user.role(),
-            username,
-        });
-
-        let user_count = user_lock.iter().filter(|(_, u)| !u.ghost).count();
-        let user_count = if user_count > u16::MAX as usize {
-            u16::MAX
-        } else {
-            user_count as u16
-        };
-        let client = ChatClient {
-            user_count,
-            user,
-            message_id_gen: self.message_ids.clone(),
-            event_receiver: self.event_sender.subscribe(),
-            event_sender: self.event_sender.clone(),
-        };
-
-        let _ = self
-            .event_sender
-            .send(ChatEvent::Join(client.user().clone())); // throws error when no receivers
-
-        user_lock.insert(
-            local_id,
-            StoredUser {
-                user: client.user().clone(),
-                ghost: false,
-                message_count: 0,
-            },
-        );
-        joined_total::inc();
-
-        Ok(client)
+        ChatClient::new(self, user, leased_name, mod_badge, bypass_user_count).await
     }
 
     pub async fn new_roclient(&self) -> Result<RoChatClient, NewClientError> {
-        if self
-            .ro_user_count
-            .load(std::sync::atomic::Ordering::Relaxed)
-            >= self.config.max_ro_users
-        {
-            return Err(NewClientError::MaxConcurrentUserCount);
-        }
-        self.ro_user_count
-            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-
-        ro_joined_total::inc();
-        Ok(RoChatClient {
-            event_receiver: self.event_sender.subscribe(),
-            ro_user_count: self.ro_user_count.clone(),
-        })
+        RoChatClient::new(self)
     }
 
     pub fn kick(&self, user_id: UserId) {
@@ -362,115 +273,22 @@ impl Chat {
             .cloned()
             .collect()
     }
-
-    pub async fn report_message(
-        &self,
-        db: &mut Connection<Db>,
-        message_id: Snowflake,
-        reporter_id: UserId,
-        reason: Box<str>,
-    ) -> Result<(), sqlx::Error> {
-        query!(
-            "INSERT INTO reports(message_snowflake, reporter_id, reason) VALUES($1, $2, $3)",
-            message_id.to_u64().cast_signed(),
-            reporter_id.to_i32(),
-            &reason
-        )
-        .execute(&mut ***db)
-        .await?;
-
-        Ok(())
-    }
-}
-
-pub struct RoChatClient {
-    ro_user_count: Arc<AtomicUsize>,
-    event_receiver: broadcast::Receiver<ChatEvent>,
-}
-impl RoChatClient {
-    #[inline]
-    pub async fn recv(&mut self) -> Result<ChatEvent, RecvError> {
-        self.event_receiver.recv().await
-    }
-}
-impl Drop for RoChatClient {
-    fn drop(&mut self) {
-        ro_left_total::inc();
-        self.ro_user_count
-            .fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
-    }
-}
-
-pub struct ChatClient {
-    user: Arc<ChatUser>,
-    message_id_gen: Arc<SnowflakeGenerator>,
-    event_sender: broadcast::Sender<ChatEvent>,
-    event_receiver: broadcast::Receiver<ChatEvent>,
-    user_count: u16,
-}
-impl ChatClient {
-    #[inline]
-    pub fn user(&self) -> &ChatUser {
-        &self.user
-    }
-
-    pub fn is_me(&self, id: u16) -> bool {
-        self.user().local_id() == id
-    }
-
-    #[inline]
-    pub fn new_message(&self, content: TokenizedString) -> Message {
-        Message {
-            id: self.message_id_gen.new_snowflake(),
-            content,
-            sender: self.user.clone(),
-        }
-    }
-
-    #[inline]
-    pub async fn recv(&mut self) -> Result<ChatEvent, RecvError> {
-        let event = self.event_receiver.recv().await?;
-        if matches!(event, ChatEvent::Join(_)) {
-            self.user_count += 1;
-        } else if matches!(event, ChatEvent::Leave(_)) {
-            self.user_count -= 1;
-        }
-
-        Ok(event)
-    }
-
-    #[inline]
-    pub fn send(&self, mesg: impl Into<Arc<Message>>) {
-        let _ = self.event_sender.send(ChatEvent::NewMessage(mesg.into()));
-    }
-}
-impl Drop for ChatClient {
-    fn drop(&mut self) {
-        let _ = self
-            .event_sender
-            .send(ChatEvent::Leave(self.user().clone()));
-    }
 }
 
 pub fn stage() -> AdHoc {
     AdHoc::on_ignite("chat", |r| async {
         let config = r
-            .figment()
-            .extract::<ChatConfig>()
-            .expect("No chat config found");
+            .state::<ChatConfig>()
+            .expect("No chat config found")
+            .clone();
 
-        r.mount(
-            "/",
-            routes![agent::chat_socket, agent::readonly_chat_socket],
-        )
-        .attach(message_limits::stage())
-        .manage(Chat::new(config))
-        .attach(AdHoc::on_shutdown("Chat shutdown", |r| {
-            Box::pin(async move {
-                if let Some(chat) = r.state::<Chat>() {
-                    chat.shutdown();
-                }
-            })
-        }))
+        r.manage(Chat::new(config))
+            .attach(AdHoc::on_shutdown("Chat shutdown", |r| {
+                Box::pin(async move {
+                    if let Some(chat) = r.state::<Chat>() {
+                        chat.shutdown();
+                    }
+                })
+            }))
     })
 }

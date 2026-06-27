@@ -48,7 +48,12 @@ impl<'r> FromRequest<'r> for SesId {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub struct UserId(pub(super) i32);
+pub struct UserId(i32);
+impl UserId {
+    pub fn from_i32(id: i32) -> Self {
+        Self(id)
+    }
+}
 impl UserId {
     pub fn to_i32(self) -> i32 {
         self.0

@@ -11,7 +11,7 @@ use rocket::{fairing::AdHoc, form::FromFormField};
 use thiserror::Error;
 use uuid::Uuid;
 
-use crate::users::SesId;
+use crate::models::SesId;
 
 enum Status {
     Pending,

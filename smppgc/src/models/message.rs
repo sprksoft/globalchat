@@ -1,9 +1,8 @@
 use std::sync::Arc;
 
-use crate::wf::TokenizedString;
-
-use super::ChatUser;
 use nanotime::snowflake::Snowflake;
+
+use crate::{models::ChatUser, wf::TokenizedString};
 
 #[derive(Clone, Debug)]
 pub struct Message {

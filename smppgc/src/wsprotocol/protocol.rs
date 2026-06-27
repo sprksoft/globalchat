@@ -3,8 +3,7 @@ use rocket::time::Duration;
 use tokio_tungstenite::tungstenite;
 
 use crate::{
-    chat::{ChatUser, Message},
-    users::role::Role,
+    models::{ChatUser, Message, Role},
     wsprotocol::{
         packets::{packet, Packet, PacketC2SId, PacketDecodeError, PacketField, PacketId},
         reader::{self, Reader},

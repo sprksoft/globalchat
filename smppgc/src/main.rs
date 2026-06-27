@@ -13,15 +13,20 @@ use utils::static_routing;
 use utils::AllowSmFrame;
 
 mod chat;
+mod config;
 mod csrf;
 mod db;
 mod disclaimer;
+mod endpoints;
+mod guards;
 mod metrics;
+mod models;
 mod oauth;
 mod pages;
 mod ratelimit;
+mod repositories;
+mod services;
 mod themes;
-mod users;
 mod utils;
 mod version_int;
 mod wf;
@@ -113,10 +118,11 @@ fn rocket() -> _ {
         .attach(metrics::stage())
         .attach(db::stage())
         .attach(static_routing::stage())
-        .attach(users::stage())
+        .attach(config::stage())
         .attach(pages::stage())
         .attach(wf::stage())
         .attach(oauth::stage())
         .attach(chat::stage())
         .attach(csrf::stage())
+        .attach(endpoints::stage())
 }

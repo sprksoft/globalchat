@@ -1,25 +1,7 @@
 use dashmap::DashMap;
-use rocket::{fairing::AdHoc, serde::Deserialize};
+use rocket::fairing::AdHoc;
 
-use crate::{
-    ratelimit::{RateLimitConfig, RateLimiter},
-    users::UserId,
-};
-
-pub type MessageLen = u16;
-
-#[derive(Deserialize, Debug, Clone)]
-#[serde(crate = "rocket::serde")]
-pub struct MessageLimits {
-    pub small_len: MessageLen,
-    pub max_len: MessageLen,
-    pub min_len: MessageLen,
-    pub large_penalty: u32,
-
-    pub max_spam: u32,
-
-    pub ratelimit: RateLimitConfig,
-}
+use crate::{config::MessageLimitsConfig, models::UserId, ratelimit::RateLimiter};
 
 struct Profile {
     spam: u32,
@@ -33,12 +15,12 @@ pub enum LimitType {
     Size,
 }
 
-pub struct MessageLimiter {
-    config: MessageLimits,
+pub struct MessageLimiterService {
+    config: MessageLimitsConfig,
     map: DashMap<UserId, Profile>,
 }
-impl MessageLimiter {
-    pub fn new(config: MessageLimits) -> Self {
+impl MessageLimiterService {
+    pub fn new(config: MessageLimitsConfig) -> Self {
         Self {
             config,
             map: DashMap::new(),
@@ -53,7 +35,7 @@ impl MessageLimiter {
         }
     }
 
-    pub fn message_size_range(&self) -> (MessageLen, MessageLen) {
+    pub fn message_size_range(&self) -> (u16, u16) {
         (self.config.min_len, self.config.max_len)
     }
 
@@ -102,10 +84,10 @@ impl MessageLimiter {
 
 pub fn stage() -> AdHoc {
     AdHoc::on_ignite("Message Limits", |r| async {
-        let config: MessageLimits = r
-            .figment()
-            .extract_inner("message_limits")
-            .expect("Failed to load message limits");
-        r.manage(MessageLimiter::new(config))
+        let config = r
+            .state::<MessageLimitsConfig>()
+            .expect("Failed to load message limits config")
+            .clone();
+        r.manage(MessageLimiterService::new(config))
     })
 }

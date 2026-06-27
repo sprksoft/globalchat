@@ -16,12 +16,12 @@ use rocket_dyn_templates::{context, Template};
 use sqlx;
 use uuid::Uuid;
 
-use crate::{db::Db, users::UserConfig};
+use crate::{config::UserConfig, db::Db};
+use crate::{models::SesId, oauth::pses_store::CompletionResult};
 use crate::{
     oauth::client::StateCheckError,
     themes::{self},
 };
-use crate::{oauth::pses_store::CompletionResult, users::SesId};
 
 use self::client::{OAuthError, OAuthProviderConfig};
 

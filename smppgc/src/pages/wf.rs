@@ -6,8 +6,8 @@ use rocket_dyn_templates::{context, Template};
 use crate::{
     chat::Chat,
     csrf::CSRFProtect,
+    guards::user::{AdminUser, ModUser},
     themes::Theme,
-    users::{AdminUser, ModUser},
     wf::{Filter, WFTag, WordInfo},
 };
 

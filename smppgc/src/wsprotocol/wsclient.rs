@@ -1,6 +1,6 @@
 use crate::{
-    chat::{Chat, ChatConfig, ChatUser, Message},
-    users::{role::Role, Ban, User},
+    chat::Chat,
+    models::{Ban, ChatUser, Message, Role},
     wsprotocol::protocol::{self, C2SPacket},
 };
 use futures_util::SinkExt;
@@ -11,7 +11,7 @@ use rocket_ws::{
     result::Result,
     stream::DuplexStream,
 };
-use std::{borrow::Cow, sync::Arc};
+use std::borrow::Cow;
 use thiserror::Error;
 use tokio_tungstenite::tungstenite;
 use ts_import::import;

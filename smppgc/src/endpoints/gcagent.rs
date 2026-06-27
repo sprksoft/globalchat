@@ -12,17 +12,21 @@ use tokio::sync::broadcast::error::RecvError;
 use wordfilter::TokenTag;
 
 use crate::{
-    chat::{message_limits::LimitType, Chat, ChatEvent, MessageChangeType, NewClientError},
+    chat::{Chat, ChatClient, ChatEvent, MessageChangeType, NewClientError},
     db::Db,
     disclaimer::DisclaimerVer,
+    guards::user::UserGuardError,
     metrics::RequestTime,
-    users::{Ban, BanError, NameClaimError, User, UserGuardError, UserManager},
-    utils::static_routing,
+    models::{Ban, User},
+    repositories::BanError,
+    services::{
+        message_limiter_service::{LimitType, MessageLimiterService},
+        name_service::{NameClaimError, NameService},
+        user_service::{EnterChatError, UserService},
+    },
     wf::Filter,
     wsprotocol::{AdminCmd, C2SPacket, ModCmd, ProtoError, WsClient},
 };
-
-use super::{message_limits::MessageLimiter, ChatClient};
 
 metrics!(
     pub counter total_connections_waiting_millis("Total amount milliseconds users spend waiting for the connection to the agent to succeed");
@@ -58,8 +62,9 @@ pub async fn chat_socket<'a>(
     mod_badge: Option<bool>,
     mut db: Connection<Db>,
     ws: WebSocket,
-    mut user_manager: UserManager,
-    mesg_limiter: &'a State<MessageLimiter>,
+    user_service: UserService,
+    name_service: NameService,
+    mesg_limiter: &'a State<MessageLimiterService>,
     filter: &'a State<Arc<Filter>>,
     chat: &'a State<Chat>,
     mut shutdown: Shutdown,
@@ -81,13 +86,13 @@ pub async fn chat_socket<'a>(
     let start_time = start_time.unwrap_or(Snowflake::ZERO);
     let my_role = user.role();
 
-    if !my_role.is_mod() {
-        if let Some(ban) = user_manager.get_ban(&mut db, user.id()).await? {
-            return Ok(ChatSocketResponder::ws_ban(ws, ban));
-        }
+    match user_service.enter_chat(&user).await {
+        Ok(()) => {}
+        Err(EnterChatError::Banned(ban)) => return Ok(ChatSocketResponder::ws_ban(ws, ban)),
+        Err(EnterChatError::Sqlx(e)) => return Err(e.into()),
     }
 
-    let claimed_name = match user_manager.claim_name(&mut db, &user, username).await {
+    let claimed_name = match name_service.claim_name(user.id(), username).await {
         Ok(name_lease) => name_lease,
         Err(NameClaimError::Sqlx(e)) => return Err(response::Debug(e)),
         Err(NameClaimError::Invalid(invalid)) => {
@@ -141,7 +146,7 @@ pub async fn chat_socket<'a>(
                     }
                     mesg = wsclient.try_recv() => {
                         let packet = mesg?;
-                        on_packet(packet, &mut wsclient, &chat_client, &chat, &filter, &mesg_limiter, &mut user_manager, &mut db).await?;
+                        on_packet(packet, &mut wsclient, &chat_client, &chat, &filter, &mesg_limiter, &user_service, &mut db).await?;
                     }
                     event = chat_client.recv() => {
                         match event {
@@ -167,8 +172,8 @@ async fn on_packet(
     chat_client: &ChatClient,
     chat: &Chat,
     filter: &Filter,
-    mesg_limiter: &MessageLimiter,
-    user_manager: &mut UserManager,
+    mesg_limiter: &MessageLimiterService,
+    user_service: &UserService,
     db: &mut Connection<Db>,
 ) -> tokio_tungstenite::tungstenite::Result<()> {
     match packet {
@@ -192,12 +197,7 @@ async fn on_packet(
                         }
 
                         let mesg = chat_client.new_message(content);
-                        let db_call = async {
-                            let content = mesg.content.str();
-                            query!("INSERT INTO messages(snowflake, sender_id, sender_name, content) VALUES($1, $2, $3, $4)", mesg.id().to_u64().cast_signed(), mesg.sender.user_id().to_i32(), mesg.sender.username(), content).execute(&mut ***db).await;
-                        };
-                        let (_, result) = tokio::join!(db_call, wsclient.forward(&mesg));
-                        result?;
+                        wsclient.forward(&mesg).await?;
                         mesg
                     }
                     Err(LimitType::Rate) => {
@@ -218,11 +218,16 @@ async fn on_packet(
             chat_client.send(mesg);
         }
         C2SPacket::Report { message_id, reason } => {
-            match chat.report_message(db, message_id, chat_client.user().user_id(), reason).await {
-                Ok(()) => {},
+            match user_service
+                .report_message(chat_client.user().user_id(), message_id, reason)
+                .await
+            {
+                Ok(()) => {}
                 Err(e) => {
                     error!("Failed to report message: sql error: {}", e);
-                    wsclient.system_message("Kon bericht niet rapporteren");
+                    wsclient
+                        .system_message("Kon bericht niet rapporteren")
+                        .await?;
                 }
             }
         }
@@ -233,7 +238,7 @@ async fn on_packet(
                     .await?;
                 return Ok(());
             }
-            on_mod_cmd(cmd, wsclient, chat, filter, user_manager).await?;
+            on_mod_cmd(cmd, wsclient, chat, filter, user_service).await?;
         }
         C2SPacket::AdminCmd(cmd) => {
             if chat_client.user().role().is_admin() {
@@ -254,7 +259,7 @@ async fn on_mod_cmd(
     wsclient: &mut WsClient,
     chat: &Chat,
     filter: &Filter,
-    user_manager: &mut UserManager,
+    user_service: &UserService,
 ) -> tokio_tungstenite::tungstenite::Result<()> {
     match cmd {
         ModCmd::DelMsg(snowflake) => {
@@ -269,8 +274,8 @@ async fn on_mod_cmd(
             reason,
             duration,
         } => match chat.get_author_uid(mesg).await {
-            Some(uid) => match user_manager
-                .ban_user(&mut, uid, wsclient.role(), &reason, duration)
+            Some(uid) => match user_service
+                .ban_user(uid, wsclient.role(), &reason, duration)
                 .await
             {
                 Ok(()) => {
@@ -393,7 +398,7 @@ async fn on_event(
     match event {
         ChatEvent::Join(new_user) => {
             if let Some(cc) = chat_client {
-                wsclient.update_user_count(cc.user_count).await?;
+                wsclient.update_user_count(cc.user_count()).await?;
             }
             if !is_me(new_user.local_id(), chat_client) {
                 wsclient.forward_user(&new_user).await?;
@@ -401,7 +406,7 @@ async fn on_event(
         }
         ChatEvent::Leave(_) => {
             if let Some(cc) = chat_client {
-                wsclient.update_user_count(cc.user_count).await?;
+                wsclient.update_user_count(cc.user_count()).await?;
             }
         }
         ChatEvent::NewMessage(mesg) => {

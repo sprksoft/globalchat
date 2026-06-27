@@ -1,12 +1,12 @@
-use crate::users::{role::Role, UserId};
+use crate::models::{Role, UserId};
 
 #[derive(Debug, Clone)]
 pub struct ChatUser {
-    pub(super) username: String,
-    pub(super) mod_badge: bool,
-    pub(super) user_id: UserId,
-    pub(super) local_id: u16,
-    pub(super) role: Role,
+    pub(crate) username: String,
+    pub(crate) mod_badge: bool,
+    pub(crate) user_id: UserId,
+    pub(crate) local_id: u16,
+    pub(crate) role: Role,
 }
 impl ChatUser {
     pub fn username(&self) -> &str {
