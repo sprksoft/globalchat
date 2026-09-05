@@ -6,8 +6,10 @@ Not very long ago right before your time: Famine, Murder, the world was crazy, e
 
 1. Install docker & docker compose this can be easily done by installing [docker desktop](https://docs.docker.com/desktop/setup/install/windows-install)
 2. Install docker desktop and [just](https://github.com/casey/just)
-3. (Optional) Install rust analyzer for autocomplete and nice features. If using vscode you can [download the rust analyzer extension](https://code.visualstudio.com/docs/languages/rust)
-4. Run `just` in the project root and wait until everything has finished
+3. Install the latest stable [rust compiler](https://rustup.rs)
+4. Run `cargo install sqlx-cli` to install the cli sqlx tools.
+5. (Optional) Install rust analyzer for autocomplete and nice features. If using vscode you can [download the rust analyzer extension](https://code.visualstudio.com/docs/languages/rust)
+6. Run `just` in the project root and wait until everything has finished
 
 > [!NOTE]
 > If you make changes to the code you should use `just build` to force a rebuild
